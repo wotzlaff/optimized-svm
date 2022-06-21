@@ -102,8 +102,8 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 l_val = mf[0](1.0 - y_val_pred * y[idx_val]).sum()
                 err += l_val
 
-                k = kernel(xs_tr, xs_sv)
-                ka = k.dot(a[idx_sv]) / lmbda
+                k_tr_sv = kernel(xs_tr, xs_sv)
+                ka = k_tr_sv.dot(a[idx_sv]) / lmbda
 
                 dec = ka + b
                 f = shift - y[idx_tr] * dec
@@ -120,18 +120,18 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_val_p = k_val_sv[:, idx_p_in_sv]
                 dk_val_sv = -2.0 * k_val_sv * diff(xs_val, xs_sv)
 
-                k_tr_sv = k[idx_p, :]
-                k_tr_p = k_tr_sv[:, idx_p_in_sv]
+                k_p_sv = k_tr_sv[idx_p, :]
+                k_p_p = k_p_sv[:, idx_p_in_sv]
 
                 # dlmbda:
                 rhs_p = h_p * ka[idx_p]
-                da_p, db = solve_rendered(k_tr_p, h_p, rhs_p, lmbda)
+                da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
                 derr[0] += dl_val.dot(k_val_p.dot(da_p) / lmbda + db - ka_val)
 
                 # dgamma:
-                dk_tr_p = -2.0 * k_tr_sv * diff(xs_tr[idx_p], xs_sv)
+                dk_tr_p = -2.0 * k_p_sv * diff(xs_tr[idx_p], xs_sv)
                 rhs_p = -h_p * dk_tr_p.dot(a[idx_sv]) / lmbda
-                da_p, db = solve_rendered(k_tr_p, h_p, rhs_p, lmbda)
+                da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
                 derr[1] += dl_val.dot(
                     dk_val_sv.dot(a[idx_sv]) / lmbda +
                     k_val_p.dot(da_p) / lmbda + db
