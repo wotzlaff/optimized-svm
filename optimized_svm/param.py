@@ -121,20 +121,15 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
                 # dlmbda:
                 rhs_p = h_p * ka[idx_p]
-                # da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
-                # derr[0] += dl_val.dot(
-                #     k_val_p.dot(da_p) / lmbda + db - ka_val
-                # )
-                derr[0] += gamma_p.dot(rhs_p) - dl_val.dot(ka_val)
+                derr[0] += (
+                    gamma_p.dot(rhs_p)
+                    +
+                    -dl_val.dot(ka_val)
+                )
 
                 # dgamma:
                 dk_tr_p = -2.0 * k_p_sv * diff(xs_tr[idx_p], xs_sv)
                 rhs_p = -h_p * dk_tr_p.dot(al_sv)
-                # da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
-                # derr[1] += dl_val.dot(
-                #     dk_val_sv.dot(al_sv) +
-                #     k_val_p.dot(da_p) / lmbda + db
-                # )
                 derr[1] += (
                     gamma_p.dot(rhs_p)
                     +
