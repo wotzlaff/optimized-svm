@@ -59,6 +59,12 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             assert scaling_params.size == 1
             return scaling_params
 
+        def loss(t, y, mf):
+            m, dm = mf[:2]
+            ell = m(1.0 - t * y).sum()
+            dell = -y * dm(1.0 - t * y)
+            return ell, dell
+
         def objective_function(param):
             log_lmbda = param[0]
             lmbda = np.exp(log_lmbda)
@@ -91,7 +97,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_val_sv = kernel(xs_val, xs_sv)
                 ka_val = k_val_sv.dot(al_sv)
                 y_val_pred = ka_val + b
-                l_val = m(1.0 - y_val_pred * y[idx_val]).sum()
+                l_val, dl_val = loss(y_val_pred, y[idx_val], mf)
                 err += l_val
 
                 # compute decision function values
@@ -112,7 +118,6 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_val_p = k_val_sv[:, idx_p_in_sv]
 
                 # solve transposed system
-                dl_val = -y[idx_val] * dm(1.0 - y_val_pred * y[idx_val])
                 lhs_p = dl_val.dot(k_val_p) / lmbda
                 lhs_0 = dl_val.sum()
                 hu_p, _ = solve_transposed(k_p_p, h_p, lhs_p, lhs_0, lmbda)
