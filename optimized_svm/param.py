@@ -7,8 +7,8 @@ from sklearn.model_selection import KFold
 
 
 from smooth_max import maxfun
-from deriv_check import check_grad
-from rendered import solve_rendered, solve_rendered_transposed
+# from deriv_check import check_grad
+from rendered import solve_rendered_transposed as solve_transposed
 
 
 def diff(x1, x2, idx=slice(None)):
@@ -77,66 +77,56 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                     self._params['smoothingParam'],
                     shift,
                 )
+                # extract solution
                 al = a / lmbda
-
                 idx_sv = a != 0.0
                 al_sv = al[idx_sv]
+
+                # scale inputs
                 xs_val = gamma[:, None] * x[idx_val]
                 xs_tr = gamma[:, None] * x[idx_tr]
                 xs_sv = xs_tr[idx_sv]
+
+                # compute validation estimates and error
                 k_val_sv = kernel(xs_val, xs_sv)
                 ka_val = k_val_sv.dot(al_sv)
                 y_val_pred = ka_val + b
                 l_val = mf[0](1.0 - y_val_pred * y[idx_val]).sum()
                 err += l_val
 
+                # compute decision function values
                 k_tr_sv = kernel(xs_tr, xs_sv)
                 ka = k_tr_sv.dot(al_sv)
-
                 dec = ka + b
                 f = shift - y[idx_tr] * dec
                 h = mf[2](f)
 
-                dl_val = -y[idx_val] * mf[1](1.0 - y_val_pred * y[idx_val])
-
+                # extract relevant part
                 idx_p = h > 0
                 idx_p_in_sv = h[idx_sv] > 0
                 h_p = h[idx_p]
                 if h_p.size == 0:
                     return np.inf, np.zeros_like(derr)
-
-                k_val_p = k_val_sv[:, idx_p_in_sv]
-                dk_val_sv = -2.0 * k_val_sv * diff(xs_val, xs_sv)
-
                 k_p_sv = k_tr_sv[idx_p, :]
                 k_p_p = k_p_sv[:, idx_p_in_sv]
+                k_val_p = k_val_sv[:, idx_p_in_sv]
 
+                # solve transposed system
+                dl_val = -y[idx_val] * mf[1](1.0 - y_val_pred * y[idx_val])
                 lhs_p = dl_val.dot(k_val_p) / lmbda
                 lhs_0 = dl_val.sum()
-                gamma_p, _ = solve_rendered_transposed(
-                    k_p_p, h_p,
-                    lhs_p, lhs_0,
-                    lmbda,
-                )
+                u_p, _ = solve_transposed(k_p_p, h_p, lhs_p, lhs_0, lmbda)
 
                 # dlmbda:
                 rhs_p = h_p * ka[idx_p]
-                derr[0] += (
-                    gamma_p.dot(rhs_p)
-                    +
-                    -dl_val.dot(ka_val)
-                )
+                derr[0] += u_p.dot(rhs_p) - dl_val.dot(ka_val)
 
                 # dgamma:
+                dk_val_sv = -2.0 * k_val_sv * diff(xs_val, xs_sv)
                 dk_tr_p = -2.0 * k_p_sv * diff(xs_tr[idx_p], xs_sv)
                 rhs_p = -h_p * dk_tr_p.dot(al_sv)
-                derr[1] += (
-                    gamma_p.dot(rhs_p)
-                    +
-                    dl_val.dot(dk_val_sv.dot(al_sv))
-                )
+                derr[1] += u_p.dot(rhs_p) + dl_val.dot(dk_val_sv.dot(al_sv))
 
-            print(lmbda, gamma[0], err, derr)
             return err, derr
 
         p0 = np.log([self._params['lmbda'], self._params['gamma']])
