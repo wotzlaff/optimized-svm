@@ -77,12 +77,13 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             derr = np.zeros(2)
             for idx_tr, idx_val in splits:
 
-                a, b, _c = solve_twostep(
+                res = solve_twostep(
                     gamma * x[idx_tr], y[idx_tr],
                     mf, lmbda, 1.0,
                     self._params['smoothingParam'],
                     shift,
                 )
+                a, b = res['a'], res['b']
                 # extract solution
                 al = a / lmbda
                 idx_sv = a != 0.0
@@ -102,7 +103,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
                 # compute decision function values
                 k_tr_sv = kernel(xs_tr, xs_sv)
-                ka = k_tr_sv.dot(al_sv)
+                ka = res['ka']
                 dec = ka + b
                 f = shift - y[idx_tr] * dec
                 h = ddm(f)

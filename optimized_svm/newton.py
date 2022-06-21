@@ -105,8 +105,11 @@ def solve(
         a = an
         b = bn
         ka = kan
-    z = a, b, c
-    return z
+    return dict(
+        a=a, b=b, c=c,
+        ka=ka,
+        g=g, h=h,
+    )
 
 
 def kernel(x1, x2, gamma):
@@ -141,11 +144,10 @@ def solve_twostep(
     c = result['c']
     z = a, b, c
 
-    z = solve(
+    return solve(
         x, y, kernel,
         gamma, lmbda, shift,
         maxfun,
         z,
         verbose=verbose,
     )
-    return z
