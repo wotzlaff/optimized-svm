@@ -7,9 +7,8 @@ from sklearn.model_selection import KFold
 
 
 from smooth_max import maxfun
-from deriv_check import DerChecker
-from rendered import solve_rendered
-dc = DerChecker()
+from deriv_check import check_grad
+from rendered import solve_rendered, solve_rendered_transposed
 
 
 def diff(x1, x2, idx=slice(None)):
@@ -78,19 +77,21 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                     self._params['smoothingParam'],
                     shift,
                 )
+                al = a / lmbda
 
                 idx_sv = a != 0.0
+                al_sv = al[idx_sv]
                 xs_val = gamma[:, None] * x[idx_val]
                 xs_tr = gamma[:, None] * x[idx_tr]
                 xs_sv = xs_tr[idx_sv]
                 k_val_sv = kernel(xs_val, xs_sv)
-                ka_val = k_val_sv.dot(a[idx_sv]) / lmbda
+                ka_val = k_val_sv.dot(al_sv)
                 y_val_pred = ka_val + b
                 l_val = mf[0](1.0 - y_val_pred * y[idx_val]).sum()
                 err += l_val
 
                 k_tr_sv = kernel(xs_tr, xs_sv)
-                ka = k_tr_sv.dot(a[idx_sv]) / lmbda
+                ka = k_tr_sv.dot(al_sv)
 
                 dec = ka + b
                 f = shift - y[idx_tr] * dec
@@ -110,18 +111,34 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_p_sv = k_tr_sv[idx_p, :]
                 k_p_p = k_p_sv[:, idx_p_in_sv]
 
+                lhs_p = dl_val.dot(k_val_p) / lmbda
+                lhs_0 = dl_val.sum()
+                gamma_p, _ = solve_rendered_transposed(
+                    k_p_p, h_p,
+                    lhs_p, lhs_0,
+                    lmbda,
+                )
+
                 # dlmbda:
                 rhs_p = h_p * ka[idx_p]
-                da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
-                derr[0] += dl_val.dot(k_val_p.dot(da_p) / lmbda + db - ka_val)
+                # da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
+                # derr[0] += dl_val.dot(
+                #     k_val_p.dot(da_p) / lmbda + db - ka_val
+                # )
+                derr[0] += gamma_p.dot(rhs_p) - dl_val.dot(ka_val)
 
                 # dgamma:
                 dk_tr_p = -2.0 * k_p_sv * diff(xs_tr[idx_p], xs_sv)
-                rhs_p = -h_p * dk_tr_p.dot(a[idx_sv]) / lmbda
-                da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
-                derr[1] += dl_val.dot(
-                    dk_val_sv.dot(a[idx_sv]) / lmbda +
-                    k_val_p.dot(da_p) / lmbda + db
+                rhs_p = -h_p * dk_tr_p.dot(al_sv)
+                # da_p, db = solve_rendered(k_p_p, h_p, rhs_p, lmbda)
+                # derr[1] += dl_val.dot(
+                #     dk_val_sv.dot(al_sv) +
+                #     k_val_p.dot(da_p) / lmbda + db
+                # )
+                derr[1] += (
+                    gamma_p.dot(rhs_p)
+                    +
+                    dl_val.dot(dk_val_sv.dot(al_sv))
                 )
 
             print(lmbda, gamma[0], err, derr)
@@ -164,7 +181,7 @@ if __name__ == '__main__':
 
     svm = OptimizedSVM(dict(
         lmbda=0.1,
-        gamma=1.0,
+        gamma=0.5,
         smoothingParam=0.2,
         shift=1.0
     ))
