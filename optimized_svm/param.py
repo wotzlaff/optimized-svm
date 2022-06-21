@@ -102,7 +102,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 l_val = mf[0](1.0 - y_val_pred * y[idx_val]).sum()
                 err += l_val
 
-                k = kernel(xs_tr, xs_sv, 1.0)
+                k = kernel(xs_tr, xs_sv)
                 ka = k.dot(a[idx_sv]) / lmbda
 
                 dec = ka + b
@@ -112,14 +112,16 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 dl_val = -y[idx_val] * mf[1](1.0 - y_val_pred * y[idx_val])
 
                 idx_p = h > 0
+                idx_p_in_sv = h[idx_sv] > 0
                 h_p = h[idx_p]
                 if h_p.size == 0:
                     return np.inf, np.zeros_like(derr)
 
-                k_val_p = kernel(xs_val, xs_tr[idx_p])
+                k_val_p = k_val_sv[:, idx_p_in_sv]
                 dk_val_sv = -2.0 * k_val_sv * diff(xs_val, xs_sv)
 
-                k_tr_p = kernel(xs_tr[idx_p], xs_tr[idx_p])
+                k_tr_sv = k[idx_p, :]
+                k_tr_p = k_tr_sv[:, idx_p_in_sv]
 
                 # dlmbda:
                 rhs_p = h_p * ka[idx_p]
@@ -127,22 +129,13 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 derr[0] += dl_val.dot(k_val_p.dot(da_p) / lmbda + db - ka_val)
 
                 # dgamma:
-                dk_tr_p = -2.0 * kernel(xs_tr[idx_p], xs_sv) * diff(xs_tr[idx_p], xs_sv)
+                dk_tr_p = -2.0 * k_tr_sv * diff(xs_tr[idx_p], xs_sv)
                 rhs_p = -h_p * dk_tr_p.dot(a[idx_sv]) / lmbda
                 da_p, db = solve_rendered(k_tr_p, h_p, rhs_p, lmbda)
                 derr[1] += dl_val.dot(
                     dk_val_sv.dot(a[idx_sv]) / lmbda +
                     k_val_p.dot(da_p) / lmbda + db
                 )
-
-                # da = np.zeros_like(a)
-                # da[idx_p] = da_p
-                # dc.push(a)
-                # dc.compare(da)
-                # dc.push(b)
-                # dc.compare(db)
-                # dc.push(kernel(xs_tr[idx_p], xs_sv))
-                # dc.compare(dk_tr_p)
 
             print(lmbda, gamma[0], err, derr)
             return err, derr
