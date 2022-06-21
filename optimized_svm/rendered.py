@@ -23,5 +23,6 @@ def solve_rendered_transposed(k_p, h_p, lhs_p, lhs_0, lmbda):
     q_p = cho_solve(qm_cho, np.ones_like(lhs_p))
 
     u_0 = (p_p.sum() - lhs_0) / q_p.sum()
-    u_p = (p_p - u_0 * q_p) / h_p
-    return u_p, u_0
+    # return scaled hu_p = h_p * u_p
+    hu_p = p_p - u_0 * q_p
+    return hu_p, u_0
