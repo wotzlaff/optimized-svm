@@ -64,7 +64,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             lmbda = np.exp(log_lmbda)
             log_gamma = get_scaling(param[1:])
             gamma = np.exp(log_gamma)
-            mf = maxfun(self._params['smoothingParam'])
+            m, dm, ddm = mf = maxfun(self._params['smoothingParam'])
             shift = self._params['shift']
 
             err = 0.0
@@ -91,7 +91,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_val_sv = kernel(xs_val, xs_sv)
                 ka_val = k_val_sv.dot(al_sv)
                 y_val_pred = ka_val + b
-                l_val = mf[0](1.0 - y_val_pred * y[idx_val]).sum()
+                l_val = m(1.0 - y_val_pred * y[idx_val]).sum()
                 err += l_val
 
                 # compute decision function values
@@ -99,7 +99,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 ka = k_tr_sv.dot(al_sv)
                 dec = ka + b
                 f = shift - y[idx_tr] * dec
-                h = mf[2](f)
+                h = ddm(f)
 
                 # extract relevant part
                 idx_p = h > 0
@@ -112,7 +112,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_val_p = k_val_sv[:, idx_p_in_sv]
 
                 # solve transposed system
-                dl_val = -y[idx_val] * mf[1](1.0 - y_val_pred * y[idx_val])
+                dl_val = -y[idx_val] * dm(1.0 - y_val_pred * y[idx_val])
                 lhs_p = dl_val.dot(k_val_p) / lmbda
                 lhs_0 = dl_val.sum()
                 u_p, _ = solve_transposed(k_p_p, h_p, lhs_p, lhs_0, lmbda)
