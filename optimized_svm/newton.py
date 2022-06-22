@@ -77,7 +77,7 @@ def solve(
     maxfun,
     z0=None,
     max_steps=10000,
-    tol=1e-10,
+    tol=1e-12,
     max_steps_back=10,
     sigma=0.1,
     beta=0.1,
@@ -105,8 +105,18 @@ def solve(
     )
 
     m, dm, ddm = maxfun
+    recompute_ka = False
+    fresh_ka = True
 
     for _ in range(max_steps):
+        if recompute_ka:
+            if verbose != 0:
+                print('  ... recompute ka')
+            idx_sv = a != 0
+            ka = kernel(x, x[idx_sv], gamma).dot(a[idx_sv]) / lmbda
+            recompute_ka = False
+            fresh_ka = True
+
         # compute gradient and rhs
         dec = ka + b
         f = shift - y * dec
@@ -121,22 +131,16 @@ def solve(
             break
 
         # try Newton step
-        res = newton_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
-        if res is not None:
-            a, b, ka = res
+        result = newton_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
+        if result is not None:
+            a, b, ka = result
+            fresh_ka = False
             continue
 
-        # recompute ka and try again
-        if verbose != 0:
-            print('  ... recompute ka')
-        idx_sv = a != 0
-        ka = kernel(x, x[idx_sv], gamma).dot(a[idx_sv]) / lmbda
-        res = newton_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
-        if res is not None:
-            a, b, ka = res
-            continue
+        if fresh_ka:
+            raise RuntimeError('step failed')
+        recompute_ka = True
 
-        raise RuntimeError('step failed')
     return dict(
         a=a, b=b, c=c,
         ka=ka, g=g,
