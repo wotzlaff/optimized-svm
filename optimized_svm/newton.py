@@ -2,6 +2,8 @@ import numpy as np
 from scipy.linalg import cho_factor, cho_solve
 import nimsmo
 
+from smooth_max import maxfun as get_maxfun
+
 
 def solve_system(k_p, a, g, h, lmbda):
     idx_p = h > 0.0
@@ -205,3 +207,50 @@ def solve_twostep(
         z,
         verbose=verbose,
     )
+
+
+if __name__ == '__main__':
+    np.random.seed(42)
+    n, nft = 100, 10
+    x = np.random.rand(n, nft)
+    yr = np.sin(np.pi * x).sum(axis=1)
+    y = np.where(yr > np.median(yr), 1.0, -1.0)
+
+    lmbda = 0.1
+    gamma = 0.5
+    smoothingParam = 0.1
+    shift = 1.0
+    maxAsum = 20.0
+
+    result = nimsmo.solve(
+        x.tolist(),
+        y.tolist(),
+        lmbda,
+        gamma,
+        maxAsum=maxAsum,
+        smoothingParam=smoothingParam,
+        shift=shift,
+        tolViolation=1e-8,
+        verbose=100,
+        shrinkingPeriod=100,
+    )
+
+    a = np.array(result['a'])
+    b = result['b']
+    c = result['c']
+    z = a, b, c
+
+    # check optimality conditions
+    m, dm, ddm = get_maxfun(smoothingParam, deg='2')
+    idx_sv = a != 0
+    k = kernel(x, x[idx_sv], gamma)
+    ka = k.dot(a[idx_sv]) / lmbda
+
+    dec = ka + b + y * c
+    f = shift - y * dec
+    val = m(f)
+    obj = 0.5 * ka.dot(a) + val.sum()
+    g = -y * dm(f)
+    r = a + g
+
+    print(r.dot(r), a.sum(), a.dot(y) - maxAsum)
