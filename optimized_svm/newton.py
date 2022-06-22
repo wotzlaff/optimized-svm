@@ -25,20 +25,28 @@ def solve_system(k_p, a, g, h, lmbda):
     return d, d_0
 
 
-def newton_step(
+def descent_step(
     a, b,
     x, y, ka, obj, f, g, r,
     maxfun,
     params,
+    direction,
 ):
     m, dm, ddm = maxfun
     lmbda = params['lmbda']
     gamma = params['gamma']
-    # solve Newton system
-    h = ddm(f)
-    idx_p = h > 0
-    k_p = kernel(x[idx_p], x, gamma)
-    dn, dn_0 = solve_system(k_p, a, g, h, lmbda)
+
+    if direction == 'newton':
+        # compute Newton direction
+        h = ddm(f)
+        idx_p = h > 0
+        k_p = kernel(x[idx_p], x, gamma)
+        dn, dn_0 = solve_system(k_p, a, g, h, lmbda)
+    elif direction == 'gradient':
+        # use preconditioned gradient
+        dn, dn_0 = r, lmbda * g.sum()
+    else:
+        raise ValueError('unknown value for direction')
 
     # compute predicted decrease
     idx_d = np.abs(dn) > params['tol']
@@ -55,47 +63,6 @@ def newton_step(
         bn = b - t * dn_0
 
         kan = ka - t * kernel(x, x[idx_d], gamma).dot(dn[idx_d]) / lmbda
-        decn = kan + bn
-        fn = params['shift'] - y * decn
-        valn = m(fn)
-        objn = 0.5 * kan.dot(an) + valn.sum()
-        if params['verbose'] != 0:
-            print(f'  [{_+1}] objective value: {objn}')
-
-        if objn < obj - params['sigma'] * t * dgrad + params['tol']:
-            break
-        t *= params['beta']
-    else:
-        return
-    return an, bn, kan
-
-
-def gradient_step(
-    a, b,
-    x, y, ka, obj, f, g, r,
-    maxfun,
-    params,
-):
-    m, dm, ddm = maxfun
-    lmbda = params['lmbda']
-    gamma = params['gamma']
-
-    dn, dn_0 = r, lmbda * g.sum()
-
-    # compute predicted decrease
-    idx_r = np.abs(r) > params['tol']
-    dgrad = kernel(
-        x[idx_r], x[idx_r], gamma
-    ).dot(r[idx_r]).dot(r[idx_r]) / lmbda ** 2 + g.sum() ** 2
-    assert dgrad > 0.0, 'no ascent direction'
-
-    # find step size
-    t = 1.0
-    for _ in range(params['max_steps_back']):
-        an = a - t * dn
-        bn = b - t * dn_0
-
-        kan = ka - t * kernel(x, x[idx_r], gamma).dot(dn[idx_r]) / lmbda
         decn = kan + bn
         fn = params['shift'] - y * decn
         valn = m(fn)
@@ -172,15 +139,20 @@ def solve(
             break
 
         # try Newton step
-        result = newton_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
+        result = descent_step(
+            a, b, x, y, ka, obj, f, g, r, maxfun, params,
+            direction='newton',
+        )
         if result is not None:
             a, b, ka = result
             fresh_ka = False
             continue
 
         if fresh_ka:
-            print('use gradient step')
-            result = gradient_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
+            result = descent_step(
+                a, b, x, y, ka, obj, f, g, r, maxfun, params,
+                direction='gradient',
+            )
             if result is not None:
                 a, b, ka = result
                 fresh_ka = False
