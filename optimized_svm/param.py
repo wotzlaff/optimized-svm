@@ -28,7 +28,7 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
         self._params = params
 
     def fit(self, x, y):
-        z = solve_twostep(
+        res = solve_twostep(
             self._params['gamma'] * x, y,
             maxfun(self._params['smoothingParam']),
             self._params['lmbda'],
@@ -36,7 +36,7 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
             self._params['smoothingParam'],
             self._params['shift'],
         )
-        self._a, self._b, self._c = z
+        self._a, self._b, self._c = res['a'], res['b'], res['c']
         idx_sv = self._a != 0.0
         self._asv = self._a[idx_sv]
         self._xsv = x[idx_sv]
@@ -51,8 +51,9 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
 
 class OptimizedSVM(BaseEstimator, RegressorMixin):
 
-    def __init__(self, params):
+    def __init__(self, params, verbose=0):
         self._params = params
+        self._verbose = verbose
 
     def optimize_params(self, x, y, splits):
         def get_scaling(scaling_params):
@@ -72,6 +73,10 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             gamma = np.exp(log_gamma)
             m, dm, ddm = mf = maxfun(self._params['smoothingParam'])
             shift = self._params['shift']
+
+            if self._verbose > 0:
+                print(f'lmbda = {lmbda:14.8f}, ', end='')
+                print(f'gamma = {gamma[0]:14.8f}, ', end='')
 
             err = 0.0
             derr = np.zeros(2)
@@ -103,7 +108,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
                 # compute decision function values
                 k_tr_sv = kernel(xs_tr, xs_sv)
-                ka = res['ka']
+                ka = k_tr_sv.dot(al_sv)
                 dec = ka + b
                 f = shift - y[idx_tr] * dec
                 h = ddm(f)
@@ -133,6 +138,8 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 rhs_p = -dk_tr_p.dot(al_sv)
                 derr[1] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.dot(al_sv))
 
+            if self._verbose > 0:
+                print(f'err = {err:14.8f}, derr = {derr}')
             return err, derr
 
         p0 = np.log([self._params['lmbda'], self._params['gamma']])
@@ -173,16 +180,16 @@ if __name__ == '__main__':
     svm = OptimizedSVM(dict(
         lmbda=0.1,
         gamma=0.5,
-        smoothingParam=0.2,
+        smoothingParam=0.01,
         shift=1.0
     ))
-    svm.fit(x[:800], y[:800])
+    svm.fit(x[:n//2], y[:n//2])
 
     yest = svm.predict(x)
 
     import matplotlib.pyplot as plt
-    plt.plot(y[:800], yest[:800], 'kx')
-    plt.plot(y[800:] * 0.9, yest[800:], 'r+')
+    plt.plot(y[:n//2], yest[:n//2], 'kx')
+    plt.plot(y[n//2:] * 0.9, yest[n//2:], 'r+')
     plt.axhline(1.0)
     plt.axhline(0.0)
     plt.axhline(-1.0)
