@@ -62,7 +62,48 @@ def newton_step(
         if params['verbose'] != 0:
             print(f'  [{_+1}] objective value: {objn}')
 
-        if objn < obj - params['sigma'] * t * dgrad:
+        if objn < obj - params['sigma'] * t * dgrad + params['tol']:
+            break
+        t *= params['beta']
+    else:
+        return
+    return an, bn, kan
+
+
+def gradient_step(
+    a, b,
+    x, y, ka, obj, f, g, r,
+    maxfun,
+    params,
+):
+    m, dm, ddm = maxfun
+    lmbda = params['lmbda']
+    gamma = params['gamma']
+
+    dn, dn_0 = r, lmbda * g.sum()
+
+    # compute predicted decrease
+    idx_r = np.abs(r) > params['tol']
+    dgrad = kernel(
+        x[idx_r], x[idx_r], gamma
+    ).dot(r[idx_r]).dot(r[idx_r]) / lmbda ** 2 + g.sum() ** 2
+    assert dgrad > 0.0, 'no ascent direction'
+
+    # find step size
+    t = 1.0
+    for _ in range(params['max_steps_back']):
+        an = a - t * dn
+        bn = b - t * dn_0
+
+        kan = ka - t * kernel(x, x[idx_r], gamma).dot(dn[idx_r]) / lmbda
+        decn = kan + bn
+        fn = params['shift'] - y * decn
+        valn = m(fn)
+        objn = 0.5 * kan.dot(an) + valn.sum()
+        if params['verbose'] != 0:
+            print(f'  [{_+1}] objective value: {objn}')
+
+        if objn < obj - params['sigma'] * t * dgrad + params['tol']:
             break
         t *= params['beta']
     else:
@@ -138,6 +179,12 @@ def solve(
             continue
 
         if fresh_ka:
+            print('use gradient step')
+            result = gradient_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
+            if result is not None:
+                a, b, ka = result
+                fresh_ka = False
+                continue
             raise RuntimeError('step failed')
         recompute_ka = True
 
