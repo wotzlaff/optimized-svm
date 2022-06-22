@@ -61,9 +61,10 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             return scaling_params
 
         def loss(t, y, mf):
+            shift = 1.0
             m, dm = mf[:2]
-            ell = m(1.0 - t * y).sum()
-            dell = -y * dm(1.0 - t * y)
+            ell = m(shift - t * y).sum()
+            dell = -y * dm(shift - t * y)
             return ell, dell
 
         def objective_function(param):
@@ -87,6 +88,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                     mf, lmbda, 1.0,
                     self._params['smoothingParam'],
                     shift,
+                    tolSmo=1e-1,
                 )
                 a, b = res['a'], res['b']
                 # extract solution
