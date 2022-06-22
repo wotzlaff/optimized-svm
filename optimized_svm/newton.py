@@ -25,6 +25,51 @@ def solve_system(k_p, a, g, h, lmbda):
     return d, d_0
 
 
+def newton_step(
+    a, b,
+    x, y, ka, obj, f, g, r,
+    maxfun,
+    params,
+):
+    m, dm, ddm = maxfun
+    lmbda = params['lmbda']
+    gamma = params['gamma']
+    # solve Newton system
+    h = ddm(f)
+    idx_p = h > 0
+    k_p = kernel(x[idx_p], x, gamma)
+    dn, dn_0 = solve_system(k_p, a, g, h, lmbda)
+
+    # compute predicted decrease
+    idx_d = np.abs(dn) > params['tol']
+    idx_r = np.abs(r) > params['tol']
+    dgrad = kernel(
+        x[idx_d], x[idx_r], gamma
+    ).dot(r[idx_r]).dot(dn[idx_d]) / lmbda + dn_0 * g.sum()
+    assert dgrad > 0.0, 'no ascent direction'
+
+    # find step size
+    t = 1.0
+    for _ in range(params['max_steps_back']):
+        an = a - t * dn
+        bn = b - t * dn_0
+
+        kan = ka - t * kernel(x, x[idx_d], gamma).dot(dn[idx_d]) / lmbda
+        decn = kan + bn
+        fn = params['shift'] - y * decn
+        valn = m(fn)
+        objn = 0.5 * kan.dot(an) + valn.sum()
+        if params['verbose'] != 0:
+            print(f'  [{_+1}] objective value: {objn}')
+
+        if objn < obj - params['sigma'] * t * dgrad:
+            break
+        t *= params['beta']
+    else:
+        return
+    return an, bn, kan
+
+
 def solve(
     x, y,
     kernel,
@@ -32,7 +77,7 @@ def solve(
     maxfun,
     z0=None,
     max_steps=10000,
-    tol=1e-12,
+    tol=1e-10,
     max_steps_back=10,
     sigma=0.1,
     beta=0.1,
@@ -51,6 +96,14 @@ def solve(
         k = kernel(x, x_sv, gamma)
         ka = k.dot(a[idx_sv]) / lmbda
 
+    params = dict(
+        lmbda=lmbda, gamma=gamma, shift=shift,
+        tol=tol,
+        max_steps=max_steps, max_steps_back=max_steps_back,
+        sigma=sigma, beta=beta,
+        verbose=verbose,
+    )
+
     m, dm, ddm = maxfun
 
     for _ in range(max_steps):
@@ -67,48 +120,26 @@ def solve(
         if res < tol:
             break
 
-        # solve Newton system
-        h = ddm(f)
-        idx_p = h > 0
-        k_p = kernel(x[idx_p], x, gamma)
-        dn, dn_0 = solve_system(k_p, a, g, h, lmbda)
+        # try Newton step
+        res = newton_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
+        if res is not None:
+            a, b, ka = res
+            continue
 
-        # compute predicted decrease
-        idx_d = np.abs(dn) > tol
-        idx_r = np.abs(r) > tol
-        dgrad = kernel(
-            x[idx_d], x[idx_r], gamma
-        ).dot(r[idx_r]).dot(dn[idx_d]) / lmbda + dn_0 * g.sum()
-        assert dgrad > 0.0, 'no ascent direction'
+        # recompute ka and try again
+        if verbose != 0:
+            print('  ... recompute ka')
+        idx_sv = a != 0
+        ka = kernel(x, x[idx_sv], gamma).dot(a[idx_sv]) / lmbda
+        res = newton_step(a, b, x, y, ka, obj, f, g, r, maxfun, params)
+        if res is not None:
+            a, b, ka = res
+            continue
 
-        # find step size
-        t = 1.0
-        for _sub in range(max_steps_back):
-            an = a - t * dn
-            bn = b - t * dn_0
-
-            kan = ka - t * kernel(x, x[idx_d], gamma).dot(dn[idx_d]) / lmbda
-            decn = kan + bn
-            fn = shift - y * decn
-            valn = m(fn)
-            objn = 0.5 * kan.dot(an) + valn.sum()
-            if verbose != 0:
-                print(f'  [{_+1}:{_sub+1}] objective value: {objn}')
-
-            if objn < obj - sigma * t * dgrad:
-                break
-            t *= beta
-        else:
-            raise RuntimeError('no feasible step size')
-
-        # update
-        a = an
-        b = bn
-        ka = kan
+        raise RuntimeError('step failed')
     return dict(
         a=a, b=b, c=c,
-        ka=ka,
-        g=g, h=h,
+        ka=ka, g=g,
     )
 
 
