@@ -2,7 +2,6 @@ import numpy as np
 from scipy.linalg import cho_factor, cho_solve
 import nimsmo
 
-from smooth_max import get_maxfun
 from kernel import rbf_kernel as kernel
 
 
