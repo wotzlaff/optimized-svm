@@ -3,6 +3,12 @@ from scipy.linalg import cho_factor, cho_solve
 
 
 def solve(qm, qv, r, r0):
+    if qm.size == 0:
+        print('warning: singularity')
+        if type(qv) is tuple:
+            return np.zeros_like(r), tuple([0.0] * len(r0))
+        else:
+            return np.zeros_like(r), 0.0
     q_cho = cho_factor(qm, overwrite_a=True)
     if type(qv) is tuple:
         a = np.stack(qv, axis=-1)
@@ -16,24 +22,6 @@ def solve(qm, qv, r, r0):
         u0 = (qir.dot(qv) - r0) / qiqv.dot(qv)
         u = qir - u0 * qiqv
         return u, u0
-
-
-def solve_rendered(k_p, h_p, rhs_p, rhs_0, lmbda):
-    return solve(
-        k_p / lmbda + np.diag(1.0 / h_p),
-        np.ones_like(rhs_p),
-        rhs_p / h_p,
-        rhs_0,
-    )
-
-
-def solve_rendered_nu(k_p, h_p, s_p, rhs_p, rhs_1, rhs_s, lmbda):
-    return solve(
-        k_p / lmbda + np.diag(1.0 / h_p),
-        (np.ones_like(rhs_p), s_p),
-        rhs_p / h_p,
-        (rhs_1, rhs_s),
-    )
 
 
 def solve_rendered_transposed(k_p, h_p, lhs_p, lhs_0, lmbda):

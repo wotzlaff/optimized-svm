@@ -7,19 +7,8 @@ from sklearn.model_selection import KFold
 
 
 from smooth_max import get_maxfun
-# from deriv_check import check_grad
 from rendered import solve_rendered_transposed as solve_transposed
-
-
-def diff(x1, x2, idx=slice(None)):
-    x1sqr = (x1[:, idx] * x1[:, idx]).sum(axis=1)
-    x2sqr = (x2[:, idx] * x2[:, idx]).sum(axis=1)
-    d = x1sqr[:, None] + x2sqr[None, :] - 2.0 * x1[:, idx].dot(x2[:, idx].T)
-    return d
-
-
-def kernel(x1, x2, gamma=1.0):
-    return np.exp(-gamma * diff(x1, x2, slice(None)))
+from kernel import rbf_kernel as kernel, diff
 
 
 class SimpleSVM(BaseEstimator, RegressorMixin):
@@ -29,15 +18,8 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
 
     def fit(self, x, y):
         res = solve_twostep(
-            self._params['gamma'] * x, y,
-            get_maxfun(
-                self._params['smoothingParam'],
-                self._params['maxfunDegree'],
-            ),
-            self._params['lmbda'],
-            1.0,
-            self._params['smoothingParam'],
-            self._params['shift'],
+            self._params['gamma'] * x, y, kernel,
+            dict(self._params, gamma=1.0),
         )
         self._a, self._b, self._c = res['a'], res['b'], res['c']
         idx_sv = self._a != 0.0
@@ -75,7 +57,9 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             lmbda = np.exp(log_lmbda)
             log_gamma = get_scaling(param[1:])
             gamma = np.exp(log_gamma)
-            m, dm, ddm = mf = get_maxfun(self._params['smoothingParam'])
+            m, dm, ddm = mf = get_maxfun(
+                self._params['smoothingParam'], self._params['maxfunDegree'],
+            )
             shift = self._params['shift']
 
             if self._verbose > 0:
@@ -85,13 +69,9 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             err = 0.0
             derr = np.zeros(2)
             for idx_tr, idx_val in splits:
-
                 res = solve_twostep(
-                    gamma * x[idx_tr], y[idx_tr],
-                    mf, lmbda, 1.0,
-                    self._params['smoothingParam'],
-                    shift,
-                    tolSmo=1e-1,
+                    gamma * x[idx_tr], y[idx_tr], kernel,
+                    dict(self._params, lmbda=lmbda, gamma=1.0),
                 )
                 a, b = res['a'], res['b']
                 # extract solution
@@ -156,6 +136,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             method='L-BFGS-B',
             options=dict(disp=True),
             jac=True,
+            bounds=[(-15, 5), (-15, 5)],
         )
         p_opt = res.x
         self._params.update(dict(
@@ -185,9 +166,12 @@ if __name__ == '__main__':
     svm = OptimizedSVM(dict(
         lmbda=0.1,
         gamma=0.5,
-        smoothingParam=0.01,
+        smoothingParam=0.1,
         shift=1.0,
         maxfunDegree='2',
+        tolSmo=1e-2,
+        tolNewton=1e-10,
+        # verbose=10000,
     ))
     svm.fit(x[:n//2], y[:n//2])
 
