@@ -2,24 +2,35 @@ import numpy as np
 import nimsmo
 
 from kernel import rbf_kernel as kernel
-from rendered import solve_rendered
+import rendered
 from smooth_max import get_maxfun
 
 
-def solve_system(k_p, a, g, h, lmbda):
+def solve_system(k_p, a, s, g, h, lmbda, max_asum):
     idx_p = h > 0.0
     idx_z = ~idx_p
     d = np.zeros_like(a)
     d_z = a[idx_z] + g[idx_z]
     d[idx_z] = d_z
-    d_p, d_0 = solve_rendered(
-        k_p[:, idx_p], h[idx_p],
-        a[idx_p] + g[idx_p] - h[idx_p] * k_p[:, idx_z].dot(d_z) / lmbda,
-        a.sum() - d_z.sum(),
-        lmbda,
-    )
-    d[idx_p] = d_p
-    return d, d_0
+    h_p = h[idx_p]
+    if np.isinf(max_asum):
+        d_p, db = rendered.solve(
+            k_p[:, idx_p] / lmbda + np.diag(1.0 / h_p),
+            np.ones_like(h_p),
+            (a[idx_p] + g[idx_p]) / h_p - k_p[:, idx_z].dot(d_z) / lmbda,
+            a.sum() - d_z.sum(),
+        )
+        d[idx_p] = d_p
+        return d, db
+    else:
+        d_p, (db, dc) = rendered.solve(
+            k_p[:, idx_p] / lmbda + np.diag(1.0 / h_p),
+            (np.ones_like(h_p), s[idx_p]),
+            (a[idx_p] + g[idx_p]) / h_p - k_p[:, idx_z].dot(d_z) / lmbda,
+            (a.sum() - d_z.sum(), a.dot(s) - max_asum - s[idx_z].dot(d_z)),
+        )
+        d[idx_p] = d_p
+        return d, db, dc
 
 
 def descent_step(
@@ -31,20 +42,36 @@ def descent_step(
     m, dm, ddm = get_maxfun(params['smoothingParam'], params['maxfunDegree'])
     lmbda = params['lmbda']
     gamma = params['gamma']
+    max_asum = params.get('maxAsum', float('inf'))
+    s = y
 
-    if direction == 'newton':
-        # compute Newton direction
-        h = ddm(f)
-        idx_p = h > 0
-        k_p = kernel(x[idx_p], x, gamma)
-        dn, dn_b = solve_system(k_p, a, g, h, lmbda)
-        dn_c = 0.0
-    elif direction == 'gradient':
-        # use preconditioned gradient
-        dn, dn_b = r, lmbda * g.sum()
-        dn_c = 0.0
+    if np.isinf(max_asum):
+        if direction == 'newton':
+            # compute Newton direction
+            h = ddm(f)
+            idx_p = h > 0
+            k_p = kernel(x[idx_p], x, gamma)
+            dn, dn_b = solve_system(k_p, a, s, g, h, lmbda, max_asum)
+            dn_c = 0.0
+        elif direction == 'gradient':
+            # use preconditioned gradient
+            dn, dn_b = r, lmbda * g.sum()
+            dn_c = 0.0
+        else:
+            raise ValueError('unknown value for direction')
     else:
-        raise ValueError('unknown value for direction')
+        if direction == 'newton':
+            # compute Newton direction
+            h = ddm(f)
+            idx_p = h > 0
+            k_p = kernel(x[idx_p], x, gamma)
+            dn, (dn_b, dn_c) = solve_system(k_p, a, g, h, lmbda, max_asum)
+        elif direction == 'gradient':
+            # use preconditioned gradient
+            dn, dn_b = r, lmbda * g.sum()
+            dn_c = 0.0
+        else:
+            raise ValueError('unknown value for direction')
 
     # compute predicted decrease
     idx_d = np.abs(dn) > params['tol']
