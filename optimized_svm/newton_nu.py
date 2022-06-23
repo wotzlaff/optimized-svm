@@ -6,7 +6,7 @@ from smooth_max import get_maxfun
 from kernel import rbf_kernel as kernel
 
 
-def solve_system_nu(k_p, a, s, g, h, lmbda, maxasum):
+def solve_system(k_p, a, s, g, h, lmbda, maxasum):
     idx_p = h > 0.0
     idx_z = ~idx_p
     d = np.zeros_like(a)
@@ -41,7 +41,7 @@ def solve_system_nu(k_p, a, s, g, h, lmbda, maxasum):
     return d, d1, ds
 
 
-def descent_step_nu(
+def descent_step(
     a, b, c,
     x, y, ka, obj, f, g, r,
     maxfun,
@@ -59,7 +59,7 @@ def descent_step_nu(
         h = ddm(f)
         idx_p = h > 0
         k_p = kernel(x[idx_p], x, gamma)
-        dn, dn_b, dn_c = solve_system_nu(
+        dn, dn_b, dn_c = solve_system(
             k_p, a, s, g, h,
             lmbda, max_asum,
         )
@@ -103,7 +103,7 @@ def descent_step_nu(
     return an, bn, cn, kan
 
 
-def solve_nu(
+def solve(
     x, y,
     kernel,
     gamma, lmbda, max_asum, shift,
@@ -171,7 +171,7 @@ def solve_nu(
             continue
 
         # try Newton step
-        result = descent_step_nu(
+        result = descent_step(
             a, b, c, x, y, ka, obj, f, g, r, maxfun, params,
             direction='newton',
         )
@@ -217,7 +217,7 @@ def solve_twostep(
     c = result['c']
     z = a, b, c
 
-    return solve_nu(
+    return solve(
         x, y, kernel,
         gamma, lmbda, max_asum, shift,
         maxfun,
