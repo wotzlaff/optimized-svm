@@ -30,9 +30,18 @@ class ParamBase:
         )[2](t)
 
 
-class Classification(ParamBase):
+class KernelBase:
+    def kernel(self, x=None, idx=None, idx0=None):
+        x0 = self._x if idx0 is None else self._x[idx0]
+        if x is not None:
+            return kernel(x0, x, self._params['gamma'])
+        if idx is not None:
+            return kernel(x0, self._x[idx], self._params['gamma'])
+
+
+class Classification(ParamBase, KernelBase):
     def __init__(self, x, y, params):
-        super().__init__(params)
+        ParamBase.__init__(self, params)
         self._x = x
         self._y = y
 
@@ -43,13 +52,6 @@ class Classification(ParamBase):
     @property
     def sign(self):
         return self._y
-
-    def kernel(self, x=None, idx=None, idx0=None):
-        x0 = self._x if idx0 is None else self._x[idx0]
-        if x is not None:
-            return kernel(x0, x, self._params['gamma'])
-        if idx is not None:
-            return kernel(x0, self._x[idx], self._params['gamma'])
 
     def loss(self, t):
         return self.m(self._params['shift'] - self._y * t)
