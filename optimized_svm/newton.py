@@ -138,7 +138,10 @@ def solve(
         if verbose != 0:
             print(f'[{_+1}] objective value: {obj}, residual: {res}')
         if res < tol:
-            break
+            if fresh_ka:
+                break
+            recompute_ka = True
+            continue
 
         # try Newton step
         result = descent_step(
