@@ -136,7 +136,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             method='L-BFGS-B',
             options=dict(disp=True),
             jac=True,
-            bounds=[(-15, 5), (-15, 5)],
+            bounds=[(-10, 5), (-10, 5)],
         )
         p_opt = res.x
         self._params.update(dict(
