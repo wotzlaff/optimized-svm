@@ -12,10 +12,6 @@ def solve_system(k_p, a, g, h, lmbda):
     d = np.zeros_like(a)
     d_z = a[idx_z] + g[idx_z]
     d[idx_z] = d_z
-
-    if d_z.size == d.size:
-        return d, 0.0
-
     d_p, d_0 = solve_rendered(
         k_p[:, idx_p], h[idx_p],
         a[idx_p] + g[idx_p] - h[idx_p] * k_p[:, idx_z].dot(d_z) / lmbda,
