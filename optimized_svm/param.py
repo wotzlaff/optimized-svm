@@ -54,7 +54,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             assert scaling_params.size == 1
             return scaling_params
 
-        def loss(t, y, mf):
+        def validation_loss(t, y, mf):
             shift = 1.0
             m, dm = mf[:2]
             ell = m(shift - t * y).sum()
@@ -93,7 +93,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_val_sv = kernel(xs_val, xs_sv)
                 ka_val = k_val_sv.dot(al_sv)
                 y_val_pred = ka_val + b
-                l_val, dl_val = loss(y_val_pred, y[idx_val], mf)
+                l_val, dl_val = validation_loss(y_val_pred, y[idx_val], mf)
                 err += l_val
 
                 # compute decision function values
