@@ -4,7 +4,6 @@ from scipy.linalg import cho_factor, cho_solve
 
 def solve(qm, qv, r, r0):
     if qm.size == 0:
-        print('warning: singularity')
         if type(qv) is tuple:
             return np.zeros_like(r), tuple([0.0] * len(r0))
         else:
