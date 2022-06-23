@@ -6,10 +6,13 @@ from sample import data
 from kernel import rbf_kernel as kernel
 import rendered
 from smooth_max import get_maxfun
+import problem
 
 
-def solve_system(k_p, a, s, g, h, lmbda, max_asum):
+def solve_system(prob, dec, a, g, lmbda, max_asum):
+    h = prob.ddloss(dec)
     idx_p = h > 0.0
+    k_p = prob.kernel(idx=idx_p).T
     idx_z = ~idx_p
     da = np.zeros_like(a)
     da_z = a[idx_z] + g[idx_z]
@@ -25,6 +28,7 @@ def solve_system(k_p, a, s, g, h, lmbda, max_asum):
         da[idx_p] = d_p
         return da, db, 0.0
     else:
+        s = prob.sign
         d_p, (db, dc) = rendered.solve(
             k_p[:, idx_p] / lmbda + np.diag(1.0 / h_p),
             (np.ones_like(h_p), s[idx_p]),
@@ -38,22 +42,20 @@ def solve_system(k_p, a, s, g, h, lmbda, max_asum):
         return da, db, dc
 
 
-def descent_step(z, x, y, ka, obj, f, g, r, params, direction='newton'):
+def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
+    params = prob.params
     a, b, c = z
-    m, dm, ddm = get_maxfun(params['smoothingParam'], params['maxfunDegree'])
     lmbda = params['lmbda']
-    gamma = params['gamma']
-    s = y
     max_asum = params.get('maxAsum', float('inf'))
     has_asum = ~np.isinf(max_asum)
     tol = params['tolNewton']
 
     if direction == 'newton':
         # compute Newton direction
-        h = ddm(f)
-        idx_p = h > 0
-        k_p = kernel(x[idx_p], x, gamma)
-        dn_a, dn_b, dn_c = solve_system(k_p, a, s, g, h, lmbda, max_asum)
+        dn_a, dn_b, dn_c = solve_system(
+            prob, dec,
+            a, g, lmbda, max_asum,
+        )
     elif direction == 'gradient':
         # use preconditioned gradient
         dn_a, dn_b = r, lmbda * g.sum()
@@ -67,8 +69,8 @@ def descent_step(z, x, y, ka, obj, f, g, r, params, direction='newton'):
     # compute predicted decrease
     idx_d = np.abs(dn_a) > tol
     idx_r = np.abs(r) > tol
-    dgrad = kernel(
-        x[idx_d], x[idx_r], gamma
+    dgrad = prob.kernel(
+        idx=idx_r, idx0=idx_d
     ).dot(r[idx_r]).dot(dn_a[idx_d]) / lmbda
     dgrad += dn_b * g.sum()
     if has_asum:
@@ -84,16 +86,10 @@ def descent_step(z, x, y, ka, obj, f, g, r, params, direction='newton'):
         an = a - t * dn_a
         bn = b - t * dn_b
         cn = c - t * dn_c
+        zn = (an, bn, cn)
 
-        kan = ka - t * kernel(x, x[idx_d], gamma).dot(dn_a[idx_d]) / lmbda
-        decn = kan + bn + s * cn
-        fn = params['shift'] - y * decn
-        valn = m(fn)
-        objn = 0.5 * kan.dot(an)
-        objn += valn.sum()
-        if has_asum:
-            objn += cn * max_asum
-
+        kan = ka - t * prob.kernel(idx=idx_d).dot(dn_a[idx_d]) / lmbda
+        objn = prob.objective(zn, kan)
         if params.get('verbose', 0) != 0:
             print(f'  [{_+1}] objective value: {objn}')
 
@@ -102,30 +98,27 @@ def descent_step(z, x, y, ka, obj, f, g, r, params, direction='newton'):
         t *= params.get('beta', 0.1)
     else:
         return
-    return (an, bn, cn), kan
+    return zn, kan
 
 
-def solve(x, y, kernel, params, z0=None):
-    gamma = params['gamma']
+def solve(prob, z0=None):
+    params = prob.params
     lmbda = params['lmbda']
     verbose = params.get('verbose', 0)
     max_asum = params.get('maxAsum', float('inf'))
     has_asum = ~np.isinf(max_asum)
 
     if z0 is None:
-        n = x.shape[0]
+        n = prob.size
         z = np.zeros(n), 0.0, 0.0
         ka = np.zeros(n)
     else:
         z = z0
         a = z[0]
+        assert a.size == prob.size
         idx_sv = a != 0
-        x_sv = x[idx_sv]
-        k = kernel(x, x_sv, gamma)
-        ka = k.dot(a[idx_sv]) / lmbda
+        ka = prob.kernel(idx=idx_sv).dot(a[idx_sv]) / lmbda
 
-    s = y
-    m, dm, ddm = get_maxfun(params['smoothingParam'], params['maxfunDegree'])
     recompute_ka = False
     fresh_ka = True
 
@@ -136,19 +129,14 @@ def solve(x, y, kernel, params, z0=None):
             if verbose != 0:
                 print('  ... recompute ka')
             idx_sv = a != 0
-            ka = kernel(x, x[idx_sv], gamma).dot(a[idx_sv]) / lmbda
+            ka = prob.kernel(idx=idx_sv).dot(a[idx_sv]) / lmbda
             recompute_ka = False
             fresh_ka = True
 
         # compute gradient and rhs
-        dec = ka + b + s * c
-        f = params['shift'] - y * dec
-        val = m(f)
-        obj = 0.5 * ka.dot(a)
-        obj += val.sum()
-        if has_asum:
-            obj += c * max_asum
-        g = -y * dm(f)
+        dec, obj = prob.decision_objective(z, ka)
+        g = prob.dloss(dec)
+
         r = a + g
         res = np.mean(np.array(r) ** 2)
         res += g.sum() ** 2
@@ -163,7 +151,7 @@ def solve(x, y, kernel, params, z0=None):
             continue
 
         # try Newton step
-        result = descent_step(z, x, y, ka, obj, f, g, r, params)
+        result = descent_step(prob, z, ka, dec, obj, g, r)
         if result is not None:
             z, ka = result
             fresh_ka = False
@@ -171,7 +159,7 @@ def solve(x, y, kernel, params, z0=None):
 
         if fresh_ka:
             result = descent_step(
-                z, x, y, ka, obj, f, g, r, params,
+                prob, z, ka, dec, obj, g, r,
                 direction='gradient',
             )
             if result is not None:
@@ -187,7 +175,7 @@ def solve(x, y, kernel, params, z0=None):
 
 
 def solve_twostep(x, y, kernel, params):
-    result = nimsmo.solve(
+    result = nimsmo.solveClassification(
         x.tolist(), y.tolist(),
         params['lmbda'], params['gamma'],
         smoothingParam=params['smoothingParam'],
@@ -200,7 +188,8 @@ def solve_twostep(x, y, kernel, params):
     a = np.array(result['a'])
     b = result['b']
     c = result['c']
-    return solve(x, y, kernel, params, z0=(a, b, c))
+    prob = problem.Classification(x, y, params)
+    return solve(prob, z0=(a, b, c))
 
 
 if __name__ == '__main__':
@@ -209,12 +198,12 @@ if __name__ == '__main__':
     gamma = 0.2
 
     params = dict(
-        lmbda=1e-9,
+        lmbda=1e-3,
         gamma=1.0,
         smoothingParam=0.1,
         shift=1.0,
         verbose=1000,
-        tolSmo=1e-1,
+        tolSmo=1e-3,
         tolNewton=1e-12,
         maxfunDegree='2',
     )
