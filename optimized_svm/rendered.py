@@ -28,8 +28,6 @@ def solve_rendered(k_p, h_p, rhs_p, rhs_0, lmbda):
 
 
 def solve_rendered_nu(k_p, h_p, s_p, rhs_p, rhs_1, rhs_s, lmbda):
-    qm = k_p / lmbda + np.diag(1.0 / h_p)
-    a_p = rhs_p / h_p
     return solve_general(
         k_p / lmbda + np.diag(1.0 / h_p),
         (np.ones_like(rhs_p), s_p),
