@@ -16,7 +16,8 @@ def solve_system(k_p, a, g, h, lmbda):
         return d, 0.0
 
     an_p = (a[idx_p] + g[idx_p]) / h[idx_p] - k_p[:, idx_z].dot(d_z) / lmbda
-    an_0 = a[idx_p].sum() - g[idx_z].sum()
+    # an_0 = a[idx_p].sum() - g[idx_z].sum()
+    an_0 = a.sum() - d_z.sum()
     qm = np.diag(1.0 / h[idx_p]) + k_p[:, idx_p] / lmbda
     qm_cho = cho_factor(qm, overwrite_a=True)
     p_p = cho_solve(qm_cho, an_p)
