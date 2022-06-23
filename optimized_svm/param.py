@@ -49,7 +49,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
         max_asum = self._params.get('maxAsum', float('inf'))
         has_asum = ~np.isinf(max_asum)
         s = y
-        
+
         def get_scaling(scaling_params):
             assert scaling_params.size == 1
             return scaling_params
@@ -148,8 +148,6 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             return err, derr
 
         p0 = np.log([self._params['lmbda'], self._params['gamma']])
-        # check_grad(objective_function, p0)
-        # raise
 
         res = minimize(
             objective_function, p0,
@@ -166,8 +164,6 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
     def fit(self, x, y):
         splits = list(KFold(5).split(x))
-        # n = x.shape[0]
-        # splits = [(slice(0, n//2), slice(n//2, n))]
         self.optimize_params(x, y, splits)
         self._svm = SimpleSVM(self._params)
         self._svm.fit(x, y)
