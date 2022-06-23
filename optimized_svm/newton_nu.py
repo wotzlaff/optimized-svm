@@ -12,7 +12,7 @@ def solve_system(k_p, a, s, g, h, lmbda, maxasum):
     d = np.zeros_like(a)
     d_z = a[idx_z] + g[idx_z]
     d[idx_z] = d_z
-    d_p, d_1, d_s = solve_rendered_nu(
+    d_p, (d_1, d_s) = solve_rendered_nu(
         k_p[:, idx_p], h[idx_p], s[idx_p],
         a[idx_p] + g[idx_p] - h[idx_p] * k_p[:, idx_z].dot(d_z) / lmbda,
         a.sum() - d_z.sum(),
@@ -41,10 +41,7 @@ def descent_step(
         h = ddm(f)
         idx_p = h > 0
         k_p = kernel(x[idx_p], x, gamma)
-        dn, dn_b, dn_c = solve_system(
-            k_p, a, s, g, h,
-            lmbda, max_asum,
-        )
+        dn, dn_b, dn_c = solve_system(k_p, a, s, g, h, lmbda, max_asum)
     elif direction == 'gradient':
         # use preconditioned gradient
         dn, dn_b = r, lmbda * g.sum()
