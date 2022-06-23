@@ -6,8 +6,8 @@ from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import KFold
 
 
+import rendered
 from smooth_max import get_maxfun
-from rendered import solve_rendered_transposed as solve_transposed
 from kernel import rbf_kernel as kernel, diff
 
 
@@ -73,7 +73,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                     gamma * x[idx_tr], y[idx_tr], kernel,
                     dict(self._params, lmbda=lmbda, gamma=1.0),
                 )
-                a, b = res['a'], res['b']
+                a, b, c = res['a'], res['b'], res['c']
                 # extract solution
                 al = a / lmbda
                 idx_sv = a != 0.0
@@ -94,7 +94,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 # compute decision function values
                 k_tr_sv = kernel(xs_tr, xs_sv)
                 ka = k_tr_sv.dot(al_sv)
-                dec = ka + b
+                dec = ka + b + c * y[idx_tr]
                 f = shift - y[idx_tr] * dec
                 h = ddm(f)
 
@@ -111,7 +111,12 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 # solve transposed system
                 lhs_p = dl_val.dot(k_val_p) / lmbda
                 lhs_0 = dl_val.sum()
-                hu_p, _ = solve_transposed(k_p_p, h_p, lhs_p, lhs_0, lmbda)
+                hu_p, _ = rendered.solve(
+                    k_p_p / lmbda + np.diag(1.0 / h_p),
+                    np.ones_like(lhs_p),
+                    lhs_p,
+                    lhs_0,
+                )
 
                 # dlmbda:
                 rhs_p = ka[idx_p]
