@@ -41,6 +41,15 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
         self._verbose = verbose
 
     def optimize_params(self, x, y, splits):
+        m, dm, ddm = mf = get_maxfun(
+            self._params['smoothingParam'],
+            self._params['maxfunDegree'],
+        )
+        shift = self._params['shift']
+        max_asum = self._params.get('maxAsum', float('inf'))
+        has_asum = ~np.isinf(max_asum)
+        s = y
+        
         def get_scaling(scaling_params):
             assert scaling_params.size == 1
             return scaling_params
@@ -57,10 +66,6 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             lmbda = np.exp(log_lmbda)
             log_gamma = get_scaling(param[1:])
             gamma = np.exp(log_gamma)
-            m, dm, ddm = mf = get_maxfun(
-                self._params['smoothingParam'], self._params['maxfunDegree'],
-            )
-            shift = self._params['shift']
 
             if self._verbose > 0:
                 print(f'lmbda = {lmbda:14.8f}, ', end='')
@@ -110,13 +115,19 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
                 # solve transposed system
                 lhs_p = dl_val.dot(k_val_p) / lmbda
-                lhs_0 = dl_val.sum()
-                hu_p, _ = rendered.solve(
-                    k_p_p / lmbda + np.diag(1.0 / h_p),
-                    np.ones_like(lhs_p),
-                    lhs_p,
-                    lhs_0,
-                )
+                lhs_1 = dl_val.sum()
+                if has_asum:
+                    hu_p, _ = rendered.solve(
+                        k_p_p / lmbda + np.diag(1.0 / h_p),
+                        (np.ones_like(lhs_p), s[idx_tr][idx_p]),
+                        lhs_p, (lhs_1, 0.0),
+                    )
+                else:
+                    hu_p, _ = rendered.solve(
+                        k_p_p / lmbda + np.diag(1.0 / h_p),
+                        np.ones_like(lhs_p),
+                        lhs_p, lhs_1,
+                    )
 
                 # dlmbda:
                 rhs_p = ka[idx_p]
@@ -177,6 +188,7 @@ if __name__ == '__main__':
         tolSmo=1e-2,
         tolNewton=1e-10,
         # verbose=10000,
+        maxAsum=10.0,
     ))
     svm.fit(x[:n//2], y[:n//2])
 
