@@ -113,6 +113,10 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 k_p_p = k_p_sv[:, idx_p_in_sv]
                 k_val_p = k_val_sv[:, idx_p_in_sv]
 
+                if (idx_sv & (~idx_p)).any():
+                    k_p_p = kernel(xs_tr[idx_p], xs_tr[idx_p])
+                    k_val_p = kernel(xs_val, xs_tr[idx_p])
+
                 # solve transposed system
                 lhs_p = dl_val.dot(k_val_p) / lmbda
                 lhs_1 = dl_val.sum()
