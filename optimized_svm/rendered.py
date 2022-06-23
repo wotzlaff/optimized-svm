@@ -21,23 +21,3 @@ def solve(qm, qv, r, r0):
         u0 = (qir.dot(qv) - r0) / qiqv.dot(qv)
         u = qir - u0 * qiqv
         return u, u0
-
-
-def solve_rendered_transposed(k_p, h_p, lhs_p, lhs_0, lmbda):
-    # return scaled hu_p = h_p * u_p
-    return solve(
-        k_p / lmbda + np.diag(1.0 / h_p),
-        np.ones_like(lhs_p),
-        lhs_p,
-        lhs_0,
-    )
-
-
-def solve_rendered_transposed_nu(k_p, h_p, s_p, lhs_p, lhs_1, lhs_s, lmbda):
-    # return scaled hu_p = h_p * u_p
-    return solve(
-        k_p / lmbda + np.diag(1.0 / h_p),
-        (np.ones_like(lhs_p), s_p),
-        lhs_p,
-        (lhs_1, lhs_s),
-    )
