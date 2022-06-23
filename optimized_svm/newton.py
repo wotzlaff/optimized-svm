@@ -1,8 +1,9 @@
 import numpy as np
-from scipy.linalg import cho_factor, cho_solve
 import nimsmo
 
 from kernel import rbf_kernel as kernel
+from rendered import solve_rendered
+from smooth_max import get_maxfun
 
 
 def solve_system(k_p, a, g, h, lmbda):
@@ -15,15 +16,12 @@ def solve_system(k_p, a, g, h, lmbda):
     if d_z.size == d.size:
         return d, 0.0
 
-    an_p = (a[idx_p] + g[idx_p]) / h[idx_p] - k_p[:, idx_z].dot(d_z) / lmbda
-    # an_0 = a[idx_p].sum() - g[idx_z].sum()
-    an_0 = a.sum() - d_z.sum()
-    qm = np.diag(1.0 / h[idx_p]) + k_p[:, idx_p] / lmbda
-    qm_cho = cho_factor(qm, overwrite_a=True)
-    p_p = cho_solve(qm_cho, an_p)
-    q_p = cho_solve(qm_cho, np.ones_like(an_p))
-    d_0 = (p_p.sum() - an_0) / q_p.sum()
-    d_p = p_p - d_0 * q_p
+    d_p, d_0 = solve_rendered(
+        k_p[:, idx_p], h[idx_p],
+        a[idx_p] + g[idx_p] - h[idx_p] * k_p[:, idx_z].dot(d_z) / lmbda,
+        a.sum() - d_z.sum(),
+        lmbda,
+    )
     d[idx_p] = d_p
     return d, d_0
 
@@ -204,3 +202,44 @@ def solve_twostep(
         z,
         verbose=verbose,
     )
+
+
+if __name__ == '__main__':
+    np.random.seed(42)
+    n, nft = 1000, 10
+    x = np.random.rand(n, nft)
+    yr = np.sin(np.pi * x).sum(axis=1)
+    y = np.where(yr > np.median(yr), 1.0, -1.0)
+
+    lmbda = 0.1
+    gamma = 0.5
+    smoothingParam = 0.1
+    shift = 1.0
+    maxfun = get_maxfun(smoothingParam, deg='2')
+
+    result = solve_twostep(
+        x, y,
+        maxfun,
+        lmbda, gamma,
+        smoothingParam, shift,
+        verbose=1,
+        tolSmo=1e-1,
+    )
+    a = np.array(result['a'])
+    b = result['b']
+    c = result['c']
+
+    # check optimality conditions
+    m, dm, ddm = maxfun
+    idx_sv = a != 0
+    k = kernel(x, x[idx_sv], gamma)
+    ka = k.dot(a[idx_sv]) / lmbda
+
+    dec = ka + b
+    f = shift - y * dec
+    val = m(f)
+    obj = 0.5 * ka.dot(a) + val.sum()
+    g = -y * dm(f)
+    r = a + g
+
+    print(r.dot(r), a.sum())
