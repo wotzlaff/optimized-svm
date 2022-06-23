@@ -30,7 +30,10 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
     def fit(self, x, y):
         res = solve_twostep(
             self._params['gamma'] * x, y,
-            get_maxfun(self._params['smoothingParam']),
+            get_maxfun(
+                self._params['smoothingParam'],
+                self._params['maxfunDegree'],
+            ),
             self._params['lmbda'],
             1.0,
             self._params['smoothingParam'],
@@ -183,7 +186,8 @@ if __name__ == '__main__':
         lmbda=0.1,
         gamma=0.5,
         smoothingParam=0.01,
-        shift=1.0
+        shift=1.0,
+        maxfunDegree='2',
     ))
     svm.fit(x[:n//2], y[:n//2])
 
