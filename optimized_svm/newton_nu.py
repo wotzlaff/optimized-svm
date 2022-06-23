@@ -1,7 +1,7 @@
 import numpy as np
-from scipy.linalg import cho_factor, cho_solve
 import nimsmo
 
+from rendered import solve_rendered_nu
 from smooth_max import get_maxfun
 from kernel import rbf_kernel as kernel
 
@@ -12,33 +12,15 @@ def solve_system(k_p, a, s, g, h, lmbda, maxasum):
     d = np.zeros_like(a)
     d_z = a[idx_z] + g[idx_z]
     d[idx_z] = d_z
-
-    if d_z.size == d.size:
-        return d, 0.0
-
-    an_p = (a[idx_p] + g[idx_p]) / h[idx_p] - k_p[:, idx_z].dot(d_z) / lmbda
-    an_1 = a.sum() - d_z.sum()
-    an_s = a.dot(s) - maxasum - s[idx_z].dot(d_z)
-
-    qm = np.diag(1.0 / h[idx_p]) + k_p[:, idx_p] / lmbda
-    qm_cho = cho_factor(qm, overwrite_a=True)
-    p_p = cho_solve(qm_cho, an_p)
-    q1_p = cho_solve(qm_cho, np.ones_like(an_p))
-    qs_p = cho_solve(qm_cho, s[idx_p])
-
-    c11 = q1_p.sum()
-    c1s = qs_p.sum()
-    css = qs_p.dot(s[idx_p])
-    det = c11 * css - c1s ** 2
-    r1 = q1_p.dot(an_p) - an_1
-    rs = qs_p.dot(an_p) - an_s
-
-    d1 = (r1 * css - rs * c1s) / det
-    ds = (rs * c11 - r1 * c1s) / det
-
-    d_p = p_p - d1 * q1_p - ds * qs_p
+    d_p, d_1, d_s = solve_rendered_nu(
+        k_p[:, idx_p], h[idx_p], s[idx_p],
+        a[idx_p] + g[idx_p] - h[idx_p] * k_p[:, idx_z].dot(d_z) / lmbda,
+        a.sum() - d_z.sum(),
+        a.dot(s) - maxasum - s[idx_z].dot(d_z),
+        lmbda,
+    )
     d[idx_p] = d_p
-    return d, d1, ds
+    return d, d_1, d_s
 
 
 def descent_step(
