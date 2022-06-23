@@ -2,6 +2,7 @@ from tabnanny import verbose
 import numpy as np
 import nimsmo
 
+from sample import data
 from kernel import rbf_kernel as kernel
 import rendered
 from smooth_max import get_maxfun
@@ -203,11 +204,7 @@ def solve_twostep(x, y, kernel, params):
 
 
 if __name__ == '__main__':
-    np.random.seed(42)
-    n, nft = 1000, 10
-    x = np.random.rand(n, nft)
-    yr = np.sin(np.pi * x).sum(axis=1)
-    y = np.where(yr > np.median(yr), 1.0, -1.0)
+    x, y = data(1000, 10)
 
     gamma = 0.2
 

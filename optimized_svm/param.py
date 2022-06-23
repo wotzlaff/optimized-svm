@@ -5,7 +5,7 @@ from scipy.optimize import minimize
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import KFold
 
-
+from sample import data
 import rendered
 from smooth_max import get_maxfun
 from kernel import rbf_kernel as kernel, diff
@@ -177,12 +177,8 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
 
 if __name__ == '__main__':
-    np.random.seed(42)
-    n, nft = 1000, 10
-    x = np.random.rand(n, nft)
-    yr = np.sin(np.pi * x).sum(axis=1)
-    y = np.where(yr > np.median(yr), 1.0, -1.0)
-
+    n = 1000
+    x, y = data(n, nft=10)
     svm = OptimizedSVM(dict(
         lmbda=0.1,
         gamma=0.5,
