@@ -78,7 +78,7 @@ def ddsmooth_max_p6(t, s):
     ])
 
 
-def maxfun(smoothingParam, deg='6'):
+def get_maxfun(smoothingParam, deg='6'):
     return [
         partial(fun, s=smoothingParam)
         for fun in {
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     f, axs = plt.subplots(3, 3)
     for j, deg in enumerate(['2', '3', '6']):
-        mf = maxfun(0.2, deg)
+        mf = get_maxfun(0.2, deg)
         for i, f in enumerate(mf):
             x = np.linspace(-0.5, 0.5, 101)
             y = f(x)

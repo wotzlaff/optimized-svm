@@ -2,7 +2,7 @@ import numpy as np
 from scipy.linalg import cho_factor, cho_solve
 import nimsmo
 
-from smooth_max import maxfun as get_maxfun
+from smooth_max import get_maxfun
 
 
 def solve_system(k_p, a, g, h, lmbda):

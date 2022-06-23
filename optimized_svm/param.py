@@ -6,7 +6,7 @@ from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import KFold
 
 
-from smooth_max import maxfun
+from smooth_max import get_maxfun
 # from deriv_check import check_grad
 from rendered import solve_rendered_transposed as solve_transposed
 
@@ -30,7 +30,7 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
     def fit(self, x, y):
         res = solve_twostep(
             self._params['gamma'] * x, y,
-            maxfun(self._params['smoothingParam']),
+            get_maxfun(self._params['smoothingParam']),
             self._params['lmbda'],
             1.0,
             self._params['smoothingParam'],
@@ -72,7 +72,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             lmbda = np.exp(log_lmbda)
             log_gamma = get_scaling(param[1:])
             gamma = np.exp(log_gamma)
-            m, dm, ddm = mf = maxfun(self._params['smoothingParam'])
+            m, dm, ddm = mf = get_maxfun(self._params['smoothingParam'])
             shift = self._params['shift']
 
             if self._verbose > 0:
