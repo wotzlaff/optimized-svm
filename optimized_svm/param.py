@@ -20,13 +20,23 @@ class TrainingMixin:
             return problem.Regression(x, y, params)
 
 
-class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin):
+class KernelMixin:
+    def __init__(self, kernel_type='rbf', blocks=None):
+        self._kernel_type = kernel_type
+        self._blocks = blocks
+
+    def scale(self, x, gamma):
+        return gamma * x
+
+
+class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin, KernelMixin):
     def __init__(self, params):
         self._params = params
 
     def fit(self, x, y):
+        xs = self.scale(x, self._params['gamma'])
         self._prob = self._create_problem(
-            self._params['gamma'] * x, y,
+            xs, y,
             dict(self._params, gamma=1.0),
         )
         res = solve_twostep(self._prob)
@@ -38,8 +48,7 @@ class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin):
 
     def predict(self, x):
         lmbda = self._params['lmbda']
-        gamma = np.array(self._params['gamma'])
-        xs = gamma * x
+        xs = self.scale(x, self._params['gamma'])
         ka = self._prob.kernel(x=xs, idx0=self._idx_sv).T.dot(self._asv)
         return ka / lmbda + self._b
 
@@ -70,21 +79,17 @@ class ValidationMixin:
         return ell, dell
 
 
-class ParameterOptimizationBase(ValidationMixin, TrainingMixin):
+class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
 
     def __init__(self, params, validation_params=dict(), verbose=0):
         ValidationMixin.__init__(self, validation_params)
         self._params = params
         self._verbose = verbose
 
-    def _get_scaling(self, scaling_params):
-        assert scaling_params.size == 1
-        return scaling_params
-
     def _objective_function(self, param, x, y, splits):
         log_lmbda = param[0]
         lmbda = np.exp(log_lmbda)
-        log_gamma = self._get_scaling(param[1:])
+        log_gamma = param[1:]
         gamma = np.exp(log_gamma)
 
         if self._verbose > 0:
@@ -95,7 +100,7 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin):
         derr = np.zeros_like(param)
         for idx_tr, idx_val in splits:
             prob = self._create_problem(
-                gamma * x[idx_tr], y[idx_tr],
+                self.scale(x[idx_tr], gamma), y[idx_tr],
                 dict(self._params, lmbda=lmbda, gamma=1.0),
             )
             res = solve_twostep(prob)
@@ -106,7 +111,7 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin):
             al_sv = al[idx_sv]
 
             # scale inputs
-            xs_val = gamma[:, None] * x[idx_val]
+            xs_val = self.scale(x[idx_val], gamma)
 
             # compute validation estimates and error
             k_val_sv, dk_val_sv = prob.kernel(
