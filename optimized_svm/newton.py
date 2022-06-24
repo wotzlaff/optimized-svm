@@ -60,7 +60,7 @@ def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
         # use preconditioned gradient
         dn_a, dn_b = r, lmbda * g.sum()
         if has_asum:
-            dn_c = lmbda * (g.dot(s) + max_asum)
+            dn_c = lmbda * (g.dot(prob.sign) + max_asum)
         else:
             dn_c = 0.0
     else:
