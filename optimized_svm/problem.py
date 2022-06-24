@@ -1,6 +1,6 @@
 import numpy as np
 from smooth_max import get_maxfun
-from kernel import rbf_kernel as kernel, diff
+from kernel import rbf_kernel as kernel
 
 
 class ParamBase:
@@ -10,6 +10,10 @@ class ParamBase:
     @property
     def params(self):
         return self._params
+
+    @property
+    def has_asum(self):
+        return not np.isinf(self._params.get('maxAsum', float('inf')))
 
     def m(self, t):
         return get_maxfun(
@@ -88,3 +92,46 @@ class Classification(ParamBase, KernelBase):
 
     def ddloss(self, t):
         return self.ddm(self._params['shift'] - self._y * t)
+
+
+class Regression(ParamBase, KernelBase):
+    def __init__(self, x, y, params):
+        ParamBase.__init__(self, params)
+        self._x = np.concatenate((x, x))
+        self._y = y
+
+    @property
+    def size(self):
+        return self._x.shape[0]
+
+    @property
+    def n(self):
+        return self._y.size
+
+    @property
+    def sign(self):
+        return np.concatenate((
+            +np.ones_like(self._y),
+            -np.ones_like(self._y),
+        ))
+
+    def loss(self, t):
+        r = t.copy()
+        r[:self.n] -= self._y
+        r[self.n:] -= self._y
+        f = -self.sign * r - self._params['epsilon']
+        return self.m(f)
+
+    def dloss(self, t):
+        r = t.copy()
+        r[:self.n] -= self._y
+        r[self.n:] -= self._y
+        f = -self.sign * r - self._params['epsilon']
+        return -self.sign * self.dm(f)
+
+    def ddloss(self, t):
+        r = t.copy()
+        r[:self.n] -= self._y
+        r[self.n:] -= self._y
+        f = -self.sign * r - self._params['epsilon']
+        return self.ddm(f)

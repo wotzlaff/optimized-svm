@@ -179,16 +179,26 @@ def solve(prob, z0=None):
 
 def solve_twostep(prob):
     params = prob._params
-    result = nimsmo.solveClassification(
-        prob._x.tolist(), prob._y.tolist(),
-        params['lmbda'], params['gamma'],
+
+    args = dict(
+        x=prob._x.tolist(),
+        y=prob._y.tolist(),
+        lmbda=params['lmbda'],
+        gamma=params['gamma'],
         smoothingParam=params['smoothingParam'],
         maxAsum=params.get('maxAsum', float('inf')),
-        shift=params['shift'],
         tolViolation=params.get('tolSmo', 0.1),
         verbose=params.get('verbose', 0),
         shrinkingPeriod=params.get('shrinkingPeriod', 100),
     )
+    if isinstance(prob, problem.Classification):
+        if 'shift' in params:
+            args['shift'] = params['shift']
+        result = nimsmo.solveClassification(**args)
+    if isinstance(prob, problem.Regression):
+        if 'epsilon' in params:
+            args['epsilon'] = params['epsilon']
+        result = nimsmo.solveRegression(**args)
     a = np.array(result['a'])
     b = result['b']
     c = result['c']
@@ -196,7 +206,7 @@ def solve_twostep(prob):
 
 
 def main():
-    x, y = data(1000, 10)
+    x, y = data(1000, 10, classification=False)
 
     gamma = 0.2
 
@@ -205,13 +215,14 @@ def main():
         gamma=1.0,
         smoothingParam=0.1,
         shift=1.0,
+        epsilon=0.5,
         verbose=1000,
         tolSmo=1e-3,
         tolNewton=1e-12,
         maxfunDegree='2',
     )
 
-    prob = problem.Classification(gamma * x, y, params)
+    prob = problem.Regression(gamma * x, y, params)
     result = solve_twostep(prob)
     a = np.array(result['a'])
     b = result['b']

@@ -1,10 +1,11 @@
-from newton import solve_twostep
+from functools import partial
 
 import numpy as np
 from scipy.optimize import minimize
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.model_selection import KFold
 
+from newton import solve_twostep
 from sample import data
 import rendered
 import problem
@@ -40,115 +41,121 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
     def __init__(self, params, verbose=0):
         self._params = params
         self._verbose = verbose
+        self._validation_loss = self._validation_loss_regression
 
-    def optimize_params(self, x, y, splits):
-        mf = get_maxfun(
+    def _validation_loss_regression(self, t, y):
+        m, dm = get_maxfun(
             self._params['smoothingParam'],
             self._params['maxfunDegree'],
-        )
-        max_asum = self._params.get('maxAsum', float('inf'))
-        has_asum = ~np.isinf(max_asum)
-        s = y
+        )[:2]
+        ell = m(t - y).sum() + m(y - t).sum()
+        dell = dm(t - y) - dm(y - t)
+        return ell, dell
 
-        def get_scaling(scaling_params):
-            assert scaling_params.size == 1
-            return scaling_params
+    def _validation_loss_classification(self, t, y):
+        shift = 1.0
+        m, dm = get_maxfun(
+            self._params['smoothingParam'],
+            self._params['maxfunDegree'],
+        )[:2]
+        ell = m(shift - t * y).sum()
+        dell = -y * dm(shift - t * y)
+        return ell, dell
 
-        def validation_loss(t, y, mf):
-            shift = 1.0
-            m, dm = mf[:2]
-            ell = m(shift - t * y).sum()
-            dell = -y * dm(shift - t * y)
-            return ell, dell
+    def _get_scaling(self, scaling_params):
+        assert scaling_params.size == 1
+        return scaling_params
 
-        def objective_function(param):
-            log_lmbda = param[0]
-            lmbda = np.exp(log_lmbda)
-            log_gamma = get_scaling(param[1:])
-            gamma = np.exp(log_gamma)
+    def objective_function(self, param, x, y, splits):
+        log_lmbda = param[0]
+        lmbda = np.exp(log_lmbda)
+        log_gamma = self._get_scaling(param[1:])
+        gamma = np.exp(log_gamma)
 
-            if self._verbose > 0:
-                print(f'lmbda = {lmbda:14.8f}, ', end='')
-                print(f'gamma = {gamma[0]:14.8f}, ', end='')
+        if self._verbose > 0:
+            print(f'lmbda = {lmbda:14.8f}, ', end='')
+            print(f'gamma = {gamma[0]:14.8f}, ', end='')
 
-            err = 0.0
-            derr = np.zeros(2)
-            for idx_tr, idx_val in splits:
-                prob = problem.Classification(
-                    gamma * x[idx_tr], y[idx_tr],
-                    dict(self._params, lmbda=lmbda, gamma=1.0),
+        err = 0.0
+        derr = np.zeros(2)
+        for idx_tr, idx_val in splits:
+            prob = problem.Classification(
+                gamma * x[idx_tr], y[idx_tr],
+                dict(self._params, lmbda=lmbda, gamma=1.0),
+            )
+            res = solve_twostep(prob)
+            z = a, b, c = res['a'], res['b'], res['c']
+            # extract solution
+            al = a / lmbda
+            idx_sv = a != 0.0
+            al_sv = al[idx_sv]
+
+            # scale inputs
+            xs_val = gamma[:, None] * x[idx_val]
+
+            # compute validation estimates and error
+            k_val_sv, dk_val_sv = prob.kernel(
+                x=xs_val, idx0=idx_sv, deriv=True
+            )
+            ka_val = k_val_sv.T.dot(al_sv)
+            y_val_pred = ka_val + b
+            l_val, dl_val = self._validation_loss(y_val_pred, y[idx_val])
+            err += l_val
+
+            # compute decision function values
+            k_tr_sv, dk_tr_sv = prob.kernel(idx=idx_sv, deriv=True)
+            ka = k_tr_sv.dot(al_sv)
+            dec = prob.decision(z, ka)
+            h = prob.ddloss(dec)
+
+            # extract relevant part
+            idx_p = h > 0
+            idx_p_in_sv = h[idx_sv] > 0
+            h_p = h[idx_p]
+            if h_p.size == 0:
+                return np.inf, np.zeros_like(derr)
+            k_p_sv = k_tr_sv[idx_p, :]
+            k_p_p = k_p_sv[:, idx_p_in_sv]
+            k_val_p = k_val_sv.T[:, idx_p_in_sv]
+
+            if (idx_sv & (~idx_p)).any():
+                k_p_p = prob.kernel(idx=idx_p, idx0=idx_p)
+                k_val_p = prob.kernel(x=xs_val, idx0=idx_p).T
+
+            # solve transposed system
+            lhs_p = dl_val.dot(k_val_p) / lmbda
+            lhs_1 = dl_val.sum()
+            if prob.has_asum:
+                hu_p, _ = rendered.solve(
+                    k_p_p / lmbda + np.diag(1.0 / h_p),
+                    (np.ones_like(lhs_p), prob.sign[idx_p]),
+                    lhs_p, (lhs_1, 0.0),
                 )
-                res = solve_twostep(prob)
-                z = a, b, c = res['a'], res['b'], res['c']
-                # extract solution
-                al = a / lmbda
-                idx_sv = a != 0.0
-                al_sv = al[idx_sv]
-
-                # scale inputs
-                xs_val = gamma[:, None] * x[idx_val]
-
-                # compute validation estimates and error
-                k_val_sv, dk_val_sv = prob.kernel(
-                    x=xs_val, idx0=idx_sv, deriv=True
+            else:
+                hu_p, _ = rendered.solve(
+                    k_p_p / lmbda + np.diag(1.0 / h_p),
+                    np.ones_like(lhs_p),
+                    lhs_p, lhs_1,
                 )
-                ka_val = k_val_sv.T.dot(al_sv)
-                y_val_pred = ka_val + b
-                l_val, dl_val = validation_loss(y_val_pred, y[idx_val], mf)
-                err += l_val
 
-                # compute decision function values
-                k_tr_sv, dk_tr_sv = prob.kernel(idx=idx_sv, deriv=True)
-                ka = k_tr_sv.dot(al_sv)
-                dec = prob.decision(z, ka)
-                h = prob.ddloss(dec)
+            # dlmbda:
+            rhs_p = ka[idx_p]
+            derr[0] += hu_p.dot(rhs_p) - dl_val.dot(ka_val)
 
-                # extract relevant part
-                idx_p = h > 0
-                idx_p_in_sv = h[idx_sv] > 0
-                h_p = h[idx_p]
-                if h_p.size == 0:
-                    return np.inf, np.zeros_like(derr)
-                k_p_sv = k_tr_sv[idx_p, :]
-                k_p_p = k_p_sv[:, idx_p_in_sv]
-                k_val_p = k_val_sv.T[:, idx_p_in_sv]
+            # dgamma:
+            rhs_p = -dk_tr_sv[idx_p].dot(al_sv)
+            derr[1] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.T.dot(al_sv))
 
-                if (idx_sv & (~idx_p)).any():
-                    k_p_p = prob.kernel(idx=idx_p, idx0=idx_p)
-                    k_val_p = prob.kernel(x=xs_val, idx0=idx_p).T
+        if self._verbose > 0:
+            print(f'err = {err:14.8f}, derr = {derr}')
+        return err, derr
 
-                # solve transposed system
-                lhs_p = dl_val.dot(k_val_p) / lmbda
-                lhs_1 = dl_val.sum()
-                if has_asum:
-                    hu_p, _ = rendered.solve(
-                        k_p_p / lmbda + np.diag(1.0 / h_p),
-                        (np.ones_like(lhs_p), s[idx_tr][idx_p]),
-                        lhs_p, (lhs_1, 0.0),
-                    )
-                else:
-                    hu_p, _ = rendered.solve(
-                        k_p_p / lmbda + np.diag(1.0 / h_p),
-                        np.ones_like(lhs_p),
-                        lhs_p, lhs_1,
-                    )
-
-                # dlmbda:
-                rhs_p = ka[idx_p]
-                derr[0] += hu_p.dot(rhs_p) - dl_val.dot(ka_val)
-
-                # dgamma:
-                rhs_p = -dk_tr_sv[idx_p].dot(al_sv)
-                derr[1] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.T.dot(al_sv))
-
-            if self._verbose > 0:
-                print(f'err = {err:14.8f}, derr = {derr}')
-            return err, derr
-
+    def optimize_params(self, x, y, splits):
         p0 = np.log([self._params['lmbda'], self._params['gamma']])
 
         res = minimize(
-            objective_function, p0,
+            partial(self.objective_function, x=x, y=y, splits=splits),
+            p0,
             method='L-BFGS-B',
             options=dict(disp=True),
             jac=True,
