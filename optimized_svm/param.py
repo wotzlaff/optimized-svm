@@ -209,8 +209,8 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
 
 def main():
     classification = True
-    n = 10000
-    x, y = data(n, nft=10, classification=classification)
+    n = 100
+    x, y = data(n, nft=2, classification=classification)
     params = dict(
         lmbda=1.0,
         gamma=1.0,
@@ -233,7 +233,7 @@ def main():
         validation_params=dict(
             kind='classification' if classification else 'regression',
             # kind='regression',
-            shift=0.0,
+            shift=1.0,
         ),
     )
     svm.fit(x[:n//2], y[:n//2])
@@ -242,6 +242,7 @@ def main():
     import matplotlib.pyplot as plt
     if svm._params['kind'] == 'classification':
         plt.plot(y[:n//2], yest[:n//2], 'kx')
+        plt.plot(y[:n//2] * 0.7, yest0[:n//2], 'rx')
         plt.plot(y[n//2:] * 0.8, yest0[n//2:], 'r+')
         mc0 = (y[n//2:] * yest0[n//2:] <= 0.0).mean()
         plt.plot(y[n//2:] * 0.9, yest[n//2:], 'g+')
