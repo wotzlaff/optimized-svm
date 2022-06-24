@@ -48,21 +48,26 @@ def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
     has_asum = ~np.isinf(max_asum)
     tol = params['tolNewton']
 
-    if direction == 'newton':
-        # compute Newton direction
-        dn_a, dn_b, dn_c = solve_system(
-            prob, dec,
-            a, g, lmbda, max_asum,
-        )
-    elif direction == 'gradient':
+    def get_gradient():
         # use preconditioned gradient
         dn_a, dn_b = r, lmbda * g.sum()
         if has_asum:
             dn_c = lmbda * (g.dot(prob.sign) + max_asum)
         else:
             dn_c = 0.0
+        return dn_a, dn_b, dn_c
+
+    if direction == 'newton':
+        # compute Newton direction
+        try:
+            d = solve_system(prob, dec, a, g, lmbda, max_asum)
+        except np.linalg.LinAlgError:
+            d = get_gradient()
+    elif direction == 'gradient':
+        d = get_gradient()
     else:
         raise ValueError('unknown value for direction')
+    dn_a, dn_b, dn_c = d
 
     # compute predicted decrease
     idx_d = np.abs(dn_a) > tol
