@@ -18,7 +18,7 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
 
     def fit(self, x, y):
         res = solve_twostep(
-            self._params['gamma'] * x, y, kernel,
+            self._params['gamma'] * x, y,
             dict(self._params, gamma=1.0),
         )
         self._a, self._b, self._c = res['a'], res['b'], res['c']
@@ -75,7 +75,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             derr = np.zeros(2)
             for idx_tr, idx_val in splits:
                 res = solve_twostep(
-                    gamma * x[idx_tr], y[idx_tr], kernel,
+                    gamma * x[idx_tr], y[idx_tr],
                     dict(self._params, lmbda=lmbda, gamma=1.0),
                 )
                 a, b, c = res['a'], res['b'], res['c']

@@ -174,7 +174,7 @@ def solve(prob, z0=None):
     return dict(a=a, b=b, c=c, ka=ka, g=g)
 
 
-def solve_twostep(x, y, kernel, params):
+def solve_twostep(x, y, params):
     result = nimsmo.solveClassification(
         x.tolist(), y.tolist(),
         params['lmbda'], params['gamma'],
@@ -208,7 +208,7 @@ def main():
         maxfunDegree='2',
     )
 
-    result = solve_twostep(gamma * x, y, kernel, params)
+    result = solve_twostep(gamma * x, y, params)
     a = np.array(result['a'])
     b = result['b']
     c = result['c']
