@@ -40,7 +40,11 @@ def solve_system(prob, dec, a, g, lmbda, max_asum):
         return da, db, dc
 
 
-def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
+def descent_step(
+    prob, z, ka, dec, obj, g, r,
+    direction='newton',
+    final_step=False,
+):
     params = prob.params
     a, b, c = z
     lmbda = params['lmbda']
@@ -55,6 +59,9 @@ def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
             dn_c = lmbda * (g.dot(prob.sign) + max_asum)
         else:
             dn_c = 0.0
+        if final_step:
+            # this should not happen
+            return
         return dn_a, dn_b, dn_c
 
     if direction == 'newton':
@@ -67,6 +74,9 @@ def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
         d = get_gradient()
     else:
         raise ValueError('unknown value for direction')
+    if d is None and final_step:
+        # this should not happen
+        return z, ka
     dn_a, dn_b, dn_c = d
 
     # compute predicted decrease
@@ -94,9 +104,11 @@ def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
         kan = ka - t * prob.kernel(idx=idx_d).dot(dn_a[idx_d]) / lmbda
         objn = prob.objective(zn, kan)
         if params.get('verbose', 0) != 0:
-            print(f'  [{_+1}] objective value: {objn}')
+            print(f'  [{_+1}] objective value: {obj} - {objn - obj}')
 
-        if objn < obj - params.get('sigma', 0.01) * t * dgrad + tol:
+        obj_max = obj - params.get('sigma', 0.01) * t * dgrad
+        enough_descent = objn < obj_max  # + tol
+        if final_step or enough_descent:
             break
         t *= params.get('beta', 0.1)
     else:
@@ -124,9 +136,12 @@ def solve(prob, z0=None):
 
     recompute_ka = False
     fresh_ka = True
+    final_step = False
 
     for _ in range(params.get('maxSteps', 1000)):
         a, b, c = z
+        if final_step:
+            break
 
         if recompute_ka:
             if verbose != 0:
@@ -149,30 +164,38 @@ def solve(prob, z0=None):
             print(f'[{_+1}] objective value: {obj}, residual: {res}')
         if res < params['tolNewton']:
             if fresh_ka:
-                break
-            recompute_ka = True
-            continue
+                final_step = True
+            else:
+                recompute_ka = True
+                continue
 
         # try Newton step
-        result = descent_step(prob, z, ka, dec, obj, g, r)
+        result = descent_step(
+            prob, z, ka, dec, obj, g, r,
+            final_step=final_step,
+        )
         if result is not None:
             z, ka = result
             fresh_ka = False
             continue
-
-        if fresh_ka:
-            result = descent_step(
-                prob, z, ka, dec, obj, g, r,
-                direction='gradient',
-            )
-            if result is not None:
-                z, ka = result
-                fresh_ka = False
+        else:
+            if not fresh_ka:
+                recompute_ka = True
                 continue
-            raise RuntimeError('step failed')
-        recompute_ka = True
 
-    return dict(a=a, b=b, c=c, ka=ka, g=g)
+        if final_step:
+            break
+        result = descent_step(
+            prob, z, ka, dec, obj, g, r,
+            direction='gradient',
+        )
+        if result is not None:
+            z, ka = result
+            fresh_ka = False
+            continue
+        raise RuntimeError('step failed')
+
+    return dict(a=a, b=b, c=c, ka=ka)
 
 
 def solve_twostep(prob):
