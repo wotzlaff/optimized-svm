@@ -74,7 +74,7 @@ def descent_step(prob, z, ka, dec, obj, g, r, direction='newton'):
     ).dot(r[idx_r]).dot(dn_a[idx_d]) / lmbda
     dgrad += dn_b * g.sum()
     if has_asum:
-        dgrad += dn_c * (g.dot(s) + max_asum)
+        dgrad += dn_c * (g.dot(prob.sign) + max_asum)
     if dgrad < 0.0:
         if verbose != 0:
             print(f'no ascent direction: {dgrad} <= 0.0')
@@ -141,7 +141,7 @@ def solve(prob, z0=None):
         res = np.mean(np.array(r) ** 2)
         res += g.sum() ** 2
         if has_asum:
-            res += (g.dot(s) + max_asum) ** 2
+            res += (g.dot(prob.sign) + max_asum) ** 2
         if verbose != 0:
             print(f'[{_+1}] objective value: {obj}, residual: {res}')
         if res < params['tolNewton']:
