@@ -23,10 +23,11 @@ class SimpleSVM(BaseEstimator, ClassifierMixin):
             dict(self._params, gamma=1.0),
         )
         res = solve_twostep(self._prob)
-        self._a, self._b, self._c = res['a'], res['b'], res['c']
-        self._idx_sv = idx_sv = self._a != 0.0
-        self._asv = self._a[idx_sv]
-        self._xsv = x[idx_sv]
+        a, b = res['a'], res['b']
+        self._b = b
+        idx_sv = a != 0.0
+        self._idx_sv = idx_sv
+        self._asv = a[idx_sv]
 
     def predict(self, x):
         lmbda = self._params['lmbda']
@@ -36,31 +37,38 @@ class SimpleSVM(BaseEstimator, ClassifierMixin):
         return ka / lmbda + self._b
 
 
-class OptimizedSVM(BaseEstimator, ClassifierMixin):
-
-    def __init__(self, params, verbose=0):
-        self._params = params
-        self._verbose = verbose
-        self._validation_loss = self._validation_loss_regression
-
-    def _validation_loss_regression(self, t, y):
-        m, dm = get_maxfun(
-            self._params['smoothingParam'],
-            self._params['maxfunDegree'],
-        )[:2]
-        ell = m(t - y).sum() + m(y - t).sum()
-        dell = dm(t - y) - dm(y - t)
-        return ell, dell
+class ValidationMixin:
+    def __init__(self, params=dict()):
+        smoothing = params.get('smoothingParam', 0.5)
+        degree = params.get('smoothingDegree', '6')
+        self._m, self._dm = get_maxfun(smoothing, degree)[:2]
+        self._shift = params.get('shift', 1.0)
+        kind = params.get('kind', 'classification')
+        if kind == 'classification':
+            self._validation_loss = self._validation_loss_classification
+        elif kind == 'regression':
+            self._validation_loss = self._validation_loss_regression
+        else:
+            raise ValueError(f'unknown validation kind "{kind}"')
 
     def _validation_loss_classification(self, t, y):
-        shift = 1.0
-        m, dm = get_maxfun(
-            self._params['smoothingParam'],
-            self._params['maxfunDegree'],
-        )[:2]
-        ell = m(shift - t * y).sum()
-        dell = -y * dm(shift - t * y)
+        shift = self._shift
+        ell = self._m(shift - t * y).sum()
+        dell = -y * self._dm(shift - t * y)
         return ell, dell
+
+    def _validation_loss_regression(self, t, y):
+        ell = self._m(t - y).sum() + self._m(y - t).sum()
+        dell = self._dm(t - y) - self._dm(y - t)
+        return ell, dell
+
+
+class ParameterOptimizationBase(ValidationMixin):
+
+    def __init__(self, params, validation_params=dict(), verbose=0):
+        ValidationMixin.__init__(self, validation_params)
+        self._params = params
+        self._verbose = verbose
 
     def _get_scaling(self, scaling_params):
         assert scaling_params.size == 1
@@ -118,7 +126,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin):
             k_p_p = k_p_sv[:, idx_p_in_sv]
             k_val_p = k_val_sv.T[:, idx_p_in_sv]
 
-            if (idx_sv & (~idx_p)).any():
+            if k_p_p.shape[0] != k_p_p.shape[1]:
                 k_p_p = prob.kernel(idx=idx_p, idx0=idx_p)
                 k_val_p = prob.kernel(x=xs_val, idx0=idx_p).T
 
@@ -150,7 +158,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin):
             print(f'err = {err:14.8f}, derr = {derr}')
         return err, derr
 
-    def optimize_params(self, x, y, splits):
+    def _optimize_params(self, x, y, splits):
         p0 = np.log([self._params['lmbda'], self._params['gamma']])
 
         res = minimize(
@@ -169,7 +177,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin):
 
     def fit(self, x, y):
         splits = list(KFold(5).split(x))
-        self.optimize_params(x, y, splits)
+        self._optimize_params(x, y, splits)
         self._svm = SimpleSVM(self._params)
         self._svm.fit(x, y)
 
@@ -177,20 +185,35 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin):
         return self._svm.predict(x)
 
 
+class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
+    def __init__(self, params, validation_params=dict(), verbose=0):
+        ParameterOptimizationBase.__init__(
+            self,
+            params=params,
+            validation_params=validation_params,
+            verbose=verbose,
+        )
+
+
 def main():
     n = 1000
     x, y = data(n, nft=10)
-    svm = OptimizedSVM(dict(
-        lmbda=0.1,
-        gamma=0.5,
-        smoothingParam=0.1,
-        shift=1.0,
-        maxfunDegree='6',
-        tolSmo=1e-2,
-        tolNewton=1e-10,
-        # verbose=10000,
-        maxAsum=10.0,
-    ))
+    svm = OptimizedSVM(
+        params=dict(
+            lmbda=0.1,
+            gamma=0.5,
+            smoothingParam=0.1,
+            shift=1.0,
+            maxfunDegree='6',
+            tolSmo=1e-2,
+            tolNewton=1e-10,
+            # verbose=10000,
+            # maxAsum=1.0,
+        ),
+        validation_params=dict(
+            kind='regression',
+        ),
+    )
     svm.fit(x[:n//2], y[:n//2])
 
     yest = svm.predict(x)

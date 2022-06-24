@@ -171,8 +171,6 @@ def solve(prob, z0=None):
                 continue
             raise RuntimeError('step failed')
         recompute_ka = True
-    else:
-        return
 
     return dict(a=a, b=b, c=c, ka=ka, g=g)
 
