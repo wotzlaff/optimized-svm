@@ -26,11 +26,20 @@ class KernelMixin:
         self._blocks = blocks
 
     def scale(self, x, gamma):
-        return gamma * x
+        blocks = self._blocks
+        if blocks is None:
+            return gamma * x
+        else:
+            xs = x.copy()
+            assert gamma.size == len(blocks)
+            for gamma_k, block_k in zip(gamma, blocks):
+                xs[:, block_k] *= gamma_k
+            return xs
 
 
 class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin, KernelMixin):
-    def __init__(self, params):
+    def __init__(self, params, kernel_params=dict()):
+        KernelMixin.__init__(self, **kernel_params)
         self._params = params
 
     def fit(self, x, y):
@@ -81,7 +90,14 @@ class ValidationMixin:
 
 class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
 
-    def __init__(self, params, validation_params=dict(), verbose=0):
+    def __init__(
+        self,
+        params,
+        validation_params=dict(),
+        kernel_params=dict(),
+        verbose=0,
+    ):
+        KernelMixin.__init__(self, **kernel_params)
         ValidationMixin.__init__(self, validation_params)
         self._params = params
         self._verbose = verbose
