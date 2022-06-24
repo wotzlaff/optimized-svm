@@ -172,7 +172,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
         return self._svm.predict(x)
 
 
-if __name__ == '__main__':
+def main():
     n = 1000
     x, y = data(n, nft=10)
     svm = OptimizedSVM(dict(
@@ -197,3 +197,7 @@ if __name__ == '__main__':
     plt.axhline(0.0)
     plt.axhline(-1.0)
     plt.show()
+
+
+if __name__ == '__main__':
+    main()

@@ -192,7 +192,7 @@ def solve_twostep(x, y, kernel, params):
     return solve(prob, z0=(a, b, c))
 
 
-if __name__ == '__main__':
+def main():
     x, y = data(1000, 10)
 
     gamma = 0.2
@@ -228,4 +228,9 @@ if __name__ == '__main__':
     g = -y * dm(f)
     r = a + g
 
+    print(obj)
     print(r.dot(r), a.sum())
+
+
+if __name__ == '__main__':
+    main()
