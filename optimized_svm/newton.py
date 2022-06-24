@@ -174,9 +174,10 @@ def solve(prob, z0=None):
     return dict(a=a, b=b, c=c, ka=ka, g=g)
 
 
-def solve_twostep(x, y, params):
+def solve_twostep(prob):
+    params = prob._params
     result = nimsmo.solveClassification(
-        x.tolist(), y.tolist(),
+        prob._x.tolist(), prob._y.tolist(),
         params['lmbda'], params['gamma'],
         smoothingParam=params['smoothingParam'],
         maxAsum=params.get('maxAsum', float('inf')),
@@ -188,7 +189,6 @@ def solve_twostep(x, y, params):
     a = np.array(result['a'])
     b = result['b']
     c = result['c']
-    prob = problem.Classification(x, y, params)
     return solve(prob, z0=(a, b, c))
 
 
@@ -208,27 +208,16 @@ def main():
         maxfunDegree='2',
     )
 
-    result = solve_twostep(gamma * x, y, params)
+    prob = problem.Classification(gamma * x, y, params)
+    result = solve_twostep(prob)
     a = np.array(result['a'])
     b = result['b']
     c = result['c']
 
-    # check optimality conditions
-    maxfun = get_maxfun(params['smoothingParam'], params['maxfunDegree'])
-    m, dm, ddm = maxfun
-    idx_sv = a != 0
-    k = kernel(gamma * x, gamma * x[idx_sv])
-    ka = k.dot(a[idx_sv]) / params['lmbda']
-
-    s = y
-    dec = ka + b + s * c
-    f = params['shift'] - y * dec
-    val = m(f)
-    obj = 0.5 * ka.dot(a) + val.sum()
-    g = -y * dm(f)
-    r = a + g
-
+    dec, obj = prob.decision_objective((a, b, c))
     print(obj)
+    g = prob.dloss(dec)
+    r = a + g
     print(r.dot(r), a.sum())
 
 

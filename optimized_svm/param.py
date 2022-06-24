@@ -7,6 +7,7 @@ from sklearn.model_selection import KFold
 
 from sample import data
 import rendered
+import problem
 from smooth_max import get_maxfun
 from kernel import rbf_kernel as kernel, diff
 
@@ -17,10 +18,11 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
         self._params = params
 
     def fit(self, x, y):
-        res = solve_twostep(
+        prob = problem.Classification(
             self._params['gamma'] * x, y,
             dict(self._params, gamma=1.0),
         )
+        res = solve_twostep(prob)
         self._a, self._b, self._c = res['a'], res['b'], res['c']
         idx_sv = self._a != 0.0
         self._asv = self._a[idx_sv]
@@ -74,10 +76,11 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
             err = 0.0
             derr = np.zeros(2)
             for idx_tr, idx_val in splits:
-                res = solve_twostep(
+                prob = problem.Classification(
                     gamma * x[idx_tr], y[idx_tr],
                     dict(self._params, lmbda=lmbda, gamma=1.0),
                 )
+                res = solve_twostep(prob)
                 a, b, c = res['a'], res['b'], res['c']
                 # extract solution
                 al = a / lmbda
