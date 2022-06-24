@@ -9,7 +9,6 @@ from sample import data
 import rendered
 import problem
 from smooth_max import get_maxfun
-from kernel import rbf_kernel as kernel, diff
 
 
 class SimpleSVM(BaseEstimator, RegressorMixin):
@@ -18,13 +17,13 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
         self._params = params
 
     def fit(self, x, y):
-        prob = problem.Classification(
+        self._prob = problem.Classification(
             self._params['gamma'] * x, y,
             dict(self._params, gamma=1.0),
         )
-        res = solve_twostep(prob)
+        res = solve_twostep(self._prob)
         self._a, self._b, self._c = res['a'], res['b'], res['c']
-        idx_sv = self._a != 0.0
+        self._idx_sv = idx_sv = self._a != 0.0
         self._asv = self._a[idx_sv]
         self._xsv = x[idx_sv]
 
@@ -32,8 +31,8 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
         lmbda = self._params['lmbda']
         gamma = np.array(self._params['gamma'])
         xs = gamma[:, None] * x
-        xs_sv = gamma[:, None] * self._xsv
-        return kernel(xs, xs_sv).dot(self._asv) / lmbda + self._b
+        ka = self._prob.kernel(x=xs, idx0=self._idx_sv).T.dot(self._asv)
+        return ka / lmbda + self._b
 
 
 class OptimizedSVM(BaseEstimator, RegressorMixin):
@@ -43,11 +42,10 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
         self._verbose = verbose
 
     def optimize_params(self, x, y, splits):
-        m, dm, ddm = mf = get_maxfun(
+        mf = get_maxfun(
             self._params['smoothingParam'],
             self._params['maxfunDegree'],
         )
-        shift = self._params['shift']
         max_asum = self._params.get('maxAsum', float('inf'))
         has_asum = ~np.isinf(max_asum)
         s = y
@@ -81,7 +79,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                     dict(self._params, lmbda=lmbda, gamma=1.0),
                 )
                 res = solve_twostep(prob)
-                a, b, c = res['a'], res['b'], res['c']
+                z = a, b, c = res['a'], res['b'], res['c']
                 # extract solution
                 al = a / lmbda
                 idx_sv = a != 0.0
@@ -89,22 +87,21 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
                 # scale inputs
                 xs_val = gamma[:, None] * x[idx_val]
-                xs_tr = gamma[:, None] * x[idx_tr]
-                xs_sv = xs_tr[idx_sv]
 
                 # compute validation estimates and error
-                k_val_sv = kernel(xs_val, xs_sv)
-                ka_val = k_val_sv.dot(al_sv)
+                k_val_sv, dk_val_sv = prob.kernel(
+                    x=xs_val, idx0=idx_sv, deriv=True
+                )
+                ka_val = k_val_sv.T.dot(al_sv)
                 y_val_pred = ka_val + b
                 l_val, dl_val = validation_loss(y_val_pred, y[idx_val], mf)
                 err += l_val
 
                 # compute decision function values
-                k_tr_sv = kernel(xs_tr, xs_sv)
+                k_tr_sv, dk_tr_sv = prob.kernel(idx=idx_sv, deriv=True)
                 ka = k_tr_sv.dot(al_sv)
-                dec = ka + b + c * y[idx_tr]
-                f = shift - y[idx_tr] * dec
-                h = ddm(f)
+                dec = prob.decision(z, ka)
+                h = prob.ddloss(dec)
 
                 # extract relevant part
                 idx_p = h > 0
@@ -114,11 +111,11 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                     return np.inf, np.zeros_like(derr)
                 k_p_sv = k_tr_sv[idx_p, :]
                 k_p_p = k_p_sv[:, idx_p_in_sv]
-                k_val_p = k_val_sv[:, idx_p_in_sv]
+                k_val_p = k_val_sv.T[:, idx_p_in_sv]
 
                 if (idx_sv & (~idx_p)).any():
-                    k_p_p = kernel(xs_tr[idx_p], xs_tr[idx_p])
-                    k_val_p = kernel(xs_val, xs_tr[idx_p])
+                    k_p_p = prob.kernel(idx=idx_p, idx0=idx_p)
+                    k_val_p = prob.kernel(x=xs_val, idx0=idx_p)
 
                 # solve transposed system
                 lhs_p = dl_val.dot(k_val_p) / lmbda
@@ -141,10 +138,8 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
                 derr[0] += hu_p.dot(rhs_p) - dl_val.dot(ka_val)
 
                 # dgamma:
-                dk_val_sv = -2.0 * k_val_sv * diff(xs_val, xs_sv)
-                dk_tr_p = -2.0 * k_p_sv * diff(xs_tr[idx_p], xs_sv)
-                rhs_p = -dk_tr_p.dot(al_sv)
-                derr[1] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.dot(al_sv))
+                rhs_p = -dk_tr_sv[idx_p].dot(al_sv)
+                derr[1] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.T.dot(al_sv))
 
             if self._verbose > 0:
                 print(f'err = {err:14.8f}, derr = {derr}')

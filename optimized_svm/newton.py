@@ -3,9 +3,7 @@ import numpy as np
 import nimsmo
 
 from sample import data
-from kernel import rbf_kernel as kernel
 import rendered
-from smooth_max import get_maxfun
 import problem
 
 

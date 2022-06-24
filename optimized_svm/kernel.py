@@ -8,5 +8,9 @@ def diff(x1, x2, idx=slice(None)):
     return d
 
 
-def rbf_kernel(x1, x2, gamma=1.0):
-    return np.exp(-gamma * diff(x1, x2, slice(None)))
+def rbf_kernel(x1, x2, gamma=1.0, deriv=False):
+    d = diff(x1, x2, slice(None))
+    k = np.exp(-gamma * d)
+    if not deriv:
+        return k
+    return k, -2.0 * k * d
