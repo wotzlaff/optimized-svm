@@ -12,13 +12,20 @@ import problem
 from smooth_max import get_maxfun
 
 
-class SimpleSVM(BaseEstimator, ClassifierMixin):
+class TrainingMixin:
+    def _create_problem(self, x, y, params):
+        if params['kind'] == 'classification':
+            return problem.Classification(x, y, params)
+        elif params['kind'] == 'regression':
+            return problem.Regression(x, y, params)
 
+
+class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin):
     def __init__(self, params):
         self._params = params
 
     def fit(self, x, y):
-        self._prob = problem.Classification(
+        self._prob = self._create_problem(
             self._params['gamma'] * x, y,
             dict(self._params, gamma=1.0),
         )
@@ -63,7 +70,7 @@ class ValidationMixin:
         return ell, dell
 
 
-class ParameterOptimizationBase(ValidationMixin):
+class ParameterOptimizationBase(ValidationMixin, TrainingMixin):
 
     def __init__(self, params, validation_params=dict(), verbose=0):
         ValidationMixin.__init__(self, validation_params)
@@ -87,7 +94,7 @@ class ParameterOptimizationBase(ValidationMixin):
         err = 0.0
         derr = np.zeros(2)
         for idx_tr, idx_val in splits:
-            prob = problem.Classification(
+            prob = self._create_problem(
                 gamma * x[idx_tr], y[idx_tr],
                 dict(self._params, lmbda=lmbda, gamma=1.0),
             )
@@ -197,18 +204,20 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
 
 def main():
     n = 1000
-    x, y = data(n, nft=10)
+    x, y = data(n, nft=10, classification=False)
     svm = OptimizedSVM(
         params=dict(
             lmbda=0.1,
             gamma=0.5,
             smoothingParam=0.1,
-            shift=1.0,
+            epsilon=0.1,
+            # shift=1.0,
             maxfunDegree='6',
             tolSmo=1e-2,
             tolNewton=1e-10,
             # verbose=10000,
-            # maxAsum=1.0,
+            maxAsum=0.005 * 400,
+            kind='regression',
         ),
         validation_params=dict(
             kind='regression',
@@ -219,11 +228,18 @@ def main():
     yest = svm.predict(x)
 
     import matplotlib.pyplot as plt
-    plt.plot(y[:n//2], yest[:n//2], 'kx')
-    plt.plot(y[n//2:] * 0.9, yest[n//2:], 'r+')
-    plt.axhline(1.0)
-    plt.axhline(0.0)
-    plt.axhline(-1.0)
+    if svm._params['kind'] == 'classification':
+        plt.plot(y[:n//2], yest[:n//2], 'kx')
+        plt.plot(y[n//2:] * 0.9, yest[n//2:], 'r+')
+        plt.axhline(1.0)
+        plt.axhline(0.0)
+        plt.axhline(-1.0)
+    elif svm._params['kind'] == 'regression':
+        plt.plot(y[:n//2], yest[:n//2], 'kx')
+        plt.plot(y[n//2:], yest[n//2:], 'r+')
+        vmin = min(y.min(),  yest.min())
+        vmax = max(y.max(),  yest.max())
+        plt.plot([vmin, vmax], [vmin, vmax], '--')
     plt.show()
 
 
