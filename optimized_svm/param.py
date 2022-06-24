@@ -39,7 +39,7 @@ class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin):
     def predict(self, x):
         lmbda = self._params['lmbda']
         gamma = np.array(self._params['gamma'])
-        xs = gamma[:, None] * x
+        xs = gamma * x
         ka = self._prob.kernel(x=xs, idx0=self._idx_sv).T.dot(self._asv)
         return ka / lmbda + self._b
 
@@ -203,40 +203,46 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
 
 
 def main():
-    n = 1000
+    n = 2000
     x, y = data(n, nft=10, classification=False)
+    params = dict(
+        lmbda=0.1,
+        gamma=0.5,
+        smoothingParam=0.02,
+        epsilon=0.1,
+        # shift=1.0,
+        maxfunDegree='6',
+        tolSmo=1e-2,
+        tolNewton=1e-10,
+        # verbose=10000,
+        maxAsum=0.002 * n * 0.8,
+        kind='regression',
+    )
+    svm0 = SimpleSVM(params)
+    svm0.fit(x[:n//2], y[:n//2])
+    yest0 = svm0.predict(x)
+
     svm = OptimizedSVM(
-        params=dict(
-            lmbda=0.1,
-            gamma=0.5,
-            smoothingParam=0.1,
-            epsilon=0.1,
-            # shift=1.0,
-            maxfunDegree='6',
-            tolSmo=1e-2,
-            tolNewton=1e-10,
-            # verbose=10000,
-            maxAsum=0.005 * 400,
-            kind='regression',
-        ),
+        params=params,
         validation_params=dict(
             kind='regression',
         ),
     )
     svm.fit(x[:n//2], y[:n//2])
-
     yest = svm.predict(x)
 
     import matplotlib.pyplot as plt
     if svm._params['kind'] == 'classification':
         plt.plot(y[:n//2], yest[:n//2], 'kx')
-        plt.plot(y[n//2:] * 0.9, yest[n//2:], 'r+')
+        plt.plot(y[n//2:] * 0.9, yest0[n//2:], 'r+')
+        plt.plot(y[n//2:] * 0.9, yest[n//2:], 'g+')
         plt.axhline(1.0)
         plt.axhline(0.0)
         plt.axhline(-1.0)
     elif svm._params['kind'] == 'regression':
         plt.plot(y[:n//2], yest[:n//2], 'kx')
-        plt.plot(y[n//2:], yest[n//2:], 'r+')
+        plt.plot(y[n//2:], yest0[n//2:], 'r+')
+        plt.plot(y[n//2:], yest[n//2:], 'g+')
         vmin = min(y.min(),  yest.min())
         vmax = max(y.max(),  yest.max())
         plt.plot([vmin, vmax], [vmin, vmax], '--')
