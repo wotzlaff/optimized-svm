@@ -92,7 +92,7 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin):
             print(f'gamma = {gamma[0]:14.8f}, ', end='')
 
         err = 0.0
-        derr = np.zeros(2)
+        derr = np.zeros_like(param)
         for idx_tr, idx_val in splits:
             prob = self._create_problem(
                 gamma * x[idx_tr], y[idx_tr],
@@ -159,7 +159,7 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin):
 
             # dgamma:
             rhs_p = -dk_tr_sv[idx_p].dot(al_sv)
-            derr[1] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.T.dot(al_sv))
+            derr[1:] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.T.dot(al_sv))
 
         if self._verbose > 0:
             print(f'err = {err:14.8f}, derr = {derr}')
@@ -203,20 +203,21 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
 
 
 def main():
-    n = 2000
-    x, y = data(n, nft=10, classification=False)
+    classification = True
+    n = 10000
+    x, y = data(n, nft=10, classification=classification)
     params = dict(
-        lmbda=0.1,
-        gamma=0.5,
+        lmbda=1.0,
+        gamma=1.0,
         smoothingParam=0.02,
-        epsilon=0.1,
-        # shift=1.0,
+        epsilon=1e-6,
+        shift=1.0,
         maxfunDegree='6',
-        tolSmo=1e-2,
+        tolSmo=1e-1,
         tolNewton=1e-10,
         # verbose=10000,
-        maxAsum=0.002 * n * 0.8,
-        kind='regression',
+        # maxAsum=0.01 * n * 0.8,
+        kind='classification' if classification else 'regression',
     )
     svm0 = SimpleSVM(params)
     svm0.fit(x[:n//2], y[:n//2])
@@ -225,7 +226,9 @@ def main():
     svm = OptimizedSVM(
         params=params,
         validation_params=dict(
-            kind='regression',
+            kind='classification' if classification else 'regression',
+            # kind='regression',
+            shift=0.0,
         ),
     )
     svm.fit(x[:n//2], y[:n//2])
@@ -234,8 +237,11 @@ def main():
     import matplotlib.pyplot as plt
     if svm._params['kind'] == 'classification':
         plt.plot(y[:n//2], yest[:n//2], 'kx')
-        plt.plot(y[n//2:] * 0.9, yest0[n//2:], 'r+')
+        plt.plot(y[n//2:] * 0.8, yest0[n//2:], 'r+')
+        mc0 = (y[n//2:] * yest0[n//2:] <= 0.0).mean()
         plt.plot(y[n//2:] * 0.9, yest[n//2:], 'g+')
+        mc = (y[n//2:] * yest[n//2:] <= 0.0).mean()
+        print(f'{mc0} -> {mc}')
         plt.axhline(1.0)
         plt.axhline(0.0)
         plt.axhline(-1.0)
