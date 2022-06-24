@@ -2,7 +2,7 @@ from functools import partial
 
 import numpy as np
 from scipy.optimize import minimize
-from sklearn.base import BaseEstimator, RegressorMixin
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import KFold
 
 from newton import solve_twostep
@@ -12,7 +12,7 @@ import problem
 from smooth_max import get_maxfun
 
 
-class SimpleSVM(BaseEstimator, RegressorMixin):
+class SimpleSVM(BaseEstimator, ClassifierMixin):
 
     def __init__(self, params):
         self._params = params
@@ -36,7 +36,7 @@ class SimpleSVM(BaseEstimator, RegressorMixin):
         return ka / lmbda + self._b
 
 
-class OptimizedSVM(BaseEstimator, RegressorMixin):
+class OptimizedSVM(BaseEstimator, ClassifierMixin):
 
     def __init__(self, params, verbose=0):
         self._params = params
@@ -66,7 +66,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
         assert scaling_params.size == 1
         return scaling_params
 
-    def objective_function(self, param, x, y, splits):
+    def _objective_function(self, param, x, y, splits):
         log_lmbda = param[0]
         lmbda = np.exp(log_lmbda)
         log_gamma = self._get_scaling(param[1:])
@@ -154,7 +154,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
         p0 = np.log([self._params['lmbda'], self._params['gamma']])
 
         res = minimize(
-            partial(self.objective_function, x=x, y=y, splits=splits),
+            partial(self._objective_function, x=x, y=y, splits=splits),
             p0,
             method='L-BFGS-B',
             options=dict(disp=True),
