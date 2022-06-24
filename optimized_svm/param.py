@@ -115,7 +115,7 @@ class OptimizedSVM(BaseEstimator, RegressorMixin):
 
                 if (idx_sv & (~idx_p)).any():
                     k_p_p = prob.kernel(idx=idx_p, idx0=idx_p)
-                    k_val_p = prob.kernel(x=xs_val, idx0=idx_p)
+                    k_val_p = prob.kernel(x=xs_val, idx0=idx_p).T
 
                 # solve transposed system
                 lhs_p = dl_val.dot(k_val_p) / lmbda
@@ -178,7 +178,7 @@ def main():
         gamma=0.5,
         smoothingParam=0.1,
         shift=1.0,
-        maxfunDegree='2',
+        maxfunDegree='6',
         tolSmo=1e-2,
         tolNewton=1e-10,
         # verbose=10000,
