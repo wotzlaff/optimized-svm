@@ -142,7 +142,7 @@ def solve(prob, z0=None):
     fresh_ka = True
     final_step = False
 
-    for _ in range(params.get('maxSteps', 1000)):
+    for _ in range(params_newton.get('maxSteps', 1000)):
         a, b, c = z
         if final_step:
             break
