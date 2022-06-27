@@ -105,12 +105,14 @@ class ParameterOptimizationBase(
         blocks=None,
         kernel_fun=None,
         verbose=0,
+        debug=False,
     ):
         FeatureScalingMixin.__init__(self, blocks)
         ValidationMixin.__init__(self, validation_params)
         self._params = params
         self._verbose = verbose
         self._kernel_fun = kernel_fun
+        self._debug = debug
 
     def _objective_function(self, param, x, y, splits):
         log_lmbda = param[0]
@@ -211,10 +213,11 @@ class ParameterOptimizationBase(
             scaling,
         )))
 
-        check_grad(
-            partial(self._objective_function, x=x, y=y, splits=splits),
-            p0,
-        )
+        if self._debug:
+            check_grad(
+                partial(self._objective_function, x=x, y=y, splits=splits),
+                p0,
+            )
 
         res = minimize(
             partial(self._objective_function, x=x, y=y, splits=splits),
