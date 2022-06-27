@@ -126,7 +126,7 @@ class OptimizedSVM(
 
         if self._verbose > 0:
             print(f'lmbda = {lmbda:14.8f}, ', end='')
-            print(f'scaling = {scaling[0]:14.8f}, ', end='')
+            print(f'scaling = {np.mean(scaling):14.8f}, ', end='')
 
         nerr = 0.0
         err = 0.0
