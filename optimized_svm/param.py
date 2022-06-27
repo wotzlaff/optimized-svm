@@ -41,7 +41,7 @@ class FeatureScalingMixin:
 class SimpleSVM(
     BaseEstimator, ClassifierMixin, TrainingMixin, FeatureScalingMixin,
 ):
-    def __init__(self, params, blocks=None, kernel_fun=rbf_kernel):
+    def __init__(self, params, blocks=None, kernel_fun=None):
         FeatureScalingMixin.__init__(self, blocks)
         self._params = params
         self._kernel_fun = kernel_fun
@@ -103,7 +103,7 @@ class ParameterOptimizationBase(
         params,
         validation_params=dict(),
         blocks=None,
-        kernel_fun=rbf_kernel,
+        kernel_fun=None,
         verbose=0,
     ):
         FeatureScalingMixin.__init__(self, blocks)
@@ -222,7 +222,11 @@ class ParameterOptimizationBase(
     def fit(self, x, y):
         splits = list(KFold(5).split(x))
         self._optimize_params(x, y, splits)
-        self._svm = SimpleSVM(self._params)
+        self._svm = SimpleSVM(
+            self._params,
+            blocks=self._blocks,
+            kernel_fun=self._kernel_fun,
+        )
         self._svm.fit(x, y)
 
     def predict(self, x):
@@ -234,7 +238,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
         self,
         params,
         validation_params=dict(),
-        kernel_fun=rbf_kernel,
+        kernel_fun=None,
         verbose=0,
     ):
         ParameterOptimizationBase.__init__(
