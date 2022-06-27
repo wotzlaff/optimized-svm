@@ -279,7 +279,7 @@ def main():
         smoothingParam=0.02,
         epsilon=1e-6,
         shift=1.0,
-        maxfunDegree='6',
+        maxfunDegree='2',
         tolSmo=1e-1,
         tolNewton=1e-12,
         # verbose=10000,
