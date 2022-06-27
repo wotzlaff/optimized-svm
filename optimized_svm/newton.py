@@ -223,6 +223,7 @@ def solve_twostep(prob):
         tolViolation=params_smo.get('tol', 0.1),
         verbose=params_smo.get('verbose', 0),
         shrinkingPeriod=params_smo.get('shrinkingPeriod', 100),
+        maxSteps=params_smo.get('maxSteps', 1_000_000_000),
     )
     t0 = time.time()
     if isinstance(prob, Classification):
