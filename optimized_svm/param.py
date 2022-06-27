@@ -133,6 +133,8 @@ class OptimizedSVM(
         for _, (idx_tr, idx_val) in enumerate(splits):
             if self._verbose > 0:
                 print(f'\n## {_+1} of {len(splits)}')
+            if self._verbose > 2:
+                print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
             prob = self._create_problem(
                 self.scale(x[idx_tr], scaling), y[idx_tr],
                 dict(self._params, lmbda=lmbda, kernel_param=dict(

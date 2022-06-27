@@ -210,7 +210,8 @@ def solve(prob, z0=None):
 
 def solve_twostep(prob):
     params = prob._params
-    verbose = params.get('verbose', 0)
+    params_newton = params.get('newton', dict())
+    verbose = params_newton.get('verbose', 0)
 
     params_smo = params.get('smo', dict())
     args = dict(
