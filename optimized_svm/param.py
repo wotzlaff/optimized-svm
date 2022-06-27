@@ -128,6 +128,7 @@ class OptimizedSVM(
             print(f'lmbda = {lmbda:14.8f}, ', end='')
             print(f'scaling = {scaling[0]:14.8f}, ', end='')
 
+        nerr = 0.0
         err = 0.0
         derr = np.zeros_like(param)
         for _, (idx_tr, idx_val) in enumerate(splits):
@@ -161,6 +162,11 @@ class OptimizedSVM(
             y_val_pred = ka_val + b
             l_val, dl_val = self._validation_loss(y_val_pred, y[idx_val])
             err += l_val
+            if self._validation_loss == self._validation_loss_classification:
+                nerr += ((y_val_pred * y[idx_val]) < 0.0).mean()
+            else:
+                err_std = np.abs(y[idx_val] - np.median(y[idx_val])).sum()
+                nerr += np.abs(y[idx_val] - y_val_pred).sum() / err_std
 
             # compute decision function values
             k_tr_sv, dk_tr_sv = prob.k(idx=idx_sv, deriv=True)
@@ -207,7 +213,9 @@ class OptimizedSVM(
             derr[1:] += hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
 
         if self._verbose > 0:
-            print(f'err = {err:14.8f}, derr = {derr}')
+            print(f'err = {err:14.8f}', end=', ')
+            print(f'nerr = {nerr / len(splits):10.6f}', end=', ')
+            print(f'derr = {derr}')
         return err, derr
 
     def _optimize_params(self, x, y, splits):
