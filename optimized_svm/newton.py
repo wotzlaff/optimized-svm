@@ -1,11 +1,9 @@
-from tabnanny import verbose
+import time
 import numpy as np
 import nimsmo
 
-from .sample import data
 from .rendered import solve as solve_rendered
 from .problem import Classification, Regression
-from .kernel import rbf_kernel
 
 
 def solve_system(prob, dec, a, g, lmbda, max_asum):
@@ -45,6 +43,7 @@ def descent_step(
     prob, z, ka, dec, obj, g, r,
     direction='newton',
     final_step=False,
+    verbose=0,
 ):
     params = prob.params
     a, b, c = z
@@ -90,7 +89,7 @@ def descent_step(
     if has_asum:
         dgrad += dn_c * (g.dot(prob.sign) + max_asum)
     if dgrad < 0.0:
-        if verbose != 0:
+        if verbose > 0:
             print(f'no ascent direction: {dgrad} <= 0.0')
         return
 
@@ -104,8 +103,11 @@ def descent_step(
 
         kan = ka - t * prob.k(idx=idx_d).dot(dn_a[idx_d]) / lmbda
         objn = prob.objective(zn, kan)
-        if params.get('verbose', 0) != 0:
-            print(f'  [{_+1}] objective value: {obj} - {objn - obj}')
+        if params.get('verbose', 0) > 1:
+            dobj = objn - obj
+            tag = dict(newton='N', gradient='G')[direction]
+            print(f'[{tag} {_+1:3d}] f = {obj:10.5g}, ', end='')
+            print(f'{"":16s} df = {dobj:9.4e}')
 
         obj_max = obj - params.get('sigma', 0.01) * t * dgrad
         enough_descent = objn < obj_max  # + tol
@@ -145,8 +147,8 @@ def solve(prob, z0=None):
             break
 
         if recompute_ka:
-            if verbose != 0:
-                print('  ... recompute ka')
+            if verbose > 1:
+                print('... recompute ka')
             idx_sv = a != 0
             ka = prob.k(idx=idx_sv).dot(a[idx_sv]) / lmbda
             recompute_ka = False
@@ -161,8 +163,8 @@ def solve(prob, z0=None):
         res += g.sum() ** 2
         if has_asum:
             res += (g.dot(prob.sign) + max_asum) ** 2
-        if verbose != 0:
-            print(f'[{_+1}] objective value: {obj}, residual: {res}')
+        if verbose > 0:
+            print(f'[{_+1:5d}] f = {obj:10.5g}, r = {res:10.5e}')
         if res < params['tolNewton']:
             if fresh_ka:
                 final_step = True
@@ -174,6 +176,7 @@ def solve(prob, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             final_step=final_step,
+            verbose=verbose,
         )
         if result is not None:
             z, ka = result
@@ -189,6 +192,7 @@ def solve(prob, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             direction='gradient',
+            verbose=verbose,
         )
         if result is not None:
             z, ka = result
@@ -196,11 +200,14 @@ def solve(prob, z0=None):
             continue
         raise RuntimeError('step failed')
 
+    if verbose > 0:
+        print('--- solved ---')
     return dict(a=a, b=b, c=c, ka=ka)
 
 
 def solve_twostep(prob):
     params = prob._params
+    verbose = params.get('verbose', 0)
 
     args = dict(
         x=prob._x.tolist(),
@@ -210,9 +217,10 @@ def solve_twostep(prob):
         smoothingParam=params['smoothingParam'],
         maxAsum=params.get('maxAsum', float('inf')),
         tolViolation=params.get('tolSmo', 0.1),
-        verbose=params.get('verbose', 0),
+        verbose=params.get('verboseSmo', 0),
         shrinkingPeriod=params.get('shrinkingPeriod', 100),
     )
+    t0 = time.time()
     if isinstance(prob, Classification):
         if 'shift' in params:
             args['shift'] = params['shift']
@@ -221,41 +229,15 @@ def solve_twostep(prob):
         if 'epsilon' in params:
             args['epsilon'] = params['epsilon']
         result = nimsmo.solveRegression(**args)
+    dt_smo = time.time() - t0
+    if verbose > 0:
+        print(f't(SMO) = {dt_smo:10.1f}s')
     a = np.array(result['a'])
     b = result['b']
     c = result['c']
-    return solve(prob, z0=(a, b, c))
-
-
-def main():
-    x, y = data(1000, 10, classification=False)
-
-    gamma = 0.2
-
-    params = dict(
-        lmbda=1e-3,
-        kernel_param=dict(gamma=1.0),
-        smoothingParam=0.1,
-        shift=1.0,
-        epsilon=0.5,
-        verbose=1000,
-        tolSmo=1e-3,
-        tolNewton=1e-12,
-        maxfunDegree='2',
-    )
-
-    prob = Regression(gamma * x, y, params, kernel_fun=rbf_kernel)
-    result = solve_twostep(prob)
-    a = np.array(result['a'])
-    b = result['b']
-    c = result['c']
-
-    dec, obj = prob.decision_objective((a, b, c))
-    print(obj)
-    g = prob.dloss(dec)
-    r = a + g
-    print(r.dot(r), a.sum())
-
-
-if __name__ == '__main__':
-    main()
+    t0 = time.time()
+    result = solve(prob, z0=(a, b, c))
+    dt_refine = time.time() - t0
+    if verbose > 0:
+        print(f't(ref) = {dt_refine:10.1f}s')
+    return result
