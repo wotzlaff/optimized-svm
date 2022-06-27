@@ -1,6 +1,5 @@
 import numpy as np
 from smooth_max import get_maxfun
-from kernel import rbf_kernel as kernel
 
 
 class ParamBase:
@@ -37,7 +36,7 @@ class ParamBase:
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.kernel(idx=idx_sv).dot(a[idx_sv]) / self._params['lmbda']
+            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self._params['lmbda']
         dec = ka + b + self.sign * c
         return dec
 
@@ -45,7 +44,7 @@ class ParamBase:
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.kernel(idx=idx_sv).dot(a[idx_sv]) / self._params['lmbda']
+            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self._params['lmbda']
         obj = 0.5 * ka.dot(a)
         dec = ka + b + self.sign * c
         obj += self.loss(dec).sum()
@@ -58,7 +57,10 @@ class ParamBase:
 
 
 class KernelBase:
-    def kernel(self, x=None, idx=None, idx0=None, deriv=False):
+    def __init__(self, kernel_fun):
+        self._kernel_fun = kernel_fun
+
+    def k(self, x=None, idx=None, idx0=None, deriv=False):
         if idx0 is None:
             x0 = self._x
         else:
@@ -67,12 +69,17 @@ class KernelBase:
             x1 = x
         if idx is not None:
             x1 = self._x[idx]
-        return kernel(x0, x1, self._params['gamma'], deriv=deriv)
+        return self._kernel_fun(
+            x0, x1,
+            self._params['kernel_param'],
+            deriv=deriv,
+        )
 
 
 class Classification(ParamBase, KernelBase):
-    def __init__(self, x, y, params):
+    def __init__(self, x, y, params, kernel_fun):
         ParamBase.__init__(self, params)
+        KernelBase.__init__(self, kernel_fun)
         self._x = x
         self._y = y
 
@@ -95,8 +102,9 @@ class Classification(ParamBase, KernelBase):
 
 
 class Regression(ParamBase, KernelBase):
-    def __init__(self, x, y, params):
+    def __init__(self, x, y, params, kernel_fun):
         ParamBase.__init__(self, params)
+        KernelBase.__init__(self, kernel_fun)
         self._x = np.concatenate((x, x))
         self._y = y
 

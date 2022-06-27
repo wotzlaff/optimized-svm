@@ -5,12 +5,13 @@ import nimsmo
 from sample import data
 import rendered
 import problem
+from kernel import rbf_kernel
 
 
 def solve_system(prob, dec, a, g, lmbda, max_asum):
     h = prob.ddloss(dec)
     idx_p = h > 0.0
-    k_p = prob.kernel(idx=idx_p).T
+    k_p = prob.k(idx=idx_p).T
     idx_z = ~idx_p
     da = np.zeros_like(a)
     da_z = a[idx_z] + g[idx_z]
@@ -82,7 +83,7 @@ def descent_step(
     # compute predicted decrease
     idx_d = np.abs(dn_a) > tol
     idx_r = np.abs(r) > tol
-    dgrad = prob.kernel(
+    dgrad = prob.k(
         idx=idx_r, idx0=idx_d
     ).dot(r[idx_r]).dot(dn_a[idx_d]) / lmbda
     dgrad += dn_b * g.sum()
@@ -101,7 +102,7 @@ def descent_step(
         cn = c - t * dn_c
         zn = (an, bn, cn)
 
-        kan = ka - t * prob.kernel(idx=idx_d).dot(dn_a[idx_d]) / lmbda
+        kan = ka - t * prob.k(idx=idx_d).dot(dn_a[idx_d]) / lmbda
         objn = prob.objective(zn, kan)
         if params.get('verbose', 0) != 0:
             print(f'  [{_+1}] objective value: {obj} - {objn - obj}')
@@ -132,7 +133,7 @@ def solve(prob, z0=None):
         a = z[0]
         assert a.size == prob.size
         idx_sv = a != 0
-        ka = prob.kernel(idx=idx_sv).dot(a[idx_sv]) / lmbda
+        ka = prob.k(idx=idx_sv).dot(a[idx_sv]) / lmbda
 
     recompute_ka = False
     fresh_ka = True
@@ -147,7 +148,7 @@ def solve(prob, z0=None):
             if verbose != 0:
                 print('  ... recompute ka')
             idx_sv = a != 0
-            ka = prob.kernel(idx=idx_sv).dot(a[idx_sv]) / lmbda
+            ka = prob.k(idx=idx_sv).dot(a[idx_sv]) / lmbda
             recompute_ka = False
             fresh_ka = True
 
@@ -205,7 +206,7 @@ def solve_twostep(prob):
         x=prob._x.tolist(),
         y=prob._y.tolist(),
         lmbda=params['lmbda'],
-        gamma=params['gamma'],
+        gamma=params['kernel_param'],
         smoothingParam=params['smoothingParam'],
         maxAsum=params.get('maxAsum', float('inf')),
         tolViolation=params.get('tolSmo', 0.1),
@@ -233,7 +234,7 @@ def main():
 
     params = dict(
         lmbda=1e-3,
-        gamma=1.0,
+        kernel_param=1.0,
         smoothingParam=0.1,
         shift=1.0,
         epsilon=0.5,
@@ -243,7 +244,7 @@ def main():
         maxfunDegree='2',
     )
 
-    prob = problem.Regression(gamma * x, y, params)
+    prob = problem.Regression(gamma * x, y, params, kernel_fun=rbf_kernel)
     result = solve_twostep(prob)
     a = np.array(result['a'])
     b = result['b']

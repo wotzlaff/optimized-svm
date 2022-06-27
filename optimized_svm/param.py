@@ -10,19 +10,20 @@ from sample import data
 import rendered
 import problem
 from smooth_max import get_maxfun
+from kernel import rbf_kernel
+from deriv_check import check_grad
 
 
 class TrainingMixin:
-    def _create_problem(self, x, y, params):
+    def _create_problem(self, x, y, params, kernel_fun):
         if params['kind'] == 'classification':
-            return problem.Classification(x, y, params)
+            return problem.Classification(x, y, params, kernel_fun)
         elif params['kind'] == 'regression':
-            return problem.Regression(x, y, params)
+            return problem.Regression(x, y, params, kernel_fun)
 
 
-class KernelMixin:
-    def __init__(self, kernel_type='rbf', blocks=None):
-        self._kernel_type = kernel_type
+class FeatureScalingMixin:
+    def __init__(self, blocks=None):
         self._blocks = blocks
 
     def scale(self, x, gamma):
@@ -37,16 +38,21 @@ class KernelMixin:
             return xs
 
 
-class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin, KernelMixin):
-    def __init__(self, params, kernel_params=dict()):
-        KernelMixin.__init__(self, **kernel_params)
+class SimpleSVM(
+    BaseEstimator, ClassifierMixin, TrainingMixin, FeatureScalingMixin,
+):
+    def __init__(self, params, blocks=None, kernel_fun=rbf_kernel):
+        FeatureScalingMixin.__init__(self, blocks)
         self._params = params
+        self._kernel_fun = kernel_fun
 
     def fit(self, x, y):
-        xs = self.scale(x, self._params['gamma'])
+        xs = self.scale(x, self._params['scaling'])
         self._prob = self._create_problem(
             xs, y,
-            dict(self._params, gamma=1.0),
+            # dict(self._params, gamma=1.0),
+            self._params,
+            self._kernel_fun,
         )
         res = solve_twostep(self._prob)
         a, b = res['a'], res['b']
@@ -57,8 +63,8 @@ class SimpleSVM(BaseEstimator, ClassifierMixin, TrainingMixin, KernelMixin):
 
     def predict(self, x):
         lmbda = self._params['lmbda']
-        xs = self.scale(x, self._params['gamma'])
-        ka = self._prob.kernel(x=xs, idx0=self._idx_sv).T.dot(self._asv)
+        xs = self.scale(x, self._params['scaling'])
+        ka = self._prob.k(x=xs, idx0=self._idx_sv).T.dot(self._asv)
         return ka / lmbda + self._b
 
 
@@ -88,36 +94,41 @@ class ValidationMixin:
         return ell, dell
 
 
-class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
+class ParameterOptimizationBase(
+    ValidationMixin, TrainingMixin, FeatureScalingMixin,
+):
 
     def __init__(
         self,
         params,
         validation_params=dict(),
-        kernel_params=dict(),
+        blocks=None,
+        kernel_fun=rbf_kernel,
         verbose=0,
     ):
-        KernelMixin.__init__(self, **kernel_params)
+        FeatureScalingMixin.__init__(self, blocks)
         ValidationMixin.__init__(self, validation_params)
         self._params = params
         self._verbose = verbose
+        self._kernel_fun = kernel_fun
 
     def _objective_function(self, param, x, y, splits):
         log_lmbda = param[0]
         lmbda = np.exp(log_lmbda)
-        log_gamma = param[1:]
-        gamma = np.exp(log_gamma)
+        log_scaling = param[1:]
+        scaling = np.exp(log_scaling)
 
         if self._verbose > 0:
             print(f'lmbda = {lmbda:14.8f}, ', end='')
-            print(f'gamma = {gamma[0]:14.8f}, ', end='')
+            print(f'scaling = {scaling[0]:14.8f}, ', end='')
 
         err = 0.0
         derr = np.zeros_like(param)
         for idx_tr, idx_val in splits:
             prob = self._create_problem(
-                self.scale(x[idx_tr], gamma), y[idx_tr],
-                dict(self._params, lmbda=lmbda, gamma=1.0),
+                self.scale(x[idx_tr], scaling), y[idx_tr],
+                dict(self._params, lmbda=lmbda),
+                self._kernel_fun,
             )
             res = solve_twostep(prob)
             z = a, b, c = res['a'], res['b'], res['c']
@@ -127,10 +138,10 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
             al_sv = al[idx_sv]
 
             # scale inputs
-            xs_val = self.scale(x[idx_val], gamma)
+            xs_val = self.scale(x[idx_val], scaling)
 
             # compute validation estimates and error
-            k_val_sv, dk_val_sv = prob.kernel(
+            k_val_sv, dk_val_sv = prob.k(
                 x=xs_val, idx0=idx_sv, deriv=True
             )
             ka_val = k_val_sv.T.dot(al_sv)
@@ -139,7 +150,7 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
             err += l_val
 
             # compute decision function values
-            k_tr_sv, dk_tr_sv = prob.kernel(idx=idx_sv, deriv=True)
+            k_tr_sv, dk_tr_sv = prob.k(idx=idx_sv, deriv=True)
             ka = k_tr_sv.dot(al_sv)
             dec = prob.decision(z, ka)
             h = prob.ddloss(dec)
@@ -155,8 +166,8 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
             k_val_p = k_val_sv.T[:, idx_p_in_sv]
 
             if k_p_p.shape[0] != k_p_p.shape[1]:
-                k_p_p = prob.kernel(idx=idx_p, idx0=idx_p)
-                k_val_p = prob.kernel(x=xs_val, idx0=idx_p).T
+                k_p_p = prob.k(idx=idx_p, idx0=idx_p)
+                k_val_p = prob.k(x=xs_val, idx0=idx_p).T
 
             # solve transposed system
             lhs_p = dl_val.dot(k_val_p) / lmbda
@@ -178,7 +189,7 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
             rhs_p = ka[idx_p]
             derr[0] += hu_p.dot(rhs_p) - dl_val.dot(ka_val)
 
-            # dgamma:
+            # dscaling:
             rhs_p = -dk_tr_sv[idx_p].dot(al_sv)
             derr[1:] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.T.dot(al_sv))
 
@@ -187,7 +198,12 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
         return err, derr
 
     def _optimize_params(self, x, y, splits):
-        p0 = np.log([self._params['lmbda'], self._params['gamma']])
+        p0 = np.log([self._params['lmbda'], self._params['scaling']])
+
+        check_grad(
+            partial(self._objective_function, x=x, y=y, splits=splits),
+            p0,
+        )
 
         res = minimize(
             partial(self._objective_function, x=x, y=y, splits=splits),
@@ -214,11 +230,18 @@ class ParameterOptimizationBase(ValidationMixin, TrainingMixin, KernelMixin):
 
 
 class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
-    def __init__(self, params, validation_params=dict(), verbose=0):
+    def __init__(
+        self,
+        params,
+        validation_params=dict(),
+        kernel_fun=rbf_kernel,
+        verbose=0,
+    ):
         ParameterOptimizationBase.__init__(
             self,
             params=params,
             validation_params=validation_params,
+            kernel_fun=kernel_fun,
             verbose=verbose,
         )
 
@@ -229,7 +252,8 @@ def main():
     x, y = data(n, nft=2, classification=classification)
     params = dict(
         lmbda=1.0,
-        gamma=1.0,
+        scaling=1.0,
+        kernel_param=1.0,
         smoothingParam=0.02,
         epsilon=1e-6,
         shift=1.0,
@@ -240,7 +264,7 @@ def main():
         # maxAsum=0.01 * n * 0.8,
         kind='classification' if classification else 'regression',
     )
-    svm0 = SimpleSVM(params)
+    svm0 = SimpleSVM(params, kernel_fun=rbf_kernel)
     svm0.fit(x[:n//2], y[:n//2])
     yest0 = svm0.predict(x)
 
@@ -251,6 +275,7 @@ def main():
             # kind='regression',
             shift=1.0,
         ),
+        kernel_fun=rbf_kernel,
     )
     svm.fit(x[:n//2], y[:n//2])
     yest = svm.predict(x)
