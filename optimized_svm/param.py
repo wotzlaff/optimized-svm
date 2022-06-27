@@ -98,21 +98,23 @@ class ValidationMixin:
         return ell, dell
 
 
-class ParameterOptimizationBase(
+class OptimizedSVM(
+    BaseEstimator, ClassifierMixin,
     ValidationMixin, TrainingMixin, FeatureScalingMixin,
 ):
-
     def __init__(
         self,
         params,
         validation_params=dict(),
         blocks=None,
+        splits=None,
         kernel_fun=None,
         verbose=0,
         debug=False,
     ):
         FeatureScalingMixin.__init__(self, blocks)
         ValidationMixin.__init__(self, validation_params)
+        self._splits = splits
         self._params = params
         self._verbose = verbose
         self._kernel_fun = kernel_fun
@@ -238,7 +240,10 @@ class ParameterOptimizationBase(
         ))
 
     def fit(self, x, y):
-        splits = list(KFold(5).split(x))
+        if self._splits is None:
+            splits = list(KFold(5).split(x))
+        else:
+            splits = self._splits
         self._optimize_params(x, y, splits)
         self._svm = SimpleSVM(
             self._params,
@@ -251,27 +256,6 @@ class ParameterOptimizationBase(
 
     def predict(self, x):
         return self._svm.predict(x)
-
-
-class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
-    def __init__(
-        self,
-        params,
-        validation_params=dict(),
-        blocks=None,
-        kernel_fun=None,
-        verbose=0,
-        debug=False,
-    ):
-        ParameterOptimizationBase.__init__(
-            self,
-            params=params,
-            validation_params=validation_params,
-            blocks=blocks,
-            kernel_fun=kernel_fun,
-            verbose=verbose,
-            debug=debug,
-        )
 
 
 def main():
