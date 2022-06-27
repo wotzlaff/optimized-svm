@@ -180,7 +180,9 @@ def solve(prob, z0=None):
             verbose=verbose,
         )
         if result is not None:
-            z, ka, _dobj = result
+            z, ka, dobj = result
+            if dobj ** 2 < tol:
+                recompute_ka = True
             fresh_ka = False
             continue
         else:
