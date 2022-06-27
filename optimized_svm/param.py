@@ -130,7 +130,9 @@ class OptimizedSVM(
 
         err = 0.0
         derr = np.zeros_like(param)
-        for idx_tr, idx_val in splits:
+        for _, (idx_tr, idx_val) in enumerate(splits):
+            if self._verbose > 0:
+                print(f'\n## {_+1} of {len(splits)}')
             prob = self._create_problem(
                 self.scale(x[idx_tr], scaling), y[idx_tr],
                 dict(self._params, lmbda=lmbda, kernel_param=dict(
