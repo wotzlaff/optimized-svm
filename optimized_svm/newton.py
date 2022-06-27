@@ -43,14 +43,13 @@ def descent_step(
     prob, z, ka, dec, obj, g, r,
     direction='newton',
     final_step=False,
-    verbose=0,
+    params=dict(),
 ):
-    params = prob.params
     a, b, c = z
-    lmbda = params['lmbda']
-    max_asum = params.get('maxAsum', float('inf'))
+    lmbda = prob.params['lmbda']
+    max_asum = prob.params.get('maxAsum', float('inf'))
     has_asum = ~np.isinf(max_asum)
-    tol = params['tolNewton']
+    tol = params.get('tol', 1e-10)
 
     def get_gradient():
         # use preconditioned gradient
@@ -89,7 +88,7 @@ def descent_step(
     if has_asum:
         dgrad += dn_c * (g.dot(prob.sign) + max_asum)
     if dgrad < 0.0:
-        if verbose > 0:
+        if params.get('verbose', 0) > 0:
             print(f'no ascent direction: {dgrad} <= 0.0')
         return
 
@@ -121,9 +120,10 @@ def descent_step(
 
 def solve(prob, z0=None):
     params = prob.params
-    tol = params['tolNewton']
+    params_newton = params.get('newton', dict())
+    tol = params_newton.get('tol', 1e-10)
+    verbose = params_newton.get('verbose', 0)
     lmbda = params['lmbda']
-    verbose = params.get('verbose', 0)
     max_asum = params.get('maxAsum', float('inf'))
     has_asum = ~np.isinf(max_asum)
 
@@ -177,7 +177,7 @@ def solve(prob, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             final_step=final_step,
-            verbose=verbose,
+            params=params_newton,
         )
         if result is not None:
             z, ka, dobj = result
@@ -195,7 +195,7 @@ def solve(prob, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             direction='gradient',
-            verbose=verbose,
+            params=params_newton,
         )
         if result is not None:
             z, ka, _dobj = result
@@ -212,6 +212,7 @@ def solve_twostep(prob):
     params = prob._params
     verbose = params.get('verbose', 0)
 
+    params_smo = params.get('smo', dict())
     args = dict(
         x=prob._x.tolist(),
         y=prob._y.tolist(),
@@ -219,9 +220,9 @@ def solve_twostep(prob):
         gamma=params['kernel_param']['gamma'],
         smoothingParam=params['smoothingParam'],
         maxAsum=params.get('maxAsum', float('inf')),
-        tolViolation=params.get('tolSmo', 0.1),
-        verbose=params.get('verboseSmo', 0),
-        shrinkingPeriod=params.get('shrinkingPeriod', 100),
+        tolViolation=params_smo.get('tol', 0.1),
+        verbose=params_smo.get('verbose', 0),
+        shrinkingPeriod=params_smo.get('shrinkingPeriod', 100),
     )
     t0 = time.time()
     if isinstance(prob, Classification):

@@ -15,9 +15,14 @@ def main():
         smoothingParam=0.1,
         shift=1.0,
         epsilon=0.5,
-        verbose=1000,
-        tolSmo=1e-3,
-        tolNewton=1e-12,
+        smo=dict(
+            verbose=0,
+            tol=0.1,
+        ),
+        newton=dict(
+            verbose=2,
+            tol=1e-12,
+        ),
         maxfunDegree='2',
     )
 

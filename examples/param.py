@@ -17,9 +17,14 @@ def main():
         epsilon=1e-6,
         shift=1.0,
         maxfunDegree='2',
-        tolSmo=1e-1,
-        tolNewton=1e-12,
-        verbose=2,
+        smo=dict(
+            verbose=1000,
+            tol=0.1,
+        ),
+        newton=dict(
+            verbose=2,
+            tol=1e-12,
+        ),
         # maxAsum=0.01 * n * 0.8,
         kind='classification' if classification else 'regression',
     )
