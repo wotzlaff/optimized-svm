@@ -266,7 +266,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
 
 def main():
     classification = False
-    n = 100
+    n = 1000
     x, y = data(n, nft=2, classification=classification)
     # x[:, 0] *= 10
     params = dict(
@@ -278,7 +278,7 @@ def main():
         shift=1.0,
         maxfunDegree='6',
         tolSmo=1e-1,
-        tolNewton=1e-10,
+        tolNewton=1e-12,
         # verbose=10000,
         # maxAsum=0.01 * n * 0.8,
         kind='classification' if classification else 'regression',
