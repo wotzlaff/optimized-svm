@@ -256,6 +256,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
         blocks=None,
         kernel_fun=None,
         verbose=0,
+        debug=False,
     ):
         ParameterOptimizationBase.__init__(
             self,
@@ -264,6 +265,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
             blocks=blocks,
             kernel_fun=kernel_fun,
             verbose=verbose,
+            debug=debug,
         )
 
 
@@ -299,6 +301,7 @@ def main():
         ),
         kernel_fun=rbf_kernel,
         # blocks=[[0], [1]],
+        # debug=True,
     )
     svm.fit(x[:n//2], y[:n//2])
     yest = svm.predict(x)
