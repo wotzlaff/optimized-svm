@@ -19,7 +19,7 @@ def main():
         maxfunDegree='2',
         tolSmo=1e-1,
         tolNewton=1e-12,
-        # verbose=10000,
+        verbose=2,
         # maxAsum=0.01 * n * 0.8,
         kind='classification' if classification else 'regression',
     )
