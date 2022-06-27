@@ -5,21 +5,21 @@ from scipy.optimize import minimize
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import KFold
 
-from newton import solve_twostep
-from sample import data
-import rendered
-import problem
-from smooth_max import get_maxfun
-from kernel import rbf_kernel
-from deriv_check import check_grad
+from .newton import solve_twostep
+from .sample import data
+from .rendered import solve as solve_rendered
+from .problem import Classification, Regression
+from .smooth_max import get_maxfun
+from .kernel import rbf_kernel
+from .deriv_check import check_grad
 
 
 class TrainingMixin:
     def _create_problem(self, x, y, params, kernel_fun):
         if params['kind'] == 'classification':
-            return problem.Classification(x, y, params, kernel_fun)
+            return Classification(x, y, params, kernel_fun)
         elif params['kind'] == 'regression':
-            return problem.Regression(x, y, params, kernel_fun)
+            return Regression(x, y, params, kernel_fun)
 
 
 class FeatureScalingMixin:
@@ -184,13 +184,13 @@ class OptimizedSVM(
             lhs_p = dl_val.dot(k_val_p) / lmbda
             lhs_1 = dl_val.sum()
             if prob.has_asum:
-                hu_p, _ = rendered.solve(
+                hu_p, _ = solve_rendered(
                     k_p_p / lmbda + np.diag(1.0 / h_p),
                     (np.ones_like(lhs_p), prob.sign[idx_p]),
                     lhs_p, (lhs_1, 0.0),
                 )
             else:
-                hu_p, _ = rendered.solve(
+                hu_p, _ = solve_rendered(
                     k_p_p / lmbda + np.diag(1.0 / h_p),
                     np.ones_like(lhs_p),
                     lhs_p, lhs_1,

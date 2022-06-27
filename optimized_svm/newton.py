@@ -2,10 +2,10 @@ from tabnanny import verbose
 import numpy as np
 import nimsmo
 
-from sample import data
-import rendered
-import problem
-from kernel import rbf_kernel
+from .sample import data
+from .rendered import solve as solve_rendered
+from .problem import Classification, Regression
+from .kernel import rbf_kernel
 
 
 def solve_system(prob, dec, a, g, lmbda, max_asum):
@@ -18,7 +18,7 @@ def solve_system(prob, dec, a, g, lmbda, max_asum):
     da[idx_z] = da_z
     h_p = h[idx_p]
     if np.isinf(max_asum):
-        d_p, db = rendered.solve(
+        d_p, db = solve_rendered(
             k_p[:, idx_p] / lmbda + np.diag(1.0 / h_p),
             np.ones_like(h_p),
             (a[idx_p] + g[idx_p]) / h_p - k_p[:, idx_z].dot(da_z) / lmbda,
@@ -28,7 +28,7 @@ def solve_system(prob, dec, a, g, lmbda, max_asum):
         return da, db, 0.0
     else:
         s = prob.sign
-        d_p, (db, dc) = rendered.solve(
+        d_p, (db, dc) = solve_rendered(
             k_p[:, idx_p] / lmbda + np.diag(1.0 / h_p),
             (np.ones_like(h_p), s[idx_p]),
             (a[idx_p] + g[idx_p]) / h_p - k_p[:, idx_z].dot(da_z) / lmbda,
@@ -213,11 +213,11 @@ def solve_twostep(prob):
         verbose=params.get('verbose', 0),
         shrinkingPeriod=params.get('shrinkingPeriod', 100),
     )
-    if isinstance(prob, problem.Classification):
+    if isinstance(prob, Classification):
         if 'shift' in params:
             args['shift'] = params['shift']
         result = nimsmo.solveClassification(**args)
-    if isinstance(prob, problem.Regression):
+    if isinstance(prob, Regression):
         if 'epsilon' in params:
             args['epsilon'] = params['epsilon']
         result = nimsmo.solveRegression(**args)
@@ -244,7 +244,7 @@ def main():
         maxfunDegree='2',
     )
 
-    prob = problem.Regression(gamma * x, y, params, kernel_fun=rbf_kernel)
+    prob = Regression(gamma * x, y, params, kernel_fun=rbf_kernel)
     result = solve_twostep(prob)
     a = np.array(result['a'])
     b = result['b']

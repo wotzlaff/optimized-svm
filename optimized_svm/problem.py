@@ -1,5 +1,5 @@
 import numpy as np
-from smooth_max import get_maxfun
+from .smooth_max import get_maxfun
 
 
 class ParamBase:
