@@ -286,16 +286,30 @@ def main():
 
     import matplotlib.pyplot as plt
     if svm._params['kind'] == 'classification':
-        plt.plot(y[:n//2], yest[:n//2], 'kx')
-        plt.plot(y[:n//2] * 0.7, yest0[:n//2], 'rx')
-        plt.plot(y[n//2:] * 0.8, yest0[n//2:], 'r+')
+        plt.plot(
+            y[:n//2] * 0.9, y[:n//2] * yest[:n//2],
+            'kx', label='after(train)',
+        )
+        plt.plot(
+            y[n//2:], y[n//2:] * yest[n//2:],
+            'g+', label='after(val)',
+        )
+        plt.plot(
+            y[:n//2] * 0.7, y[:n//2] * yest0[:n//2],
+            'bx', label='intial(train)',
+        )
+        plt.plot(
+            y[n//2:] * 0.8, y[n//2:] * yest0[n//2:],
+            'r+', label='initial(val)',
+        )
+        plt.legend()
+
         mc0 = (y[n//2:] * yest0[n//2:] <= 0.0).mean()
-        plt.plot(y[n//2:] * 0.9, yest[n//2:], 'g+')
         mc = (y[n//2:] * yest[n//2:] <= 0.0).mean()
         print(f'{mc0} -> {mc}')
+
         plt.axhline(1.0)
         plt.axhline(0.0)
-        plt.axhline(-1.0)
     elif svm._params['kind'] == 'regression':
         plt.plot(y[:n//2], yest[:n//2], 'kx')
         plt.plot(y[n//2:], yest0[n//2:], 'r+')
