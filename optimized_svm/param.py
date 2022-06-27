@@ -212,6 +212,17 @@ class OptimizedSVM(
             rhs_p = -np.tensordot(dk_tr_sv[idx_p], al_sv, axes=(1, 0))
             derr[1:] += hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
 
+        if self._validation_loss == self._validation_loss_classification:
+            n_val = sum(len(y[idx_val]) for _, idx_val in splits)
+            err /= n_val
+            derr /= n_val
+        else:
+            err_val = sum(
+                np.sum(np.abs(y[idx_val] - np.median(y[idx_val])))
+                for _, idx_val in splits
+            )
+            err /= err_val
+            derr /= err_val
         if self._verbose > 0:
             print(f'err = {err:14.8f}', end=', ')
             print(f'nerr = {nerr / len(splits):10.6f}', end=', ')
