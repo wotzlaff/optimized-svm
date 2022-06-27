@@ -32,7 +32,8 @@ class FeatureScalingMixin:
             return gamma * x
         else:
             xs = x.copy()
-            assert gamma.size == len(blocks)
+            assert not isinstance(gamma, float) or len(blocks) == 1
+            assert isinstance(gamma, float) or len(gamma) == len(blocks)
             for gamma_k, block_k in zip(gamma, blocks):
                 xs[:, block_k] *= gamma_k
             return xs
@@ -50,7 +51,6 @@ class SimpleSVM(
         xs = self.scale(x, self._params['scaling'])
         self._prob = self._create_problem(
             xs, y,
-            # dict(self._params, gamma=1.0),
             self._params,
             self._kernel_fun,
         )
@@ -127,7 +127,10 @@ class ParameterOptimizationBase(
         for idx_tr, idx_val in splits:
             prob = self._create_problem(
                 self.scale(x[idx_tr], scaling), y[idx_tr],
-                dict(self._params, lmbda=lmbda),
+                dict(self._params, lmbda=lmbda, kernel_param=dict(
+                    self._params['kernel_param'],
+                    blocks=self._blocks,
+                )),
                 self._kernel_fun,
             )
             res = solve_twostep(prob)
@@ -190,15 +193,23 @@ class ParameterOptimizationBase(
             derr[0] += hu_p.dot(rhs_p) - dl_val.dot(ka_val)
 
             # dscaling:
-            rhs_p = -dk_tr_sv[idx_p].dot(al_sv)
-            derr[1:] += hu_p.dot(rhs_p) + dl_val.dot(dk_val_sv.T.dot(al_sv))
+            rhs_p = -np.tensordot(dk_tr_sv[idx_p], al_sv, axes=(1, 0))
+            derr[1:] += hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
 
         if self._verbose > 0:
             print(f'err = {err:14.8f}, derr = {derr}')
         return err, derr
 
     def _optimize_params(self, x, y, splits):
-        p0 = np.log([self._params['lmbda'], self._params['scaling']])
+        scaling = self._params['scaling']
+        n_blocks = 1 if self._blocks is None else len(self._blocks)
+        if isinstance(scaling, float):
+            print(f'extending scaling parameter to {n_blocks} dims')
+            scaling = [scaling] * n_blocks
+        p0 = np.log(np.concatenate((
+            [self._params['lmbda']],
+            scaling,
+        )))
 
         check_grad(
             partial(self._objective_function, x=x, y=y, splits=splits),
@@ -211,12 +222,12 @@ class ParameterOptimizationBase(
             method='L-BFGS-B',
             options=dict(disp=True),
             jac=True,
-            bounds=[(-10, 5), (-10, 5)],
+            bounds=[(-10, 5)] + [(-10, 5)] * n_blocks,
         )
         p_opt = res.x
         self._params.update(dict(
             lmbda=np.exp(p_opt[0]),
-            gamma=np.exp(p_opt[1:]),
+            scaling=np.exp(p_opt[1:]),
         ))
 
     def fit(self, x, y):
@@ -227,6 +238,7 @@ class ParameterOptimizationBase(
             blocks=self._blocks,
             kernel_fun=self._kernel_fun,
         )
+        print(self._svm._params)
         self._svm.fit(x, y)
 
     def predict(self, x):
@@ -238,6 +250,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
         self,
         params,
         validation_params=dict(),
+        blocks=None,
         kernel_fun=None,
         verbose=0,
     ):
@@ -245,6 +258,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
             self,
             params=params,
             validation_params=validation_params,
+            blocks=blocks,
             kernel_fun=kernel_fun,
             verbose=verbose,
         )
@@ -254,10 +268,11 @@ def main():
     classification = True
     n = 100
     x, y = data(n, nft=2, classification=classification)
+    # x[:, 0] *= 10
     params = dict(
         lmbda=1.0,
         scaling=1.0,
-        kernel_param=1.0,
+        kernel_param=dict(gamma=1.0),
         smoothingParam=0.02,
         epsilon=1e-6,
         shift=1.0,
@@ -280,6 +295,7 @@ def main():
             shift=1.0,
         ),
         kernel_fun=rbf_kernel,
+        # blocks=[[0], [1]],
     )
     svm.fit(x[:n//2], y[:n//2])
     yest = svm.predict(x)

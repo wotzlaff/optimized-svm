@@ -8,9 +8,16 @@ def diff(x1, x2, idx=slice(None)):
     return d
 
 
-def rbf_kernel(x1, x2, gamma=1.0, deriv=False):
+def rbf_kernel(x1, x2, kernel_param=dict(), deriv=False):
+    blocks = kernel_param.get('blocks', None)
     d = diff(x1, x2, slice(None))
-    k = np.exp(-gamma * d)
+    k = np.exp(-kernel_param['gamma'] * d)
     if not deriv:
         return k
+    if blocks is not None:
+        dk = -2.0 * k[:, :, None] * np.stack(
+            [diff(x1, x2, block) for block in blocks],
+            axis=-1,
+        )
+        return k, dk
     return k, -2.0 * k * d

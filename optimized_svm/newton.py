@@ -206,7 +206,7 @@ def solve_twostep(prob):
         x=prob._x.tolist(),
         y=prob._y.tolist(),
         lmbda=params['lmbda'],
-        gamma=params['kernel_param'],
+        gamma=params['kernel_param']['gamma'],
         smoothingParam=params['smoothingParam'],
         maxAsum=params.get('maxAsum', float('inf')),
         tolViolation=params.get('tolSmo', 0.1),
@@ -234,7 +234,7 @@ def main():
 
     params = dict(
         lmbda=1e-3,
-        kernel_param=1.0,
+        kernel_param=dict(gamma=1.0),
         smoothingParam=0.1,
         shift=1.0,
         epsilon=0.5,
