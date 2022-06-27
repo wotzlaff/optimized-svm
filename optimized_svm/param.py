@@ -126,12 +126,12 @@ class OptimizedSVM(
 
         if self._verbose > 0:
             print(f'lmbda = {lmbda:14.8f}, ', end='')
-            print(f'scaling = {scaling[0]:14.8f}')
+            print(f'scaling = {scaling[0]:14.8f}, ', end='')
 
         err = 0.0
         derr = np.zeros_like(param)
         for _, (idx_tr, idx_val) in enumerate(splits):
-            if self._verbose > 0:
+            if self._verbose > 1:
                 print(f'\n## {_+1} of {len(splits)}')
             if self._verbose > 2:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
