@@ -103,24 +103,25 @@ def descent_step(
 
         kan = ka - t * prob.k(idx=idx_d).dot(dn_a[idx_d]) / lmbda
         objn = prob.objective(zn, kan)
+        dobj = objn - obj
         if params.get('verbose', 0) > 1:
-            dobj = objn - obj
             tag = dict(newton='N', gradient='G')[direction]
             print(f'[{tag} {_+1:3d}] f = {obj:10.5g}, ', end='')
             print(f'{"":16s} df = {dobj:9.4e}')
 
         obj_max = obj - params.get('sigma', 0.01) * t * dgrad
-        enough_descent = objn < obj_max  # + tol
+        enough_descent = objn < obj_max + tol
         if final_step or enough_descent:
             break
         t *= params.get('beta', 0.1)
     else:
         return
-    return zn, kan
+    return zn, kan, dobj
 
 
 def solve(prob, z0=None):
     params = prob.params
+    tol = params['tolNewton']
     lmbda = params['lmbda']
     verbose = params.get('verbose', 0)
     max_asum = params.get('maxAsum', float('inf'))
@@ -165,7 +166,7 @@ def solve(prob, z0=None):
             res += (g.dot(prob.sign) + max_asum) ** 2
         if verbose > 0:
             print(f'[{_+1:5d}] f = {obj:10.5g}, r = {res:10.5e}')
-        if res < params['tolNewton']:
+        if res < tol:
             if fresh_ka:
                 final_step = True
             else:
@@ -179,7 +180,7 @@ def solve(prob, z0=None):
             verbose=verbose,
         )
         if result is not None:
-            z, ka = result
+            z, ka, _dobj = result
             fresh_ka = False
             continue
         else:
@@ -195,7 +196,7 @@ def solve(prob, z0=None):
             verbose=verbose,
         )
         if result is not None:
-            z, ka = result
+            z, ka, _dobj = result
             fresh_ka = False
             continue
         raise RuntimeError('step failed')
