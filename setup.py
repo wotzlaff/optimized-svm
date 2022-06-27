@@ -13,7 +13,7 @@ with open(ver_file) as f:
 
 DISTNAME = 'optimized-svm'
 DESCRIPTION = 'A basic implementation of Support Vector Machines with optimized hyperparameters.'
-with codecs.open('README.rst', encoding='utf-8-sig') as f:
+with codecs.open('README.md', encoding='utf-8-sig') as f:
     LONG_DESCRIPTION = f.read()
 MAINTAINER = 'Nico Strasdat'
 MAINTAINER_EMAIL = 'nstrasdat@gmail.com'
