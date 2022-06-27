@@ -265,7 +265,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
 
 
 def main():
-    classification = True
+    classification = False
     n = 100
     x, y = data(n, nft=2, classification=classification)
     # x[:, 0] *= 10
@@ -322,17 +322,23 @@ def main():
 
         mc0 = (y[n//2:] * yest0[n//2:] <= 0.0).mean()
         mc = (y[n//2:] * yest[n//2:] <= 0.0).mean()
-        print(f'{mc0} -> {mc}')
+        print(f'MC: {mc0} -> {mc}')
 
         plt.axhline(1.0)
         plt.axhline(0.0)
     elif svm._params['kind'] == 'regression':
-        plt.plot(y[:n//2], yest[:n//2], 'kx')
-        plt.plot(y[n//2:], yest0[n//2:], 'r+')
-        plt.plot(y[n//2:], yest[n//2:], 'g+')
+        plt.plot(y[:n//2], yest0[:n//2], 'bo', label='intial(train)')
+        plt.plot(y[n//2:], yest0[n//2:], 'ro', label='initial(val)')
+        plt.plot(y[:n//2], yest[:n//2], 'kx', label='after(train)')
+        plt.plot(y[n//2:], yest[n//2:], 'g+', label='after(val)')
         vmin = min(y.min(),  yest.min())
         vmax = max(y.max(),  yest.max())
         plt.plot([vmin, vmax], [vmin, vmax], '--')
+        plt.legend()
+
+        mae0 = np.abs(y[n//2:] - yest0[n//2:]).mean()
+        mae = np.abs(y[n//2:] - yest[n//2:]).mean()
+        print(f'MAE: {mae0} -> {mae}')
     plt.show()
 
 
