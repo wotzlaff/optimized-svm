@@ -42,10 +42,11 @@ class FeatureScalingMixin:
 class SimpleSVM(
     BaseEstimator, ClassifierMixin, TrainingMixin, FeatureScalingMixin,
 ):
-    def __init__(self, params, blocks=None, kernel_fun=None):
+    def __init__(self, params, blocks=None, kernel_fun=None, verbose=0):
         FeatureScalingMixin.__init__(self, blocks)
         self._params = params
         self._kernel_fun = kernel_fun
+        self._verbose = verbose
 
     def fit(self, x, y):
         xs = self.scale(x, self._params['scaling'])
@@ -60,6 +61,9 @@ class SimpleSVM(
         idx_sv = a != 0.0
         self._idx_sv = idx_sv
         self._asv = a[idx_sv]
+        if self._verbose > 0:
+            print(f'Got {idx_sv.sum()} of {len(idx_sv)} SVs', end='')
+            print(f' = {100 * idx_sv.sum() / len(idx_sv):.1f}%')
 
     def predict(self, x):
         lmbda = self._params['lmbda']
@@ -240,6 +244,7 @@ class ParameterOptimizationBase(
             self._params,
             blocks=self._blocks,
             kernel_fun=self._kernel_fun,
+            verbose=self._verbose,
         )
         print(self._svm._params)
         self._svm.fit(x, y)
@@ -270,6 +275,7 @@ class OptimizedSVM(BaseEstimator, ClassifierMixin, ParameterOptimizationBase):
 
 
 def main():
+    verbose = 1
     classification = False
     n = 1000
     x, y = data(n, nft=2, classification=classification)
@@ -288,7 +294,7 @@ def main():
         # maxAsum=0.01 * n * 0.8,
         kind='classification' if classification else 'regression',
     )
-    svm0 = SimpleSVM(params, kernel_fun=rbf_kernel)
+    svm0 = SimpleSVM(params, kernel_fun=rbf_kernel, verbose=verbose)
     svm0.fit(x[:n//2], y[:n//2])
     yest0 = svm0.predict(x)
 
@@ -302,6 +308,7 @@ def main():
         kernel_fun=rbf_kernel,
         # blocks=[[0], [1]],
         # debug=True,
+        verbose=verbose,
     )
     svm.fit(x[:n//2], y[:n//2])
     yest = svm.predict(x)
