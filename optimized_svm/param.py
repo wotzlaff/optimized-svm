@@ -144,6 +144,8 @@ class OptimizedSVM(
         log_scaling = param[1:]
         scaling = np.exp(log_scaling)
 
+        xs = self.scale(x, scaling)
+
         if self._verbose > 1:
             print('trial: ', end='')
             print(f'lmbda = {lmbda:14.8f}, ', end='')
@@ -161,7 +163,7 @@ class OptimizedSVM(
             if self._verbose > 3:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
             prob = self._create_problem(
-                self.scale(x[idx_tr], scaling), y[idx_tr],
+                xs[idx_tr], y[idx_tr],
                 dict(self._params, lmbda=lmbda, kernel_param=dict(
                     self._params['kernel_param'],
                     blocks=self._blocks,
@@ -176,11 +178,11 @@ class OptimizedSVM(
             al_sv = al[idx_sv]
 
             # capture avg
-            a_avg[idx_tr] += prob.extract_original_a(a) / lmbda / len(splits)
+            a_avg[idx_tr] += prob.extract_original_a(a) / len(splits)
             b_avg += b / len(splits)
 
             # scale inputs
-            xs_val = self.scale(x[idx_val], scaling)
+            xs_val = xs[idx_val]
 
             # compute validation estimates and error
             k_val_sv, dk_val_sv = prob.k(
@@ -253,7 +255,10 @@ class OptimizedSVM(
             derr /= err_val
 
         self._last_fit = SimpleSVM(
-            self._params, self._blocks, self._kernel_fun,
+            dict(self._params, lmbda=lmbda, scaling=scaling, kernel_param=dict(
+                self._params['kernel_param'],
+                blocks=self._blocks,
+            )), self._blocks, self._kernel_fun,
         )
         self._last_fit.set_solution(x, a_avg, b_avg)
 
