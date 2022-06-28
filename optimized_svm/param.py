@@ -59,14 +59,26 @@ class SimpleSVM(
         idx_sv = a != 0.0
         self._idx_sv = idx_sv
         self._asv = a[idx_sv]
+        self._xsv = self._prob._x[idx_sv]
         if self._verbose > 0:
             print(f'Got {idx_sv.sum()} of {len(idx_sv)} SVs', end='')
             print(f' = {100 * idx_sv.sum() / len(idx_sv):.1f}%')
 
+    def set_solution(self, x, a, b):
+        xs = self.scale(x, self._params['scaling'])
+        self._b = b
+        idx_sv = a != 0.0
+        self._idx_sv = idx_sv
+        self._asv = a[idx_sv]
+        self._xsv = xs[idx_sv]
+
     def predict(self, x):
         lmbda = self._params['lmbda']
         xs = self.scale(x, self._params['scaling'])
-        ka = self._prob.k(x=xs, idx0=self._idx_sv).T.dot(self._asv)
+        ka = self._kernel_fun(
+            xs, self._xsv,
+            self._params['kernel_param'],
+        ).dot(self._asv)
         return ka / lmbda + self._b
 
 
@@ -118,6 +130,9 @@ class OptimizedSVM(
         self._kernel_fun = kernel_fun
         self._debug = debug
 
+        self._last_fit = None
+        self._last_value = None
+
     def _objective_function(self, param, x, y, splits):
         log_lmbda = param[0]
         lmbda = np.exp(log_lmbda)
@@ -127,6 +142,9 @@ class OptimizedSVM(
         if self._verbose > 0:
             print(f'lmbda = {lmbda:14.8f}, ', end='')
             print(f'scaling = {np.mean(scaling):14.8f}, ', end='')
+
+        a_avg = np.zeros(x.shape[0])
+        b_avg = 0.0
 
         nerr = 0.0
         err = 0.0
@@ -150,6 +168,10 @@ class OptimizedSVM(
             al = a / lmbda
             idx_sv = a != 0.0
             al_sv = al[idx_sv]
+
+            # capture avg
+            a_avg[idx_tr] += prob.extract_original_a(a) / lmbda / len(splits)
+            b_avg += b / len(splits)
 
             # scale inputs
             xs_val = self.scale(x[idx_val], scaling)
@@ -223,10 +245,17 @@ class OptimizedSVM(
             )
             err /= err_val
             derr /= err_val
+
+        self._last_fit = SimpleSVM(
+            self._params, self._blocks, self._kernel_fun,
+        )
+        self._last_fit.set_solution(x, a_avg, b_avg)
+
         if self._verbose > 0:
             print(f'err = {err:14.8f}', end=', ')
             print(f'nerr = {nerr / len(splits):10.6f}', end=', ')
             print(f'derr = {derr}')
+        self._last_value = err, derr
         return err, derr
 
     def _optimize_params(self, x, y, splits):
@@ -246,6 +275,17 @@ class OptimizedSVM(
                 p0,
             )
 
+        def callback(param):
+            ypred = self._last_fit.predict(x)
+            ymed = np.median(y)
+            err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
+            err_val = self._last_value[0]
+            print(' / '.join([
+                f'nerr_tr = {err_tr}',
+                f'nerr_val = {err_val}',
+                f'ratio = {err_tr / err_val}'
+            ]))
+
         res = minimize(
             partial(self._objective_function, x=x, y=y, splits=splits),
             p0,
@@ -253,6 +293,7 @@ class OptimizedSVM(
             options=dict(disp=True),
             jac=True,
             bounds=[(-10, 5)] + [(-10, 5)] * n_blocks,
+            callback=callback if self._verbose > 0 else None,
         )
         p_opt = res.x
         self._params.update(dict(

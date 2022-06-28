@@ -91,6 +91,9 @@ class Classification(ParamBase, KernelBase):
     def sign(self):
         return self._y
 
+    def extract_original_a(self, a):
+        return a
+
     def loss(self, t):
         return self.m(self._params['shift'] - self._y * t)
 
@@ -122,6 +125,9 @@ class Regression(ParamBase, KernelBase):
             +np.ones_like(self._y),
             -np.ones_like(self._y),
         ))
+
+    def extract_original_a(self, a):
+        return a[:self.n] + a[self.n:]
 
     def loss(self, t):
         r = t.copy()
