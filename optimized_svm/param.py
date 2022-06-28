@@ -1,5 +1,6 @@
 from functools import partial
 import time
+from tqdm import tqdm
 
 import numpy as np
 from scipy.optimize import minimize
@@ -157,7 +158,11 @@ class OptimizedSVM(
         nerr = 0.0
         err = 0.0
         derr = np.zeros_like(param)
-        for _, (idx_tr, idx_val) in enumerate(splits):
+        if self._verbose == 1:
+            it = enumerate(tqdm(splits))
+        else:
+            it = enumerate(splits)
+        for _, (idx_tr, idx_val) in it:
             if self._verbose > 2:
                 print(f'\n## {_+1} of {len(splits)}')
             if self._verbose > 3:
