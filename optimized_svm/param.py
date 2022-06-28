@@ -1,4 +1,5 @@
 from functools import partial
+import time
 
 import numpy as np
 from scipy.optimize import minimize
@@ -132,8 +133,11 @@ class OptimizedSVM(
 
         self._last_fit = None
         self._last_value = None
+        self._time_start = None
+        self._funevals = 0
 
     def _objective_function(self, param, x, y, splits):
+        self._funevals += 1
         log_lmbda = param[0]
         lmbda = np.exp(log_lmbda)
         log_scaling = param[1:]
@@ -262,6 +266,7 @@ class OptimizedSVM(
         return err, derr
 
     def _optimize_params(self, x, y, splits):
+        self._time_start = time.time()
         scaling = self._params['scaling']
         n_blocks = 1 if self._blocks is None else len(self._blocks)
         if isinstance(scaling, float):
@@ -284,11 +289,13 @@ class OptimizedSVM(
             err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
             err_val = self._last_value[0]
             print(' / '.join([
+                f'{self._funevals} steps',
+                f'time = {time.time() - self._time_start:.1f}s',
                 f'lmbda = {np.exp(param[0])}',
                 f'scaling = {np.exp(param[1:]).mean()}',
-                f'nerr_tr = {err_tr}',
-                f'nerr_val = {err_val}',
-                f'ratio = {err_tr / err_val}'
+                f'nerr_tr = {err_tr:.8f}',
+                f'nerr_val = {err_val:.8f}',
+                f'ratio = {err_tr / err_val:.3f}'
             ]))
 
         res = minimize(
