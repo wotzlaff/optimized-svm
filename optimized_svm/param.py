@@ -139,7 +139,8 @@ class OptimizedSVM(
         log_scaling = param[1:]
         scaling = np.exp(log_scaling)
 
-        if self._verbose > 0:
+        if self._verbose > 1:
+            print('trial: ', end='')
             print(f'lmbda = {lmbda:14.8f}, ', end='')
             print(f'scaling = {np.mean(scaling):14.8f}, ', end='')
 
@@ -150,9 +151,9 @@ class OptimizedSVM(
         err = 0.0
         derr = np.zeros_like(param)
         for _, (idx_tr, idx_val) in enumerate(splits):
-            if self._verbose > 1:
-                print(f'\n## {_+1} of {len(splits)}')
             if self._verbose > 2:
+                print(f'\n## {_+1} of {len(splits)}')
+            if self._verbose > 3:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
             prob = self._create_problem(
                 self.scale(x[idx_tr], scaling), y[idx_tr],
@@ -251,10 +252,12 @@ class OptimizedSVM(
         )
         self._last_fit.set_solution(x, a_avg, b_avg)
 
-        if self._verbose > 0:
-            print(f'err = {err:14.8f}', end=', ')
-            print(f'nerr = {nerr / len(splits):10.6f}', end=', ')
-            print(f'derr = {derr}')
+        if self._verbose > 1:
+            print(', '.join([
+                f'err = {err:14.8f}',
+                f'nerr = {nerr / len(splits):10.6f}',
+                f'derr = {derr}',
+            ]))
         self._last_value = err, derr
         return err, derr
 
@@ -281,6 +284,8 @@ class OptimizedSVM(
             err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
             err_val = self._last_value[0]
             print(' / '.join([
+                f'lmbda = {np.exp(param[0])}',
+                f'scaling = {np.exp(param[1:]).mean()}',
                 f'nerr_tr = {err_tr}',
                 f'nerr_val = {err_val}',
                 f'ratio = {err_tr / err_val}'
