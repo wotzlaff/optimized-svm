@@ -6,8 +6,12 @@ from sample import data
 def main():
     verbose = 1
     classification = False
-    n = 1000
-    x, y = data(n, nft=2, classification=classification)
+    n = 500
+    x, y = data(
+        n, nft=5,
+        relevant_ratio=0.2,
+        classification=classification,
+    )
     # x[:, 0] *= 10
     params = dict(
         lmbda=1.0,
@@ -18,11 +22,11 @@ def main():
         shift=1.0,
         maxfunDegree='2',
         smo=dict(
-            verbose=1000,
+            # verbose=1000,
             tol=0.1,
         ),
         newton=dict(
-            verbose=2,
+            # verbose=2,
             tol=1e-12,
         ),
         # maxAsum=0.01 * n * 0.8,
@@ -40,6 +44,7 @@ def main():
             shift=1.0,
         ),
         kernel_fun=rbf_kernel,
+        blocks=[[i] for i in range(x.shape[1])],
         # blocks=[[0], [1]],
         # debug=True,
         verbose=verbose,
@@ -86,6 +91,8 @@ def main():
         mae0 = np.abs(y[n//2:] - yest0[n//2:]).mean()
         mae = np.abs(y[n//2:] - yest[n//2:]).mean()
         print(f'MAE: {mae0} -> {mae}')
+        maem = np.abs(y[n//2:] - np.median(y[n//2:])).mean()
+        print(f'rMAE: {mae0/maem} -> {mae/maem}')
     plt.show()
 
 
