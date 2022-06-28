@@ -90,6 +90,7 @@ class ValidationMixin:
         self._m, self._dm = get_maxfun(smoothing, degree)[:2]
         self._shift = params.get('shift', 1.0)
         kind = params.get('kind', 'classification')
+        self._validation_kind = kind
         if kind == 'classification':
             self._validation_loss = self._validation_loss_classification
         elif kind == 'regression':
@@ -285,11 +286,16 @@ class OptimizedSVM(
 
         def callback(param):
             ypred = self._last_fit.predict(x)
-            ymed = np.median(y)
-            err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
-            err_val = self._last_value[0]
+            if self._validation_kind == 'regression':
+                ymed = np.median(y)
+                err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
+                err_val = self._last_value[0]
+            if self._validation_kind == 'classification':
+                err_tr = (y * ypred <= 0.0).mean()
+                err_val = self._last_value[0]
+
             print(' / '.join([
-                f'{self._funevals} steps',
+                f'{self._funevals} fevals',
                 f'time = {time.time() - self._time_start:.1f}s',
                 f'lmbda = {np.exp(param[0])}',
                 f'scaling = {np.exp(param[1:]).mean()}',
