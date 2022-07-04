@@ -4,39 +4,35 @@ from .smooth_max import get_maxfun
 
 class ParamBase:
     def __init__(self, params):
-        self._params = params
-
-    @property
-    def params(self):
-        return self._params
+        self.params = params
 
     @property
     def has_asum(self):
-        return not np.isinf(self._params.get('maxAsum', float('inf')))
+        return not np.isinf(self.params.get('maxAsum', float('inf')))
 
     def m(self, t):
         return get_maxfun(
-            self._params['smoothingParam'],
-            self._params['maxfunDegree'],
+            self.params['smoothingParam'],
+            self.params['maxfunDegree'],
         )[0](t)
 
     def dm(self, t):
         return get_maxfun(
-            self._params['smoothingParam'],
-            self._params['maxfunDegree'],
+            self.params['smoothingParam'],
+            self.params['maxfunDegree'],
         )[1](t)
 
     def ddm(self, t):
         return get_maxfun(
-            self._params['smoothingParam'],
-            self._params['maxfunDegree'],
+            self.params['smoothingParam'],
+            self.params['maxfunDegree'],
         )[2](t)
 
     def decision(self, z, ka=None):
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self._params['lmbda']
+            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.params['lmbda']
         dec = ka + b + self.sign * c
         return dec
 
@@ -44,12 +40,12 @@ class ParamBase:
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self._params['lmbda']
+            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.params['lmbda']
         obj = 0.5 * ka.dot(a)
         dec = ka + b + self.sign * c
         obj += self.loss(dec).sum()
-        if ~np.isinf(self._params.get('maxAsum', float('inf'))):
-            obj += self._params['maxAsum'] * c
+        if ~np.isinf(self.params.get('maxAsum', float('inf'))):
+            obj += self.params['maxAsum'] * c
         return dec, obj
 
     def objective(self, z, ka):
@@ -58,7 +54,7 @@ class ParamBase:
 
 class KernelBase:
     def __init__(self, kernel_fun):
-        self._kernel_fun = kernel_fun
+        self.kernel_fun = kernel_fun
 
     def k(self, x=None, idx=None, idx0=None, deriv=False):
         if idx0 is None:
@@ -69,9 +65,9 @@ class KernelBase:
             x1 = x
         if idx is not None:
             x1 = self._x[idx]
-        return self._kernel_fun(
+        return self.kernel_fun(
             x0, x1,
-            self._params['kernel_param'],
+            self.params['kernel_param'],
             deriv=deriv,
         )
 
@@ -95,13 +91,13 @@ class Classification(ParamBase, KernelBase):
         return a
 
     def loss(self, t):
-        return self.m(self._params['shift'] - self._y * t)
+        return self.m(self.params['shift'] - self._y * t)
 
     def dloss(self, t):
-        return -self._y * self.dm(self._params['shift'] - self._y * t)
+        return -self._y * self.dm(self.params['shift'] - self._y * t)
 
     def ddloss(self, t):
-        return self.ddm(self._params['shift'] - self._y * t)
+        return self.ddm(self.params['shift'] - self._y * t)
 
 
 class Regression(ParamBase, KernelBase):
@@ -133,19 +129,19 @@ class Regression(ParamBase, KernelBase):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
-        f = -self.sign * r - self._params['epsilon']
+        f = -self.sign * r - self.params['epsilon']
         return self.m(f)
 
     def dloss(self, t):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
-        f = -self.sign * r - self._params['epsilon']
+        f = -self.sign * r - self.params['epsilon']
         return -self.sign * self.dm(f)
 
     def ddloss(self, t):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
-        f = -self.sign * r - self._params['epsilon']
+        f = -self.sign * r - self.params['epsilon']
         return self.ddm(f)

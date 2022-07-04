@@ -7,3 +7,5 @@ __all__ = [
     'Classification', 'Regression',
     'rbf_kernel',
 ]
+
+__version__ = '0.0.1'

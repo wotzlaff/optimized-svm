@@ -24,10 +24,10 @@ class TrainingMixin:
 
 class FeatureScalingMixin:
     def __init__(self, blocks=None):
-        self._blocks = blocks
+        self.blocks = blocks
 
     def scale(self, x, gamma):
-        blocks = self._blocks
+        blocks = self.blocks
         if blocks is None:
             return gamma * x
         else:
@@ -45,15 +45,15 @@ class SimpleSVM(
     def __init__(self, params, blocks=None, kernel_fun=None, verbose=0):
         FeatureScalingMixin.__init__(self, blocks)
         self._params = params
-        self._kernel_fun = kernel_fun
-        self._verbose = verbose
+        self.kernel_fun = kernel_fun
+        self.verbose = verbose
 
     def fit(self, x, y):
         xs = self.scale(x, self._params['scaling'])
         self._prob = self._create_problem(
             xs, y,
             self._params,
-            self._kernel_fun,
+            self.kernel_fun,
         )
         res = solve_twostep(self._prob)
         a, b = res['a'], res['b']
@@ -62,7 +62,7 @@ class SimpleSVM(
         self._idx_sv = idx_sv
         self._asv = a[idx_sv]
         self._xsv = self._prob._x[idx_sv]
-        if self._verbose > 0:
+        if self.verbose > 0:
             print(f'Got {idx_sv.sum()} of {len(idx_sv)} SVs', end='')
             print(f' = {100 * idx_sv.sum() / len(idx_sv):.1f}%')
 
@@ -77,7 +77,7 @@ class SimpleSVM(
     def predict(self, x):
         lmbda = self._params['lmbda']
         xs = self.scale(x, self._params['scaling'])
-        ka = self._kernel_fun(
+        ka = self.kernel_fun(
             xs, self._xsv,
             self._params['kernel_param'],
         ).dot(self._asv)
@@ -86,6 +86,15 @@ class SimpleSVM(
 
 class ValidationMixin:
     def __init__(self, params=dict()):
+        self.validation_params = params
+
+    @property
+    def validation_params(self):
+        return self._validation_params
+
+    @validation_params.setter
+    def validation_params(self, params):
+        self._validation_params = params
         smoothing = params.get('smoothingParam', 0.5)
         degree = params.get('smoothingDegree', '6')
         self._m, self._dm = get_maxfun(smoothing, degree)[:2]
@@ -117,7 +126,7 @@ class OptimizedSVM(
 ):
     def __init__(
         self,
-        params,
+        initial_params,
         validation_params=dict(),
         blocks=None,
         splits=None,
@@ -127,16 +136,29 @@ class OptimizedSVM(
     ):
         FeatureScalingMixin.__init__(self, blocks)
         ValidationMixin.__init__(self, validation_params)
-        self._splits = splits
-        self._params = params
-        self._verbose = verbose
-        self._kernel_fun = kernel_fun
-        self._debug = debug
+        self.splits = splits
+        self._initial_params = initial_params
+        self._params = dict(initial_params)
+        self.verbose = verbose
+        self.kernel_fun = kernel_fun
+        self.debug = debug
 
         self._last_fit = None
         self._last_value = None
         self._time_start = None
         self._funevals = 0
+
+        self._svm = None
+        self._no_nan = None
+
+    @property
+    def initial_params(self):
+        return self._initial_params
+
+    @initial_params.setter
+    def initial_params(self, params):
+        self._initial_params = params
+        self._params = dict(params)
 
     def _objective_function(self, param, x, y, splits):
         self._funevals += 1
@@ -147,7 +169,7 @@ class OptimizedSVM(
 
         xs = self.scale(x, scaling)
 
-        if self._verbose > 1:
+        if self.verbose > 1:
             print('trial: ', end='')
             print(f'lmbda = {lmbda:14.8f}, ', end='')
             print(f'scaling = {np.mean(scaling):14.8f}, ', end='')
@@ -158,22 +180,22 @@ class OptimizedSVM(
         nerr = 0.0
         err = 0.0
         derr = np.zeros_like(param)
-        if self._verbose == 1:
+        if self.verbose == 1:
             it = enumerate(tqdm(splits))
         else:
             it = enumerate(splits)
         for _, (idx_tr, idx_val) in it:
-            if self._verbose > 2:
+            if self.verbose > 2:
                 print(f'\n## {_+1} of {len(splits)}')
-            if self._verbose > 3:
+            if self.verbose > 3:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
             prob = self._create_problem(
                 xs[idx_tr], y[idx_tr],
                 dict(self._params, lmbda=lmbda, kernel_param=dict(
                     self._params['kernel_param'],
-                    blocks=self._blocks,
+                    blocks=self.blocks,
                 )),
-                self._kernel_fun,
+                self.kernel_fun,
             )
             res = solve_twostep(prob)
             z = a, b, c = res['a'], res['b'], res['c']
@@ -262,12 +284,12 @@ class OptimizedSVM(
         self._last_fit = SimpleSVM(
             dict(self._params, lmbda=lmbda, scaling=scaling, kernel_param=dict(
                 self._params['kernel_param'],
-                blocks=self._blocks,
-            )), self._blocks, self._kernel_fun,
+                blocks=self.blocks,
+            )), self.blocks, self.kernel_fun,
         )
         self._last_fit.set_solution(x, a_avg, b_avg)
 
-        if self._verbose > 1:
+        if self.verbose > 1:
             print(', '.join([
                 f'err = {err:14.8f}',
                 f'nerr = {nerr / len(splits):10.6f}',
@@ -279,16 +301,16 @@ class OptimizedSVM(
     def _optimize_params(self, x, y, splits):
         self._time_start = time.time()
         scaling = self._params['scaling']
-        n_blocks = 1 if self._blocks is None else len(self._blocks)
+        nblocks = 1 if self.blocks is None else len(self.blocks)
         if isinstance(scaling, float):
-            print(f'extending scaling parameter to {n_blocks} dims')
-            scaling = [scaling] * n_blocks
+            print(f'extending scaling parameter to {nblocks} dims')
+            scaling = [scaling] * nblocks
         p0 = np.log(np.concatenate((
             [self._params['lmbda']],
             scaling,
         )))
 
-        if self._debug:
+        if self.debug:
             check_grad(
                 partial(self._objective_function, x=x, y=y, splits=splits),
                 p0,
@@ -320,8 +342,8 @@ class OptimizedSVM(
             method='L-BFGS-B',
             options=dict(disp=True),
             jac=True,
-            bounds=[(-10, 5)] + [(-10, 5)] * n_blocks,
-            callback=callback if self._verbose > 0 else None,
+            bounds=[(-10, 5)] + [(-10, 5)] * nblocks,
+            callback=callback if self.verbose > 0 else None,
         )
         p_opt = res.x
         self._params.update(dict(
@@ -330,19 +352,28 @@ class OptimizedSVM(
         ))
 
     def fit(self, x, y):
-        if self._splits is None:
+        x = np.array(x).astype(np.double)
+        self._no_nan = ~np.isnan(x).any(axis=0)
+        x = x[:, self._no_nan]
+        y = np.array(y).astype(np.double)
+        if self.splits is None:
             splits = list(KFold(5).split(x))
         else:
-            splits = self._splits
+            splits = self.splits
         self._optimize_params(x, y, splits)
         self._svm = SimpleSVM(
             self._params,
-            blocks=self._blocks,
-            kernel_fun=self._kernel_fun,
-            verbose=self._verbose,
+            blocks=self.blocks,
+            kernel_fun=self.kernel_fun,
+            verbose=self.verbose,
         )
         print(self._svm._params)
         self._svm.fit(x, y)
 
     def predict(self, x):
+        x = np.array(x).astype(np.double)
+        if self._no_nan is not None:
+            x = x[:, self._no_nan]
+        if self._svm is None:
+            return np.zeros(x.shape[0])
         return self._svm.predict(x)
