@@ -13,37 +13,50 @@ def main():
         classification=classification,
     )
     # x[:, 0] *= 10
+    kind = 'classification' if classification else 'regression'
     params = dict(
         lmbda=1.0,
-        scaling=1.0,
-        kernel_param=dict(gamma=1.0),
         smoothingParam=0.02,
-        epsilon=1e-6,
-        shift=1.0,
         maxfunDegree='2',
-        smo=dict(
-            # verbose=1000,
-            tol=0.1,
-        ),
-        newton=dict(
-            # verbose=2,
-            tol=1e-12,
-        ),
         # maxAsum=0.01 * n * 0.8,
-        kind='classification' if classification else 'regression',
     )
-    svm0 = SimpleSVM(params, kernel_fun=rbf_kernel, verbose=verbose)
+    scaling = 1.0
+    if classification:
+        params['shift'] = 1.0
+    else:
+        params['epsilon'] = 1e-6
+    params_smo = dict(
+        verbose=1000,
+        tolViolation=0.1,
+    )
+    params_newton = dict(
+        verbose=2,
+        tol=1e-12,
+    )
+    svm0 = SimpleSVM(
+        kind=kind,
+        params=params,
+        scaling=scaling,
+        kernel_fun=rbf_kernel,
+        kernel_param=dict(gamma=1.0),
+        verbose=verbose,
+        params_smo=params_smo,
+        params_newton=params_newton,
+    )
     svm0.fit(x[:n//2], y[:n//2])
     yest0 = svm0.predict(x)
 
     svm = OptimizedSVM(
+        kind=kind,
         params=params,
+        kernel_fun=rbf_kernel,
+        kernel_param=dict(gamma=1.0),
+        initial_params=dict(scaling=scaling, lmbda=params['lmbda']),
         validation_params=dict(
-            kind='classification' if classification else 'regression',
+            kind=kind,
             # kind='regression',
             shift=1.0,
         ),
-        kernel_fun=rbf_kernel,
         blocks=[[i] for i in range(x.shape[1])],
         # blocks=[[0], [1]],
         # debug=True,
