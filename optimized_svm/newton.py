@@ -46,9 +46,9 @@ def descent_step(
     params=dict(),
 ):
     a, b, c = z
-    lmbda = prob.params['lmbda']
-    max_asum = prob.params.get('maxAsum', float('inf'))
-    has_asum = ~np.isinf(max_asum)
+    lmbda = prob.lmbda
+    max_asum = prob.maxAsum
+    has_asum = not np.isinf(max_asum)
     tol = params.get('tol', 1e-10)
 
     def get_gradient():
@@ -118,14 +118,12 @@ def descent_step(
     return zn, kan, dobj
 
 
-def solve(prob, z0=None):
-    params = prob.params
-    params_newton = params.get('newton', dict())
-    tol = params_newton.get('tol', 1e-10)
-    verbose = params_newton.get('verbose', 0)
-    lmbda = params['lmbda']
-    max_asum = params.get('maxAsum', float('inf'))
-    has_asum = ~np.isinf(max_asum)
+def solve(prob, params, z0=None):
+    tol = params.get('tol', 1e-10)
+    verbose = params.get('verbose', 0)
+    lmbda = prob.lmbda
+    max_asum = prob.maxAsum
+    has_asum = not np.isinf(max_asum)
 
     if z0 is None:
         n = prob.size
@@ -142,7 +140,7 @@ def solve(prob, z0=None):
     fresh_ka = True
     final_step = False
 
-    for _ in range(params_newton.get('maxSteps', 1000)):
+    for _ in range(params.get('maxSteps', 1000)):
         a, b, c = z
         if final_step:
             break
@@ -177,7 +175,7 @@ def solve(prob, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             final_step=final_step,
-            params=params_newton,
+            params=params,
         )
         if result is not None:
             z, ka, dobj = result
@@ -195,7 +193,7 @@ def solve(prob, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             direction='gradient',
-            params=params_newton,
+            params=params,
         )
         if result is not None:
             z, ka, _dobj = result
@@ -208,33 +206,21 @@ def solve(prob, z0=None):
     return dict(a=a, b=b, c=c, ka=ka)
 
 
-def solve_twostep(prob):
-    params = prob.params
-    params_newton = params.get('newton', dict())
-    verbose = params_newton.get('verbose', 0)
-
-    params_smo = params.get('smo', dict())
+def solve_twostep(prob, params_smo, params_newton, verbose=0):
     args = dict(
         x=prob._x.tolist(),
         y=prob._y.tolist(),
-        lmbda=params['lmbda'],
-        gamma=params['kernel_param']['gamma'],
-        smoothingParam=params['smoothingParam'],
-        maxAsum=params.get('maxAsum', float('inf')),
-        tolViolation=params_smo.get('tol', 0.1),
-        verbose=params_smo.get('verbose', 0),
-        shrinkingPeriod=params_smo.get('shrinkingPeriod', 100),
-        maxSteps=params_smo.get('maxSteps', 1_000_000_000),
+        gamma=1.0,
+        lmbda=prob.lmbda,
+        smoothingParam=prob.smoothingParam,
+        maxAsum=prob.maxAsum,
+        **params_smo,
     )
     t0 = time.time()
     if isinstance(prob, Classification):
-        if 'shift' in params:
-            args['shift'] = params['shift']
-        result = nimsmo.solveClassification(**args)
+        result = nimsmo.solveClassification(**args, shift=prob.shift)
     if isinstance(prob, Regression):
-        if 'epsilon' in params:
-            args['epsilon'] = params['epsilon']
-        result = nimsmo.solveRegression(**args)
+        result = nimsmo.solveRegression(**args, epsilon=prob.epsilon)
     dt_smo = time.time() - t0
     if verbose > 0:
         print(f't(SMO) = {dt_smo:10.1f}s')
@@ -242,7 +228,11 @@ def solve_twostep(prob):
     b = result['b']
     c = result['c']
     t0 = time.time()
-    result = solve(prob, z0=(a, b, c))
+    result = solve(
+        prob,
+        z0=(a, b, c),
+        params=params_newton,
+    )
     dt_refine = time.time() - t0
     if verbose > 0:
         print(f't(ref) = {dt_refine:10.1f}s')

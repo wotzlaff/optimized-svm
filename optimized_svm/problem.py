@@ -3,36 +3,52 @@ from .smooth_max import get_maxfun
 
 
 class ParamBase:
-    def __init__(self, params):
-        self.params = params
+    def __init__(
+        self,
+        lmbda,
+        smoothingParam,
+        maxfunDegree,
+        maxAsum=float('inf')
+    ):
+        self.__lmbda = lmbda
+        self.__smoothingParam = smoothingParam
+        self.__maxfunDegree = maxfunDegree
+        self.__maxAsum = maxAsum
+
+    @property
+    def lmbda(self):
+        return self.__lmbda
+
+    @property
+    def smoothingParam(self):
+        return self.__smoothingParam
+
+    @property
+    def maxfunDegree(self):
+        return self.__maxfunDegree
+
+    @property
+    def maxAsum(self):
+        return self.__maxAsum
 
     @property
     def has_asum(self):
-        return not np.isinf(self.params.get('maxAsum', float('inf')))
+        return not np.isinf(self.__maxAsum)
 
     def m(self, t):
-        return get_maxfun(
-            self.params['smoothingParam'],
-            self.params['maxfunDegree'],
-        )[0](t)
+        return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[0](t)
 
     def dm(self, t):
-        return get_maxfun(
-            self.params['smoothingParam'],
-            self.params['maxfunDegree'],
-        )[1](t)
+        return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[1](t)
 
     def ddm(self, t):
-        return get_maxfun(
-            self.params['smoothingParam'],
-            self.params['maxfunDegree'],
-        )[2](t)
+        return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[2](t)
 
     def decision(self, z, ka=None):
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.params['lmbda']
+            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
         dec = ka + b + self.sign * c
         return dec
 
@@ -40,12 +56,12 @@ class ParamBase:
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.params['lmbda']
+            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
         obj = 0.5 * ka.dot(a)
         dec = ka + b + self.sign * c
         obj += self.loss(dec).sum()
-        if ~np.isinf(self.params.get('maxAsum', float('inf'))):
-            obj += self.params['maxAsum'] * c
+        if not np.isinf(self.__maxAsum):
+            obj += self.__maxAsum * c
         return dec, obj
 
     def objective(self, z, ka):
@@ -53,8 +69,9 @@ class ParamBase:
 
 
 class KernelBase:
-    def __init__(self, kernel_fun):
-        self.kernel_fun = kernel_fun
+    def __init__(self, kernel_fun, kernel_param):
+        self.__kernel_fun = kernel_fun
+        self.__kernel_param = kernel_param
 
     def k(self, x=None, idx=None, idx0=None, deriv=False):
         if idx0 is None:
@@ -65,19 +82,32 @@ class KernelBase:
             x1 = x
         if idx is not None:
             x1 = self._x[idx]
-        return self.kernel_fun(
+        return self.__kernel_fun(
             x0, x1,
-            self.params['kernel_param'],
+            self.__kernel_param,
             deriv=deriv,
         )
 
 
 class Classification(ParamBase, KernelBase):
-    def __init__(self, x, y, params, kernel_fun):
-        ParamBase.__init__(self, params)
-        KernelBase.__init__(self, kernel_fun)
+    def __init__(
+        self,
+        x, y,
+        kernel_fun, kernel_param,
+        shift,
+        lmbda, smoothingParam,
+        maxfunDegree='2',
+        maxAsum=float('inf'),
+    ):
+        ParamBase.__init__(self, lmbda, smoothingParam, maxfunDegree, maxAsum)
+        KernelBase.__init__(self, kernel_fun, kernel_param)
         self._x = x
         self._y = y
+        self.__shift = shift
+
+    @property
+    def shift(self):
+        return self.__shift
 
     @property
     def size(self):
@@ -91,21 +121,34 @@ class Classification(ParamBase, KernelBase):
         return a
 
     def loss(self, t):
-        return self.m(self.params['shift'] - self._y * t)
+        return self.m(self.__shift - self._y * t)
 
     def dloss(self, t):
-        return -self._y * self.dm(self.params['shift'] - self._y * t)
+        return -self._y * self.dm(self.__shift - self._y * t)
 
     def ddloss(self, t):
-        return self.ddm(self.params['shift'] - self._y * t)
+        return self.ddm(self.__shift - self._y * t)
 
 
 class Regression(ParamBase, KernelBase):
-    def __init__(self, x, y, params, kernel_fun):
-        ParamBase.__init__(self, params)
-        KernelBase.__init__(self, kernel_fun)
+    def __init__(
+        self,
+        x, y,
+        kernel_fun, kernel_param,
+        epsilon,
+        lmbda, smoothingParam,
+        maxfunDegree='2',
+        maxAsum=float('inf'),
+    ):
+        ParamBase.__init__(self, lmbda, smoothingParam, maxfunDegree, maxAsum)
+        KernelBase.__init__(self, kernel_fun, kernel_param)
         self._x = np.concatenate((x, x))
         self._y = y
+        self.__epsilon = epsilon
+
+    @property
+    def epsilon(self):
+        return self.__epsilon
 
     @property
     def size(self):
@@ -129,19 +172,19 @@ class Regression(ParamBase, KernelBase):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
-        f = -self.sign * r - self.params['epsilon']
+        f = -self.sign * r - self.__epsilon
         return self.m(f)
 
     def dloss(self, t):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
-        f = -self.sign * r - self.params['epsilon']
+        f = -self.sign * r - self.__epsilon
         return -self.sign * self.dm(f)
 
     def ddloss(self, t):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
-        f = -self.sign * r - self.params['epsilon']
+        f = -self.sign * r - self.__epsilon
         return self.ddm(f)

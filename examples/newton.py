@@ -11,23 +11,32 @@ def main():
 
     params = dict(
         lmbda=1e-3,
-        kernel_param=dict(gamma=1.0),
         smoothingParam=0.1,
-        shift=1.0,
         epsilon=0.5,
-        smo=dict(
-            verbose=0,
-            tol=0.1,
-        ),
-        newton=dict(
-            verbose=2,
-            tol=1e-12,
-        ),
         maxfunDegree='2',
     )
+    params_smo = dict(
+        verbose=100,
+        tolViolation=1e-6,
+        shrinkingPeriod=500,
+        logObjective=True,
+    )
+    params_newton = dict(
+        verbose=2,
+        tol=1e-12,
+    )
 
-    prob = Regression(gamma * x, y, params, kernel_fun=rbf_kernel)
-    result = solve_twostep(prob)
+    prob = Regression(
+        gamma * x, y,
+        kernel_fun=rbf_kernel,
+        kernel_param=dict(gamma=1.0),
+        **params,
+    )
+    result = solve_twostep(
+        prob,
+        params_smo,
+        params_newton,
+    )
     a = np.array(result['a'])
     b = result['b']
     c = result['c']
