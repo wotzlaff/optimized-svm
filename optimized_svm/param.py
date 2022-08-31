@@ -15,19 +15,29 @@ from .deriv_check import check_grad
 
 
 class TrainingMixin:
-    def _create_problem(self, x, y, params, kernel_fun):
-        if params['kind'] == 'classification':
-            return Classification(x, y, params, kernel_fun)
-        elif params['kind'] == 'regression':
-            return Regression(x, y, params, kernel_fun)
+    def _create_problem(
+        self,
+        x, y,
+        kind, params,
+        kernel_fun, kernel_param
+    ):
+        Problem = dict(
+            classification=Classification,
+            regression=Regression,
+        )[kind]
+        return Problem(
+            x, y,
+            kernel_fun, kernel_param,
+            **params,
+        )
 
 
 class FeatureScalingMixin:
     def __init__(self, blocks=None):
-        self.blocks = blocks
+        self._blocks = blocks
 
     def scale(self, x, gamma):
-        blocks = self.blocks
+        blocks = self._blocks
         if blocks is None:
             return gamma * x
         else:
@@ -40,34 +50,57 @@ class FeatureScalingMixin:
 
 
 class SimpleSVM(
-    BaseEstimator, ClassifierMixin, TrainingMixin, FeatureScalingMixin,
+    BaseEstimator, ClassifierMixin,
+    TrainingMixin, FeatureScalingMixin,
 ):
-    def __init__(self, params, blocks=None, kernel_fun=None, verbose=0):
+    def __init__(
+        self,
+        kind,
+        params,
+        scaling,
+        kernel_fun,
+        kernel_param,
+        blocks=None,
+        params_smo=dict(),
+        params_newton=dict(),
+        verbose=0,
+    ):
         FeatureScalingMixin.__init__(self, blocks)
-        self._params = params
-        self.kernel_fun = kernel_fun
-        self.verbose = verbose
+        self.__kind = kind
+        self.__params = params
+        self.__scaling = scaling
+        self.__kernel_fun = kernel_fun
+        self.__kernel_param = kernel_param
+        self.__params_smo = params_smo
+        self.__params_newton = params_newton
+        self.__verbose = verbose
 
     def fit(self, x, y):
-        xs = self.scale(x, self._params['scaling'])
+        xs = self.scale(x, self.__scaling)
         self._prob = self._create_problem(
             xs, y,
-            self._params,
-            self.kernel_fun,
+            self.__kind,
+            self.__params,
+            self.__kernel_fun,
+            self.__kernel_param,
         )
-        res = solve_twostep(self._prob)
+        res = solve_twostep(
+            self._prob,
+            self.__params_smo,
+            self.__params_newton,
+        )
         a, b = res['a'], res['b']
         self._b = b
         idx_sv = a != 0.0
         self._idx_sv = idx_sv
         self._asv = a[idx_sv]
         self._xsv = self._prob._x[idx_sv]
-        if self.verbose > 0:
+        if self.__verbose > 0:
             print(f'Got {idx_sv.sum()} of {len(idx_sv)} SVs', end='')
             print(f' = {100 * idx_sv.sum() / len(idx_sv):.1f}%')
 
     def set_solution(self, x, a, b):
-        xs = self.scale(x, self._params['scaling'])
+        xs = self.scale(x, self.__scaling)
         self._b = b
         idx_sv = a != 0.0
         self._idx_sv = idx_sv
@@ -75,11 +108,11 @@ class SimpleSVM(
         self._xsv = xs[idx_sv]
 
     def predict(self, x):
-        lmbda = self._params['lmbda']
-        xs = self.scale(x, self._params['scaling'])
-        ka = self.kernel_fun(
+        lmbda = self.__params['lmbda']
+        xs = self.scale(x, self.__scaling)
+        ka = self.__kernel_fun(
             xs, self._xsv,
-            self._params['kernel_param'],
+            self.__kernel_param,
         ).dot(self._asv)
         return ka / lmbda + self._b
 
@@ -101,12 +134,10 @@ class ValidationMixin:
         self._shift = params.get('shift', 1.0)
         kind = params.get('kind', 'classification')
         self._validation_kind = kind
-        if kind == 'classification':
-            self._validation_loss = self._validation_loss_classification
-        elif kind == 'regression':
-            self._validation_loss = self._validation_loss_regression
-        else:
-            raise ValueError(f'unknown validation kind "{kind}"')
+        self._validation_loss = dict(
+            classification=self._validation_loss_classification,
+            regression=self._validation_loss_regression,
+        )[kind]
 
     def _validation_loss_classification(self, t, y):
         shift = self._shift
@@ -126,42 +157,51 @@ class OptimizedSVM(
 ):
     def __init__(
         self,
+        kind,
+        params,
+        kernel_fun,
+        kernel_param,
         initial_params,
         validation_params=dict(),
         blocks=None,
+        params_smo=dict(),
+        params_newton=dict(),
         splits=None,
-        kernel_fun=None,
         verbose=0,
         debug=False,
     ):
         FeatureScalingMixin.__init__(self, blocks)
         ValidationMixin.__init__(self, validation_params)
         self.splits = splits
-        self._initial_params = initial_params
-        self._params = dict(initial_params)
+        self.__kind = kind
+        self.__params = params
+        self.__initial_params = initial_params
         self.verbose = verbose
-        self.kernel_fun = kernel_fun
+        self.__kernel_fun = kernel_fun
+        self.__kernel_param = kernel_param
+        self.__params_smo = params_smo
+        self.__params_newton = params_newton
         self.debug = debug
 
-        self._last_fit = None
-        self._last_value = None
-        self._time_start = None
-        self._funevals = 0
+        self.__last_fit = None
+        self.__last_value = None
+        self.__time_start = None
+        self.__funevals = 0
 
-        self._svm = None
-        self._no_nan = None
+        self.__svm = None
+        self.__no_nan = None
 
-    @property
-    def initial_params(self):
-        return self._initial_params
+    # @property
+    # def initial_params(self):
+    #     return self._initial_params
 
-    @initial_params.setter
-    def initial_params(self, params):
-        self._initial_params = params
-        self._params = dict(params)
+    # @initial_params.setter
+    # def initial_params(self, params):
+    #     self._initial_params = params
+    #     self._params = dict(params)
 
     def _objective_function(self, param, x, y, splits):
-        self._funevals += 1
+        self.__funevals += 1
         log_lmbda = param[0]
         lmbda = np.exp(log_lmbda)
         log_scaling = param[1:]
@@ -180,10 +220,7 @@ class OptimizedSVM(
         nerr = 0.0
         err = 0.0
         derr = np.zeros_like(param)
-        if self.verbose == 1:
-            it = enumerate(tqdm(splits))
-        else:
-            it = enumerate(splits)
+        it = enumerate(tqdm(splits) if self.verbose == 1 else splits)
         for _, (idx_tr, idx_val) in it:
             if self.verbose > 2:
                 print(f'\n## {_+1} of {len(splits)}')
@@ -191,13 +228,12 @@ class OptimizedSVM(
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
             prob = self._create_problem(
                 xs[idx_tr], y[idx_tr],
-                dict(self._params, lmbda=lmbda, kernel_param=dict(
-                    self._params['kernel_param'],
-                    blocks=self.blocks,
-                )),
-                self.kernel_fun,
+                kind=self.__kind,
+                params=dict(self.__params, lmbda=lmbda),
+                kernel_fun=self.__kernel_fun,
+                kernel_param=self.__kernel_param,
             )
-            res = solve_twostep(prob)
+            res = solve_twostep(prob, self.__params_smo, self.__params_newton)
             z = a, b, c = res['a'], res['b'], res['c']
             # extract solution
             al = a / lmbda
@@ -281,13 +317,17 @@ class OptimizedSVM(
             err /= err_val
             derr /= err_val
 
-        self._last_fit = SimpleSVM(
-            dict(self._params, lmbda=lmbda, scaling=scaling, kernel_param=dict(
-                self._params['kernel_param'],
-                blocks=self.blocks,
-            )), self.blocks, self.kernel_fun,
+        self.__last_fit = SimpleSVM(
+            kind=self.__kind,
+            params=dict(self.__params, lmbda=lmbda),
+            scaling=scaling,
+            kernel_fun=self.__kernel_fun,
+            kernel_param=self.__kernel_param,
+            blocks=self._blocks,
+            params_smo=self.__params_smo,
+            params_newton=self.__params_newton,
         )
-        self._last_fit.set_solution(x, a_avg, b_avg)
+        self.__last_fit.set_solution(x, a_avg, b_avg)
 
         if self.verbose > 1:
             print(', '.join([
@@ -295,18 +335,18 @@ class OptimizedSVM(
                 f'nerr = {nerr / len(splits):10.6f}',
                 f'derr = {derr}',
             ]))
-        self._last_value = err, derr
+        self.__last_value = err, derr
         return err, derr
 
     def _optimize_params(self, x, y, splits):
-        self._time_start = time.time()
-        scaling = self._params['scaling']
-        nblocks = 1 if self.blocks is None else len(self.blocks)
+        self.__time_start = time.time()
+        scaling = self.__initial_params['scaling']
+        nblocks = 1 if self._blocks is None else len(self._blocks)
         if isinstance(scaling, float):
             print(f'extending scaling parameter to {nblocks} dims')
             scaling = [scaling] * nblocks
         p0 = np.log(np.concatenate((
-            [self._params['lmbda']],
+            [self.__initial_params['lmbda']],
             scaling,
         )))
 
@@ -317,18 +357,18 @@ class OptimizedSVM(
             )
 
         def callback(param):
-            ypred = self._last_fit.predict(x)
+            ypred = self.__last_fit.predict(x)
             if self._validation_kind == 'regression':
                 ymed = np.median(y)
                 err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
-                err_val = self._last_value[0]
+                err_val = self.__last_value[0]
             if self._validation_kind == 'classification':
                 err_tr = (y * ypred <= 0.0).mean()
-                err_val = self._last_value[0]
+                err_val = self.__last_value[0]
 
             print(' / '.join([
-                f'{self._funevals} fevals',
-                f'time = {time.time() - self._time_start:.1f}s',
+                f'{self.__funevals} fevals',
+                f'time = {time.time() - self.__time_start:.1f}s',
                 f'lmbda = {np.exp(param[0])}',
                 f'scaling = {np.exp(param[1:]).mean()}',
                 f'nerr_tr = {err_tr:.8f}',
@@ -346,34 +386,38 @@ class OptimizedSVM(
             callback=callback if self.verbose > 0 else None,
         )
         p_opt = res.x
-        self._params.update(dict(
+        return dict(
             lmbda=np.exp(p_opt[0]),
             scaling=np.exp(p_opt[1:]),
-        ))
+        )
 
     def fit(self, x, y):
         x = np.array(x).astype(np.double)
-        self._no_nan = ~np.isnan(x).any(axis=0)
-        x = x[:, self._no_nan]
+        self.__no_nan = ~np.isnan(x).any(axis=0)
+        x = x[:, self.__no_nan]
         y = np.array(y).astype(np.double)
         if self.splits is None:
             splits = list(KFold(5).split(x))
         else:
             splits = self.splits
-        self._optimize_params(x, y, splits)
-        self._svm = SimpleSVM(
-            self._params,
-            blocks=self.blocks,
-            kernel_fun=self.kernel_fun,
-            verbose=self.verbose,
+        optimized_params = self._optimize_params(x, y, splits)
+        self.__svm = SimpleSVM(
+            kind=self.__kind,
+            params=dict(self.__params, lmbda=optimized_params['lmbda']),
+            scaling=optimized_params['scaling'],
+            kernel_fun=self.__kernel_fun,
+            kernel_param=self.__kernel_param,
+            blocks=self._blocks,
+            params_smo=self.__params_smo,
+            params_newton=self.__params_newton,
         )
-        print(self._svm._params)
-        self._svm.fit(x, y)
+        print(optimized_params)
+        self.__svm.fit(x, y)
 
     def predict(self, x):
         x = np.array(x).astype(np.double)
-        if self._no_nan is not None:
-            x = x[:, self._no_nan]
-        if self._svm is None:
+        if self.__no_nan is not None:
+            x = x[:, self.__no_nan]
+        if self.__svm is None:
             return np.zeros(x.shape[0])
-        return self._svm.predict(x)
+        return self.__svm.predict(x)
