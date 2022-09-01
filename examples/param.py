@@ -16,7 +16,7 @@ def main():
     kind = 'classification' if classification else 'regression'
     params = dict(
         lmbda=1.0,
-        smoothingParam=0.02,
+        smoothingParam=0.5,
         maxfunDegree='2',
         # maxAsum=0.01 * n * 0.8,
     )
@@ -24,13 +24,14 @@ def main():
     if classification:
         params['shift'] = 1.0
     else:
-        params['epsilon'] = 1e-6
+        params['epsilon'] = 0.0
     params_smo = dict(
-        verbose=1000,
-        tolViolation=0.1,
+        verbose=0,
+        shrinkingPeriod=1000,
+        tolViolation=1e-3,
     )
     params_newton = dict(
-        verbose=2,
+        verbose=0,
         tol=1e-12,
     )
     svm0 = SimpleSVM(
@@ -50,23 +51,25 @@ def main():
         kind=kind,
         params=params,
         kernel_fun=rbf_kernel,
-        kernel_param=dict(gamma=1.0),
+        kernel_param=dict(
+            gamma=1.0,
+            blocks=[[i] for i in range(x.shape[1])],
+            # blocks=[[0], [1]],
+        ),
         initial_params=dict(scaling=scaling, lmbda=params['lmbda']),
         validation_params=dict(
             kind=kind,
-            # kind='regression',
-            shift=1.0,
         ),
-        blocks=[[i] for i in range(x.shape[1])],
-        # blocks=[[0], [1]],
         # debug=True,
         verbose=verbose,
+        params_smo=params_smo,
+        params_newton=params_newton,
     )
     svm.fit(x[:n//2], y[:n//2])
     yest = svm.predict(x)
 
     import matplotlib.pyplot as plt
-    if svm._params['kind'] == 'classification':
+    if kind == 'classification':
         plt.plot(
             y[:n//2] * 0.9, y[:n//2] * yest[:n//2],
             'kx', label='after(train)',
@@ -91,7 +94,7 @@ def main():
 
         plt.axhline(1.0)
         plt.axhline(0.0)
-    elif svm._params['kind'] == 'regression':
+    elif kind == 'regression':
         plt.plot(y[:n//2], yest0[:n//2], 'bo', label='intial(train)')
         plt.plot(y[n//2:], yest0[n//2:], 'ro', label='initial(val)')
         plt.plot(y[:n//2], yest[:n//2], 'kx', label='after(train)')
