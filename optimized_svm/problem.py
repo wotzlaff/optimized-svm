@@ -94,8 +94,9 @@ class Classification(ParamBase, KernelBase):
         self,
         x, y,
         kernel_fun, kernel_param,
-        shift,
-        lmbda, smoothingParam,
+        shift=1.0,
+        lmbda=1.0,
+        smoothingParam=0.5,
         maxfunDegree='2',
         maxAsum=float('inf'),
     ):
@@ -135,8 +136,9 @@ class Regression(ParamBase, KernelBase):
         self,
         x, y,
         kernel_fun, kernel_param,
-        epsilon,
-        lmbda, smoothingParam,
+        epsilon=1e-6,
+        lmbda=1.0,
+        smoothingParam=0.5,
         maxfunDegree='2',
         maxAsum=float('inf'),
     ):
