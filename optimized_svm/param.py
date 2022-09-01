@@ -163,14 +163,13 @@ class OptimizedSVM(
         kernel_param,
         initial_params,
         validation_params=dict(),
-        blocks=None,
         params_smo=dict(),
         params_newton=dict(),
         splits=None,
         verbose=0,
         debug=False,
     ):
-        FeatureScalingMixin.__init__(self, blocks)
+        FeatureScalingMixin.__init__(self, kernel_param.get('blocks', None))
         ValidationMixin.__init__(self, validation_params)
         self.splits = splits
         self.__kind = kind
@@ -190,15 +189,6 @@ class OptimizedSVM(
 
         self.__svm = None
         self.__no_nan = None
-
-    # @property
-    # def initial_params(self):
-    #     return self._initial_params
-
-    # @initial_params.setter
-    # def initial_params(self, params):
-    #     self._initial_params = params
-    #     self._params = dict(params)
 
     def _objective_function(self, param, x, y, splits):
         self.__funevals += 1
@@ -355,6 +345,7 @@ class OptimizedSVM(
                 partial(self._objective_function, x=x, y=y, splits=splits),
                 p0,
             )
+            return
 
         def callback(param):
             ypred = self.__last_fit.predict(x)
