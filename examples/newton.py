@@ -17,7 +17,7 @@ def main():
     )
     params_smo = dict(
         verbose=100,
-        tolViolation=1e-6,
+        tol=1e-6,
         shrinkingPeriod=500,
         logObjective=True,
     )

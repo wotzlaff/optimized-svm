@@ -28,7 +28,7 @@ def main():
     params_smo = dict(
         verbose=0,
         shrinkingPeriod=1000,
-        tolViolation=1e-3,
+        tol=1e-3,
     )
     params_newton = dict(
         verbose=0,
