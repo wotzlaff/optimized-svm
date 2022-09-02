@@ -25,6 +25,10 @@ class TrainingMixin:
             classification=Classification,
             regression=Regression,
         )[kind]
+        if 'ratioAsum' in params:
+            assert 'maxAsum' not in params
+            params['maxAsum'] = len(y) * params['ratioAsum']
+            del params['ratioAsum']
         return Problem(
             x, y,
             kernel_fun, kernel_param,
