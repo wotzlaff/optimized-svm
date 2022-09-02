@@ -12,8 +12,9 @@ Vars = tuple[Arr, float, float]
 
 def solve_system(
     prob: Classification | Regression,
-    dec: Arr, a: Arr, g: Arr, lmbda: float, max_asum: float
-):
+    dec: Arr, a: Arr, g: Arr,
+    lmbda: float, max_asum: float
+) -> tuple[Arr, float, float]:
     h = prob.ddloss(dec)
     idx_p = h > 0.0
     k_p = prob.k(idx=idx_p).T
@@ -47,25 +48,29 @@ def solve_system(
 
 
 def descent_step(
-    prob, z, ka, dec, obj, g, r,
-    direction='newton',
-    final_step=False,
-    tol=1e-10,
-    verbose=0,
-    maxStepsBack=10,
-    sigma=0.01,
-    beta=0.1,
+    prob: Classification | Regression,
+    z: Vars,
+    ka: Arr, dec: Arr,
+    obj: float,
+    g: Arr, r: Arr,
+    direction: str = 'newton',
+    final_step: bool = False,
+    tol: float = 1e-10,
+    verbose: int = 0,
+    maxStepsBack: int = 10,
+    sigma: float = 0.01,
+    beta: float = 0.1,
 ):
     a, b, c = z
     lmbda = prob.lmbda
     max_asum = prob.maxAsum
     has_asum = not np.isinf(max_asum)
 
-    def get_gradient():
+    def get_gradient() -> tuple[Arr, float, float]:
         # use preconditioned gradient
         dn_a, dn_b = r, lmbda * g.sum()
         if has_asum:
-            dn_c = lmbda * (g.dot(prob.sign) + max_asum)
+            dn_c: float = lmbda * (g.dot(prob.sign) + max_asum)
         else:
             dn_c = 0.0
         if final_step:
@@ -85,13 +90,13 @@ def descent_step(
         raise ValueError('unknown value for direction')
     if d is None and final_step:
         # this should not happen
-        return z, ka
+        return z, ka, 0.0
     dn_a, dn_b, dn_c = d
 
     # compute predicted decrease
     idx_d = np.abs(dn_a) > tol
     idx_r = np.abs(r) > tol
-    dgrad = prob.k(
+    dgrad: float = prob.k(
         idx=idx_r, idx0=idx_d
     ).dot(r[idx_r]).dot(dn_a[idx_d]) / lmbda
     dgrad += dn_b * g.sum()
@@ -103,14 +108,14 @@ def descent_step(
         return
 
     # find step size
-    t = 1.0
+    t: float = 1.0
     for _ in range(maxStepsBack):
         an = a - t * dn_a
         bn = b - t * dn_b
         cn = c - t * dn_c
-        zn = (an, bn, cn)
+        zn: Vars = (an, bn, cn)
 
-        kan = ka - t * prob.k(idx=idx_d).dot(dn_a[idx_d]) / lmbda
+        kan: Arr = ka - t * prob.k(idx=idx_d).dot(dn_a[idx_d]) / lmbda
         objn = prob.objective(zn, kan)
         dobj = objn - obj
         if verbose > 1:
