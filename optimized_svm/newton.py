@@ -43,13 +43,16 @@ def descent_step(
     prob, z, ka, dec, obj, g, r,
     direction='newton',
     final_step=False,
-    params=dict(),
+    tol=1e-10,
+    verbose=0,
+    maxStepsBack=10,
+    sigma=0.01,
+    beta=0.1,
 ):
     a, b, c = z
     lmbda = prob.lmbda
     max_asum = prob.maxAsum
     has_asum = not np.isinf(max_asum)
-    tol = params.get('tol', 1e-10)
 
     def get_gradient():
         # use preconditioned gradient
@@ -88,13 +91,13 @@ def descent_step(
     if has_asum:
         dgrad += dn_c * (g.dot(prob.sign) + max_asum)
     if dgrad < 0.0:
-        if params.get('verbose', 0) > 0:
+        if verbose > 0:
             print(f'no ascent direction: {dgrad} <= 0.0')
         return
 
     # find step size
     t = 1.0
-    for _ in range(params.get('maxStepsBack', 10)):
+    for _ in range(maxStepsBack):
         an = a - t * dn_a
         bn = b - t * dn_b
         cn = c - t * dn_c
@@ -103,24 +106,31 @@ def descent_step(
         kan = ka - t * prob.k(idx=idx_d).dot(dn_a[idx_d]) / lmbda
         objn = prob.objective(zn, kan)
         dobj = objn - obj
-        if params.get('verbose', 0) > 1:
+        if verbose > 1:
             tag = dict(newton='N', gradient='G')[direction]
             print(f'[{tag} {_+1:3d}] f = {obj:10.5g}, ', end='')
             print(f'{"":16s} df = {dobj:9.4e}')
 
-        obj_max = obj - params.get('sigma', 0.01) * t * dgrad
+        obj_max = obj - sigma * t * dgrad
         enough_descent = objn < obj_max + tol
         if final_step or enough_descent:
             break
-        t *= params.get('beta', 0.1)
+        t *= beta
     else:
         return
     return zn, kan, dobj
 
 
-def solve(prob, params, z0=None):
-    tol = params.get('tol', 1e-10)
-    verbose = params.get('verbose', 0)
+def solve(
+    prob,
+    z0=None,
+    tol=1e-10,
+    verbose=0,
+    maxSteps=1000,
+    maxStepsBack=10,
+    sigma=0.01,
+    beta=0.1,
+):
     lmbda = prob.lmbda
     max_asum = prob.maxAsum
     has_asum = not np.isinf(max_asum)
@@ -140,7 +150,7 @@ def solve(prob, params, z0=None):
     fresh_ka = True
     final_step = False
 
-    for _ in range(params.get('maxSteps', 1000)):
+    for _ in range(maxSteps):
         a, b, c = z
         if final_step:
             break
@@ -175,7 +185,9 @@ def solve(prob, params, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             final_step=final_step,
-            params=params,
+            tol=tol, verbose=verbose,
+            maxStepsBack=maxStepsBack,
+            sigma=sigma, beta=beta,
         )
         if result is not None:
             z, ka, dobj = result
@@ -193,7 +205,9 @@ def solve(prob, params, z0=None):
         result = descent_step(
             prob, z, ka, dec, obj, g, r,
             direction='gradient',
-            params=params,
+            tol=tol, verbose=verbose,
+            maxStepsBack=maxStepsBack,
+            sigma=sigma, beta=beta,
         )
         if result is not None:
             z, ka, _dobj = result
@@ -231,7 +245,7 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
     result = solve(
         prob,
         z0=(a, b, c),
-        params=params_newton,
+        **params_newton,
     )
     dt_refine = time.time() - t0
     if verbose > 0:
