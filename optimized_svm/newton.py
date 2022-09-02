@@ -1,12 +1,19 @@
 import time
 import numpy as np
+import numpy.typing as npt
 import nimsmo
 
 from .rendered import solve as solve_rendered
 from .problem import Classification, Regression
 
+Arr = npt.NDArray[np.float64]
+Vars = tuple[Arr, float, float]
 
-def solve_system(prob, dec, a, g, lmbda, max_asum):
+
+def solve_system(
+    prob: Classification | Regression,
+    dec: Arr, a: Arr, g: Arr, lmbda: float, max_asum: float
+):
     h = prob.ddloss(dec)
     idx_p = h > 0.0
     k_p = prob.k(idx=idx_p).T
@@ -122,14 +129,14 @@ def descent_step(
 
 
 def solve(
-    prob,
-    z0=None,
-    tol=1e-10,
-    verbose=0,
-    maxSteps=1000,
-    maxStepsBack=10,
-    sigma=0.01,
-    beta=0.1,
+    prob: Classification | Regression,
+    z0: Vars | None = None,
+    tol: float = 1e-10,
+    verbose: int = 0,
+    maxSteps: int = 1000,
+    maxStepsBack: int = 10,
+    sigma: float = 0.01,
+    beta: float = 0.1,
 ):
     lmbda = prob.lmbda
     max_asum = prob.maxAsum

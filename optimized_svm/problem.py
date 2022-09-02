@@ -1,14 +1,18 @@
 import numpy as np
+import numpy.typing as npt
 from .smooth_max import get_maxfun
+
+Arr = npt.NDArray[np.float64]
+Vars = tuple[Arr, float, float]
 
 
 class ParamBase:
     def __init__(
         self,
-        lmbda,
-        smoothingParam,
-        maxfunDegree,
-        maxAsum=float('inf')
+        lmbda: float,
+        smoothingParam: float,
+        maxfunDegree: str,
+        maxAsum: float = float('inf')
     ):
         self.__lmbda = lmbda
         self.__smoothingParam = smoothingParam
@@ -35,45 +39,55 @@ class ParamBase:
     def has_asum(self):
         return not np.isinf(self.__maxAsum)
 
-    def m(self, t):
+    def m(self, t: Arr):
         return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[0](t)
 
-    def dm(self, t):
+    def dm(self, t: Arr):
         return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[1](t)
 
-    def ddm(self, t):
+    def ddm(self, t: Arr):
         return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[2](t)
 
-    def decision(self, z, ka=None):
+    def decision(self, z: Vars, ka: Arr | None = None):
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
-        dec = ka + b + self.sign * c
+            ka: Arr = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
+        dec: Arr = ka + b + self.sign * c
         return dec
 
-    def decision_objective(self, z, ka=None):
+    def decision_objective(
+        self, z: Vars, ka: Arr | None = None
+    ):
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
-        obj = 0.5 * ka.dot(a)
-        dec = ka + b + self.sign * c
+            ka: Arr = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
+        obj: float = 0.5 * ka.dot(a)
+        dec: Arr = ka + b + self.sign * c
         obj += self.loss(dec).sum()
         if not np.isinf(self.__maxAsum):
             obj += self.__maxAsum * c
         return dec, obj
 
-    def objective(self, z, ka):
+    def objective(self, z: Vars, ka: Arr | None):
         return self.decision_objective(z, ka)[1]
 
 
 class KernelBase:
+    _x: Arr
+
     def __init__(self, kernel_fun, kernel_param):
         self.__kernel_fun = kernel_fun
         self.__kernel_param = kernel_param
 
-    def k(self, x=None, idx=None, idx0=None, deriv=False):
+    def k(
+        self,
+        x: Arr | None = None,
+        idx=None,
+        idx0=None,
+        deriv: bool = False,
+    ):
         if idx0 is None:
             x0 = self._x
         else:
@@ -92,13 +106,13 @@ class KernelBase:
 class Classification(ParamBase, KernelBase):
     def __init__(
         self,
-        x, y,
+        x: Arr, y: Arr,
         kernel_fun, kernel_param,
-        shift=1.0,
-        lmbda=1.0,
-        smoothingParam=0.5,
-        maxfunDegree='2',
-        maxAsum=float('inf'),
+        shift: float = 1.0,
+        lmbda: float = 1.0,
+        smoothingParam: float = 0.5,
+        maxfunDegree: str = '2',
+        maxAsum: float = float('inf'),
     ):
         ParamBase.__init__(self, lmbda, smoothingParam, maxfunDegree, maxAsum)
         KernelBase.__init__(self, kernel_fun, kernel_param)
@@ -118,29 +132,29 @@ class Classification(ParamBase, KernelBase):
     def sign(self):
         return self._y
 
-    def extract_original_a(self, a):
+    def extract_original_a(self, a: Arr):
         return a
 
-    def loss(self, t):
+    def loss(self, t: Arr):
         return self.m(self.__shift - self._y * t)
 
-    def dloss(self, t):
+    def dloss(self, t: Arr):
         return -self._y * self.dm(self.__shift - self._y * t)
 
-    def ddloss(self, t):
+    def ddloss(self, t: Arr):
         return self.ddm(self.__shift - self._y * t)
 
 
 class Regression(ParamBase, KernelBase):
     def __init__(
         self,
-        x, y,
+        x: Arr, y: Arr,
         kernel_fun, kernel_param,
-        epsilon=1e-6,
-        lmbda=1.0,
-        smoothingParam=0.5,
-        maxfunDegree='2',
-        maxAsum=float('inf'),
+        epsilon: float = 1e-6,
+        lmbda: float = 1.0,
+        smoothingParam: float = 0.5,
+        maxfunDegree: str = '2',
+        maxAsum: float = float('inf'),
     ):
         ParamBase.__init__(self, lmbda, smoothingParam, maxfunDegree, maxAsum)
         KernelBase.__init__(self, kernel_fun, kernel_param)
@@ -167,24 +181,24 @@ class Regression(ParamBase, KernelBase):
             -np.ones_like(self._y),
         ))
 
-    def extract_original_a(self, a):
+    def extract_original_a(self, a: Arr):
         return a[:self.n] + a[self.n:]
 
-    def loss(self, t):
+    def loss(self, t: Arr):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
         f = -self.sign * r - self.__epsilon
         return self.m(f)
 
-    def dloss(self, t):
+    def dloss(self, t: Arr):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
         f = -self.sign * r - self.__epsilon
         return -self.sign * self.dm(f)
 
-    def ddloss(self, t):
+    def ddloss(self, t: Arr):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
