@@ -338,7 +338,8 @@ class OptimizedSVM(
             params_smo=self.params_smo,
             params_newton=self.params_newton,
         )
-        self.__last_fit.classes_ = self.classes_
+        if self.kind == 'classes_':
+            self.__last_fit.classes_ = self.classes_
         self.__last_fit.set_solution(x, a_avg, b_avg)
 
         if self.verbose > 1:
