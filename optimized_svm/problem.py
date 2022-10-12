@@ -14,45 +14,30 @@ class ParamBase:
         maxfunDegree: str,
         maxAsum: float = float('inf')
     ):
-        self.__lmbda = lmbda
-        self.__smoothingParam = smoothingParam
-        self.__maxfunDegree = maxfunDegree
-        self.__maxAsum = maxAsum
+        self.lmbda = lmbda
+        self.smoothingParam = smoothingParam
+        self.maxfunDegree = maxfunDegree
+        self.maxAsum = maxAsum
 
-    @property
-    def lmbda(self):
-        return self.__lmbda
-
-    @property
-    def smoothingParam(self):
-        return self.__smoothingParam
-
-    @property
-    def maxfunDegree(self):
-        return self.__maxfunDegree
-
-    @property
-    def maxAsum(self):
-        return self.__maxAsum
 
     @property
     def has_asum(self):
-        return not np.isinf(self.__maxAsum)
+        return not np.isinf(self.maxAsum)
 
     def m(self, t: Arr):
-        return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[0](t)
+        return get_maxfun(self.smoothingParam, self.maxfunDegree)[0](t)
 
     def dm(self, t: Arr):
-        return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[1](t)
+        return get_maxfun(self.smoothingParam, self.maxfunDegree)[1](t)
 
     def ddm(self, t: Arr):
-        return get_maxfun(self.__smoothingParam, self.__maxfunDegree)[2](t)
+        return get_maxfun(self.smoothingParam, self.maxfunDegree)[2](t)
 
     def decision(self, z: Vars, ka: Arr | None = None):
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka: Arr = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
+            ka: Arr = self.k(idx=idx_sv).dot(a[idx_sv]) / self.lmbda
         dec: Arr = ka + b + self.sign * c
         return dec
 
@@ -62,12 +47,12 @@ class ParamBase:
         a, b, c = z
         if ka is None:
             idx_sv = a != 0.0
-            ka: Arr = self.k(idx=idx_sv).dot(a[idx_sv]) / self.__lmbda
+            ka: Arr = self.k(idx=idx_sv).dot(a[idx_sv]) / self.lmbda
         obj: float = 0.5 * ka.dot(a)
         dec: Arr = ka + b + self.sign * c
         obj += self.loss(dec).sum()
-        if not np.isinf(self.__maxAsum):
-            obj += self.__maxAsum * c
+        if not np.isinf(self.maxAsum):
+            obj += self.maxAsum * c
         return dec, obj
 
     def objective(self, z: Vars, ka: Arr | None):
@@ -78,8 +63,8 @@ class KernelBase:
     _x: Arr
 
     def __init__(self, kernel_fun, kernel_param):
-        self.__kernel_fun = kernel_fun
-        self.__kernel_param = kernel_param
+        self.kernel_fun = kernel_fun
+        self.kernel_param = kernel_param
 
     def k(
         self,
@@ -96,9 +81,9 @@ class KernelBase:
             x1 = x
         if idx is not None:
             x1 = self._x[idx]
-        return self.__kernel_fun(
+        return self.kernel_fun(
             x0, x1,
-            self.__kernel_param,
+            self.kernel_param,
             deriv=deriv,
         )
 
@@ -118,11 +103,7 @@ class Classification(ParamBase, KernelBase):
         KernelBase.__init__(self, kernel_fun, kernel_param)
         self._x = x
         self._y = y
-        self.__shift = shift
-
-    @property
-    def shift(self):
-        return self.__shift
+        self.shift = shift
 
     @property
     def size(self):
@@ -136,13 +117,13 @@ class Classification(ParamBase, KernelBase):
         return a
 
     def loss(self, t: Arr):
-        return self.m(self.__shift - self._y * t)
+        return self.m(self.shift - self._y * t)
 
     def dloss(self, t: Arr):
-        return -self._y * self.dm(self.__shift - self._y * t)
+        return -self._y * self.dm(self.shift - self._y * t)
 
     def ddloss(self, t: Arr):
-        return self.ddm(self.__shift - self._y * t)
+        return self.ddm(self.shift - self._y * t)
 
 
 class Regression(ParamBase, KernelBase):
