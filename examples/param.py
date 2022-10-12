@@ -56,7 +56,10 @@ def main():
             blocks=[[i] for i in range(x.shape[1])],
             # blocks=[[0], [1]],
         ),
-        initial_params=dict(scaling=scaling, lmbda=params['lmbda']),
+        params_hpo=dict(
+            scaling0=scaling,
+            lmbda0=params['lmbda'],
+        ),
         validation_params=dict(
             kind=kind,
         ),
