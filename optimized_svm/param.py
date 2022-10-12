@@ -383,10 +383,10 @@ class OptimizedSVM(
             print(' / '.join([
                 f'{self.__funevals} fevals',
                 f'time = {time.time() - self.__time_start:.1f}s',
-                f'lmbda = {np.exp(param[0])}',
-                f'scaling = {np.exp(param[1:]).mean()}',
-                f'nerr_tr = {err_tr:.8f}',
-                f'nerr_val = {err_val:.8f}',
+                f'lmbda = {np.exp(param[0]):g}',
+                f'scaling = {np.exp(param[1:]).mean():g}',
+                f'nerr_tr = {err_tr:.6f}',
+                f'nerr_val = {err_val:.6f}',
                 f'ratio = {err_tr / err_val:.3f}'
             ]))
 
