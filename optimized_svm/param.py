@@ -38,10 +38,10 @@ class TrainingMixin:
 
 class FeatureScalingMixin:
     def __init__(self, blocks=None):
-        self._blocks = blocks
+        self.blocks = blocks
 
     def scale(self, x, gamma):
-        blocks = self._blocks
+        blocks = self.blocks
         if blocks is None:
             return gamma * x
         else:
@@ -53,10 +53,7 @@ class FeatureScalingMixin:
             return xs
 
 
-class SimpleSVM(
-    BaseEstimator, ClassifierMixin,
-    TrainingMixin, FeatureScalingMixin,
-):
+class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
     def __init__(
         self,
         kind,
@@ -70,28 +67,32 @@ class SimpleSVM(
         verbose=0,
     ):
         FeatureScalingMixin.__init__(self, blocks)
-        self.__kind = kind
-        self.__params = params
-        self.__scaling = scaling
-        self.__kernel_fun = kernel_fun
-        self.__kernel_param = kernel_param
-        self.__params_smo = params_smo
-        self.__params_newton = params_newton
+        self.kind = kind
+        self.params = params
+        self.scaling = scaling
+        self.kernel_fun = kernel_fun
+        self.kernel_param = kernel_param
+        self.params_smo = params_smo
+        self.params_newton = params_newton
         self.__verbose = verbose
 
     def fit(self, x, y):
-        xs = self.scale(x, self.__scaling)
+        if self.kind == 'classification':
+            self.classes_ = np.unique(y)
+            assert len(self.classes_) == 2
+            y = np.where(y == self.classes_[0], -1.0, +1.0)
+        xs = self.scale(x, self.scaling)
         self._prob = self._create_problem(
             xs, y,
-            self.__kind,
-            self.__params,
-            self.__kernel_fun,
-            self.__kernel_param,
+            self.kind,
+            self.params,
+            self.kernel_fun,
+            self.kernel_param,
         )
         res = solve_twostep(
             self._prob,
-            self.__params_smo,
-            self.__params_newton,
+            self.params_smo,
+            self.params_newton,
         )
         a, b = res['a'], res['b']
         self._b = b
@@ -104,7 +105,7 @@ class SimpleSVM(
             print(f' = {100 * idx_sv.sum() / len(idx_sv):.1f}%')
 
     def set_solution(self, x, a, b):
-        xs = self.scale(x, self.__scaling)
+        xs = self.scale(x, self.scaling)
         self._b = b
         idx_sv = a != 0.0
         self._idx_sv = idx_sv
@@ -112,13 +113,16 @@ class SimpleSVM(
         self._xsv = xs[idx_sv]
 
     def predict(self, x):
-        lmbda = self.__params['lmbda']
-        xs = self.scale(x, self.__scaling)
-        ka = self.__kernel_fun(
+        lmbda = self.params['lmbda']
+        xs = self.scale(x, self.scaling)
+        ka = self.kernel_fun(
             xs, self._xsv,
-            self.__kernel_param,
+            self.kernel_param,
         ).dot(self._asv)
-        return ka / lmbda + self._b
+        d = ka / lmbda + self._b
+        if self.kind == 'classification':
+            return np.where(d < 0.0, self.classes_[0], self.classes_[1])
+        return d
 
 
 class ValidationMixin:
@@ -176,14 +180,14 @@ class OptimizedSVM(
         FeatureScalingMixin.__init__(self, kernel_param.get('blocks', None))
         ValidationMixin.__init__(self, validation_params)
         self.splits = splits
-        self.__kind = kind
-        self.__params = params
-        self.__initial_params = initial_params
+        self.kind = kind
+        self.params = params
+        self.initial_params = initial_params
         self.verbose = verbose
-        self.__kernel_fun = kernel_fun
-        self.__kernel_param = kernel_param
-        self.__params_smo = params_smo
-        self.__params_newton = params_newton
+        self.kernel_fun = kernel_fun
+        self.kernel_param = kernel_param
+        self.params_smo = params_smo
+        self.params_newton = params_newton
         self.debug = debug
 
         self.__last_fit = None
@@ -222,12 +226,12 @@ class OptimizedSVM(
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
             prob = self._create_problem(
                 xs[idx_tr], y[idx_tr],
-                kind=self.__kind,
-                params=dict(self.__params, lmbda=lmbda),
-                kernel_fun=self.__kernel_fun,
-                kernel_param=self.__kernel_param,
+                kind=self.kind,
+                params=dict(self.params, lmbda=lmbda),
+                kernel_fun=self.kernel_fun,
+                kernel_param=self.kernel_param,
             )
-            res = solve_twostep(prob, self.__params_smo, self.__params_newton)
+            res = solve_twostep(prob, self.params_smo, self.params_newton)
             z = a, b, c = res['a'], res['b'], res['c']
             # extract solution
             al = a / lmbda
@@ -312,14 +316,14 @@ class OptimizedSVM(
             derr /= err_val
 
         self.__last_fit = SimpleSVM(
-            kind=self.__kind,
-            params=dict(self.__params, lmbda=lmbda),
+            kind=self.kind,
+            params=dict(self.params, lmbda=lmbda),
             scaling=scaling,
-            kernel_fun=self.__kernel_fun,
-            kernel_param=self.__kernel_param,
-            blocks=self._blocks,
-            params_smo=self.__params_smo,
-            params_newton=self.__params_newton,
+            kernel_fun=self.kernel_fun,
+            kernel_param=self.kernel_param,
+            blocks=self.blocks,
+            params_smo=self.params_smo,
+            params_newton=self.params_newton,
         )
         self.__last_fit.set_solution(x, a_avg, b_avg)
 
@@ -334,13 +338,13 @@ class OptimizedSVM(
 
     def _optimize_params(self, x, y, splits):
         self.__time_start = time.time()
-        scaling = self.__initial_params['scaling']
-        nblocks = 1 if self._blocks is None else len(self._blocks)
+        scaling = self.initial_params['scaling']
+        nblocks = 1 if self.blocks is None else len(self.blocks)
         if isinstance(scaling, float):
             print(f'extending scaling parameter to {nblocks} dims')
             scaling = [scaling] * nblocks
         p0 = np.log(np.concatenate((
-            [self.__initial_params['lmbda']],
+            [self.initial_params['lmbda']],
             scaling,
         )))
 
@@ -377,7 +381,11 @@ class OptimizedSVM(
             method='L-BFGS-B',
             options=dict(disp=True),
             jac=True,
-            bounds=[(-10, 5)] + [(-10, 5)] * nblocks,
+            bounds=[
+                np.log(self.params.get('bounds_lmbda', [1e-6, 1.0]))
+            ] + nblocks * [
+                np.log(self.params.get('bounds_scaling', [1e-6, 1.0]))
+            ],
             callback=callback if self.verbose > 0 else None,
         )
         p_opt = res.x
@@ -390,6 +398,10 @@ class OptimizedSVM(
         x = np.array(x).astype(np.double)
         self.__no_nan = ~np.isnan(x).any(axis=0)
         x = x[:, self.__no_nan]
+        if self.kind == 'classification':
+            self.classes_ = np.unique(y)
+            assert len(self.classes_) == 2
+            y = np.where(y == self.classes_[0], -1.0, +1.0)
         y = np.array(y).astype(np.double)
         if self.splits is None:
             splits = list(KFold(5).split(x))
@@ -397,14 +409,14 @@ class OptimizedSVM(
             splits = self.splits
         optimized_params = self._optimize_params(x, y, splits)
         self.__svm = SimpleSVM(
-            kind=self.__kind,
-            params=dict(self.__params, lmbda=optimized_params['lmbda']),
+            kind=self.kind,
+            params=dict(self.params, lmbda=optimized_params['lmbda']),
             scaling=optimized_params['scaling'],
-            kernel_fun=self.__kernel_fun,
-            kernel_param=self.__kernel_param,
-            blocks=self._blocks,
-            params_smo=self.__params_smo,
-            params_newton=self.__params_newton,
+            kernel_fun=self.kernel_fun,
+            kernel_param=self.kernel_param,
+            blocks=self.blocks,
+            params_smo=self.params_smo,
+            params_newton=self.params_newton,
         )
         print(optimized_params)
         self.__svm.fit(x, y)
@@ -415,4 +427,7 @@ class OptimizedSVM(
             x = x[:, self.__no_nan]
         if self.__svm is None:
             return np.zeros(x.shape[0])
-        return self.__svm.predict(x)
+        d = self.__svm.predict(x)
+        if self.kind == 'classification':
+            return np.where(d < 0.0, self.classes_[0], self.classes_[1])
+        return d
