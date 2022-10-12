@@ -5,6 +5,7 @@ from tqdm import tqdm
 import numpy as np
 from scipy.optimize import minimize
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import KFold
 
 from .newton import solve_twostep
@@ -74,7 +75,7 @@ class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
         self.kernel_param = kernel_param
         self.params_smo = params_smo
         self.params_newton = params_newton
-        self.__verbose = verbose
+        self.verbose = verbose
 
     def fit(self, x, y):
         if self.kind == 'classification':
@@ -100,7 +101,7 @@ class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
         self._idx_sv = idx_sv
         self._asv = a[idx_sv]
         self._xsv = self._prob._x[idx_sv]
-        if self.__verbose > 0:
+        if self.verbose > 0:
             print(f'Got {idx_sv.sum()} of {len(idx_sv)} SVs', end='')
             print(f' = {100 * idx_sv.sum() / len(idx_sv):.1f}%')
 
@@ -111,16 +112,21 @@ class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
         self._idx_sv = idx_sv
         self._asv = a[idx_sv]
         self._xsv = xs[idx_sv]
-
-    def predict(self, x):
+    
+    def decision_function(self, x):
         lmbda = self.params['lmbda']
         xs = self.scale(x, self.scaling)
         ka = self.kernel_fun(
             xs, self._xsv,
             self.kernel_param,
         ).dot(self._asv)
-        d = ka / lmbda + self._b
+        return ka / lmbda + self._b
+
+    def predict(self, x):
+        d = self.decision_function(x)
         if self.kind == 'classification':
+            if not hasattr(self, 'classes_'):
+                raise NotFittedError()
             return np.where(d < 0.0, self.classes_[0], self.classes_[1])
         return d
 
@@ -163,13 +169,16 @@ class OptimizedSVM(
     BaseEstimator, ClassifierMixin,
     ValidationMixin, TrainingMixin, FeatureScalingMixin,
 ):
+    default_scaling0 = 1.0
+    default_lmbda0 = 1.0
+
     def __init__(
         self,
         kind,
         params,
         kernel_fun,
         kernel_param,
-        initial_params,
+        params_hpo=dict(),
         validation_params=dict(),
         params_smo=dict(),
         params_newton=dict(),
@@ -182,10 +191,10 @@ class OptimizedSVM(
         self.splits = splits
         self.kind = kind
         self.params = params
-        self.initial_params = initial_params
         self.verbose = verbose
         self.kernel_fun = kernel_fun
         self.kernel_param = kernel_param
+        self.params_hpo = params_hpo
         self.params_smo = params_smo
         self.params_newton = params_newton
         self.debug = debug
@@ -221,7 +230,7 @@ class OptimizedSVM(
         it = enumerate(tqdm(splits) if self.verbose == 1 else splits)
         for _, (idx_tr, idx_val) in it:
             if self.verbose > 2:
-                print(f'\n## {_+1} of {len(splits)}')
+                print(f'## {_+1} of {len(splits)}')
             if self.verbose > 3:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
             prob = self._create_problem(
@@ -329,6 +338,7 @@ class OptimizedSVM(
             params_smo=self.params_smo,
             params_newton=self.params_newton,
         )
+        self.__last_fit.classes_ = self.classes_
         self.__last_fit.set_solution(x, a_avg, b_avg)
 
         if self.verbose > 1:
@@ -342,13 +352,13 @@ class OptimizedSVM(
 
     def _optimize_params(self, x, y, splits):
         self.__time_start = time.time()
-        scaling = self.initial_params['scaling']
+        scaling = self.params_hpo.get('scaling0', OptimizedSVM.default_scaling0)
         nblocks = 1 if self.blocks is None else len(self.blocks)
         if isinstance(scaling, float):
             print(f'extending scaling parameter to {nblocks} dims')
             scaling = [scaling] * nblocks
         p0 = np.log(np.concatenate((
-            [self.initial_params['lmbda']],
+            [self.params_hpo.get('lmbda0', OptimizedSVM.default_lmbda0)],
             scaling,
         )))
 
@@ -360,7 +370,7 @@ class OptimizedSVM(
             return
 
         def callback(param):
-            ypred = self.__last_fit.predict(x)
+            ypred = self.__last_fit.decision_function(x)
             if self._validation_kind == 'regression':
                 ymed = np.median(y)
                 err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
@@ -386,9 +396,9 @@ class OptimizedSVM(
             options=dict(disp=True),
             jac=True,
             bounds=[
-                np.log(self.params.get('bounds_lmbda', [1e-6, 1.0]))
+                np.log(self.params_hpo.get('lmbda_bounds', [1e-6, 1.0]))
             ] + nblocks * [
-                np.log(self.params.get('bounds_scaling', [1e-6, 1.0]))
+                np.log(self.params_hpo.get('scaling_bounds', [1e-6, 1.0]))
             ],
             callback=callback if self.verbose > 0 else None,
         )
@@ -425,13 +435,18 @@ class OptimizedSVM(
         print(optimized_params)
         self.__svm.fit(x, y)
 
-    def predict(self, x):
+    def decision_function(self, x):
         x = np.array(x).astype(np.double)
         if self.__no_nan is not None:
             x = x[:, self.__no_nan]
         if self.__svm is None:
             return np.zeros(x.shape[0])
-        d = self.__svm.predict(x)
+        return self.__svm.decision_function(x)
+
+    def predict(self, x):
+        d = self.decision_function(x)
         if self.kind == 'classification':
+            if not hasattr(self, 'classes_'):
+                raise NotFittedError()
             return np.where(d < 0.0, self.classes_[0], self.classes_[1])
         return d
