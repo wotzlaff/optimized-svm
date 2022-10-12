@@ -394,7 +394,7 @@ class OptimizedSVM(
             partial(self._objective_function, x=x, y=y, splits=splits),
             p0,
             method='L-BFGS-B',
-            options=dict(disp=True),
+            options=dict(disp=self.verbose > 0),
             jac=True,
             bounds=[
                 np.log(self.params_hpo.get('lmbda_bounds', [1e-6, 1.0]))
