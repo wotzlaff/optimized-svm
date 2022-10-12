@@ -411,6 +411,9 @@ class OptimizedSVM(
 
     def fit(self, x, y):
         x = np.array(x).astype(np.double)
+        if self.blocks == 'all':
+            self.blocks = [[ft] for ft in range(x.shape[1])]
+            self.kernel_param['blocks'] = self.blocks
         self.__no_nan = ~np.isnan(x).any(axis=0)
         x = x[:, self.__no_nan]
         if self.kind == 'classification':
