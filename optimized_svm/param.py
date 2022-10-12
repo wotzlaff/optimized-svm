@@ -232,6 +232,10 @@ class OptimizedSVM(
                 kernel_param=self.kernel_param,
             )
             res = solve_twostep(prob, self.params_smo, self.params_newton)
+            if self.verbose > 2:
+                t = res['t_smo'] + res['t_refine']
+                r_smo = res['t_smo'] / t
+                print(f'{t:.1f}s (SMO: {100*r_smo:.1f}%)')
             z = a, b, c = res['a'], res['b'], res['c']
             # extract solution
             al = a / lmbda
