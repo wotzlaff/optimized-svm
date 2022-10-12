@@ -262,4 +262,6 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
     dt_refine = time.time() - t0
     if verbose > 0:
         print(f't(ref) = {dt_refine:10.1f}s')
+    result['t_smo'] = dt_smo
+    result['t_refine'] = dt_refine
     return result
