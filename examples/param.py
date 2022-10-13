@@ -60,8 +60,6 @@ def main():
         params_hpo=dict(
             scaling0=scaling,
             lmbda0=params['lmbda'],
-            ftol=1e-6,
-            gtol=1e-6,
             iprint=1,
         ),
         validation_params=dict(

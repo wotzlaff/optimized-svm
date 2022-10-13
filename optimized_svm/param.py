@@ -402,8 +402,8 @@ class OptimizedSVM(
             p0,
             method='L-BFGS-B',
             options=dict(
-                ftol=self.params_hpo.get('ftol', 1e-4),
-                gtol=self.params_hpo.get('gtol', 1e-3),
+                ftol=self.params_hpo.get('ftol', 1e-6),
+                gtol=self.params_hpo.get('gtol', 1e-6),
                 maxfun=self.params_hpo.get('maxfun', 15000),
                 maxiter=self.params_hpo.get('maxiter', 15000),
                 maxls=self.params_hpo.get('maxls', 20),
