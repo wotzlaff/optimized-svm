@@ -319,7 +319,7 @@ class OptimizedSVM(
             rhs_p = -np.tensordot(dk_tr_sv[idx_p], al_sv, axes=(1, 0))
             derr[1:] += hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
         
-        t = np.mean(ts)
+        t = sum(ts)
         r_smo = np.exp(np.log(r_smos).mean())
 
         if self._validation_loss == self._validation_loss_classification:
