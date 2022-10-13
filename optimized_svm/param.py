@@ -364,7 +364,6 @@ class OptimizedSVM(
         scaling = self.params_hpo.get('scaling0', OptimizedSVM.default_scaling0)
         nblocks = 1 if self.blocks is None else len(self.blocks)
         if isinstance(scaling, float):
-            print(f'extending scaling parameter to {nblocks} dims')
             scaling = [scaling] * nblocks
         p0 = np.log(np.concatenate((
             [self.params_hpo.get('lmbda0', OptimizedSVM.default_lmbda0)],
