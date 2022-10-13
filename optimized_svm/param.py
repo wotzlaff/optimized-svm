@@ -403,12 +403,12 @@ class OptimizedSVM(
             p0,
             method='L-BFGS-B',
             options=dict(
-                disp=self.verbose > 1,
                 ftol=self.params_hpo.get('ftol', 1e-4),
                 gtol=self.params_hpo.get('gtol', 1e-3),
                 maxfun=self.params_hpo.get('maxfun', 15000),
                 maxiter=self.params_hpo.get('maxiter', 15000),
                 maxls=self.params_hpo.get('maxls', 20),
+                iprint=self.params_hpo.get('iprint', -1),
             ),
             jac=True,
             bounds=[
