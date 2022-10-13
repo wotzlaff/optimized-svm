@@ -53,12 +53,16 @@ def main():
         kernel_fun=rbf_kernel,
         kernel_param=dict(
             gamma=1.0,
-            blocks=[[i] for i in range(x.shape[1])],
+            blocks='all',
+            # blocks=[[i] for i in range(x.shape[1])],
             # blocks=[[0], [1]],
         ),
         params_hpo=dict(
             scaling0=scaling,
             lmbda0=params['lmbda'],
+            ftol=1e-6,
+            gtol=1e-6,
+            iprint=1,
         ),
         validation_params=dict(
             kind=kind,
