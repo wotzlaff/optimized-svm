@@ -425,9 +425,6 @@ class OptimizedSVM(
 
     def fit(self, x, y):
         x = np.array(x).astype(np.double)
-        if self.blocks == 'all':
-            self.blocks = [[ft] for ft in range(x.shape[1])]
-            self.kernel_param['blocks'] = self.blocks
         self.__no_nan = ~np.isnan(x).any(axis=0)
         x = x[:, self.__no_nan]
         if self.kind == 'classification':
@@ -439,6 +436,15 @@ class OptimizedSVM(
             splits = list(KFold(5).split(x))
         else:
             splits = self.splits
+
+        if self.blocks == 'all':
+            self.kernel_param['blocks'] = self.blocks = None
+            optimized_params = self._optimize_params(x, y, splits)
+            print(optimized_params)
+            self.params_hpo['lmbda0'] = optimized_params['lmbda']
+            self.params_hpo['scaling0'] = optimized_params['scaling'][0]
+            self.blocks = [[ft] for ft in range(x.shape[1])]
+            self.kernel_param['blocks'] = self.blocks
         optimized_params = self._optimize_params(x, y, splits)
         self.__svm = SimpleSVM(
             kind=self.kind,
