@@ -228,6 +228,7 @@ class OptimizedSVM(
         derr = np.zeros_like(param)
         it = enumerate(tqdm(splits) if self.verbose == 1 else splits)
         r_smos = []
+        ts = []
         for _, (idx_tr, idx_val) in it:
             if self.verbose > 2:
                 print(f'## {_+1} of {len(splits)}')
@@ -242,6 +243,7 @@ class OptimizedSVM(
             )
             res = solve_twostep(prob, self.params_smo, self.params_newton)
             t = res['t_smo'] + res['t_refine']
+            ts.append(t)
             r_smo = res['t_smo'] / t
             r_smos.append(r_smo)
             if self.verbose > 2:
@@ -317,6 +319,7 @@ class OptimizedSVM(
             rhs_p = -np.tensordot(dk_tr_sv[idx_p], al_sv, axes=(1, 0))
             derr[1:] += hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
         
+        t = np.mean(ts)
         r_smo = np.exp(np.log(r_smos).mean())
 
         if self._validation_loss == self._validation_loss_classification:
@@ -350,6 +353,7 @@ class OptimizedSVM(
                 f'err = {err:14.8f}',
                 f'nerr = {nerr / len(splits):10.6f}',
                 f'derr = {derr}',
+                f'time: {t:.1f}s',
                 f'SMO: {100*r_smo:.1f}%',
             ]))
         self.__last_value = err, derr
