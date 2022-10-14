@@ -215,8 +215,8 @@ class OptimizedSVM(
         xs = self.scale(x, scaling)
 
         if self.verbose > 1:
-            print(f'lmbda = {lmbda:14.8f}, ', end='')
-            print(f'scaling = {np.mean(scaling):14.8f}, ', end='')
+            print(f'lmbda = {lmbda:g}, ', end='')
+            print(f'scaling = {np.mean(scaling):g}, ', end='')
 
         a_avg = np.zeros(x.shape[0])
         b_avg = 0.0
@@ -354,8 +354,8 @@ class OptimizedSVM(
 
         if self.verbose > 1:
             print(', '.join([
-                f'err = {err:14.8f}',
-                f'nerr = {nerr / len(splits):10.6f}',
+                f'err = {err:g}',
+                f'nerr = {nerr / len(splits):g}',
                 f'derr = {derr}',
                 f'time: {t:.1f}s',
                 f'SMO: {100*r_smo:.1f}%',
@@ -422,7 +422,7 @@ class OptimizedSVM(
             ] + nblocks * [
                 np.log(self.params_hpo.get('scaling_bounds', [1e-6, 1.0]))
             ],
-            callback=callback if self.verbose > 0 else None,
+            callback=callback if self.verbose > 2 else None,
         )
         p_opt = res.x
         return dict(
