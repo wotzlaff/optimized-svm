@@ -229,6 +229,8 @@ class OptimizedSVM(
         it = enumerate(tqdm(splits) if self.verbose == 1 else splits)
         r_smos = []
         ts = []
+        r_svs = []
+        n_svs = []
         for _, (idx_tr, idx_val) in it:
             if self.verbose > 2:
                 print(f'## {_+1} of {len(splits)}')
@@ -249,6 +251,8 @@ class OptimizedSVM(
             if self.verbose > 2:
                 print(f'{t:.1f}s (SMO: {100*r_smo:.1f}%)')
             z = a, b, c = res['a'], res['b'], res['c']
+            n_svs.append((a != 0.0).sum())
+            r_svs.append((a != 0.0).mean())
             # extract solution
             al = a / lmbda
             idx_sv = a != 0.0
@@ -321,6 +325,8 @@ class OptimizedSVM(
         
         t = sum(ts)
         r_smo = np.exp(np.log(r_smos).mean())
+        n_sv = np.mean(n_svs)
+        r_sv = np.exp(np.log(r_svs).mean())
 
         if self._validation_loss == self._validation_loss_classification:
             n_val = sum(len(y[idx_val]) for _, idx_val in splits)
@@ -355,6 +361,7 @@ class OptimizedSVM(
                 f'derr = {derr}',
                 f'time: {t:.1f}s',
                 f'SMO: {100*r_smo:.1f}%',
+                f'avg #SVs: {n_sv:.0f} = {100*r_sv:.1f}%',
             ]))
         self.__last_value = err, derr
         return err, derr
