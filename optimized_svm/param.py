@@ -169,7 +169,7 @@ class OptimizedSVM(
     BaseEstimator, ClassifierMixin,
     ValidationMixin, TrainingMixin, FeatureScalingMixin,
 ):
-    default_scaling0 = 1.0
+    default_scaling0 = 'auto'
     default_lmbda0 = 1.0
 
     def __init__(
@@ -369,6 +369,8 @@ class OptimizedSVM(
     def _optimize_params(self, x, y, splits):
         self.__time_start = time.time()
         scaling = self.params_hpo.get('scaling0', OptimizedSVM.default_scaling0)
+        if scaling == 'auto':
+            scaling = np.sqrt(np.log(2) / ((x - x[0]) ** 2).sum(axis=1).mean())
         nblocks = 1 if self.blocks is None else len(self.blocks)
         if isinstance(scaling, float):
             scaling = [scaling] * nblocks
