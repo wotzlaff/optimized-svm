@@ -133,28 +133,26 @@ class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
 
 class ValidationMixin:
     def __init__(self, params=dict()):
-        self.validation_params = params
+        self.params_validation = params
 
     @property
-    def validation_params(self):
-        return self._validation_params
+    def params_validation(self):
+        return self._params_validation
 
-    @validation_params.setter
-    def validation_params(self, params):
-        self._validation_params = params
-        smoothing = params.get('smoothingParam', 0.5)
-        degree = params.get('smoothingDegree', '6')
-        self._m, self._dm = get_maxfun(smoothing, degree)[:2]
-        self._shift = params.get('shift', 1.0)
-        kind = params.get('kind', 'classification')
-        self._validation_kind = kind
+    @params_validation.setter
+    def params_validation(self, params):
+        self._params_validation = params
+        self._m, self._dm = get_maxfun(
+            params.get('smoothingParam', 0.5),
+            params.get('smoothingDegree', '6'),
+        )[:2]
         self._validation_loss = dict(
             classification=self._validation_loss_classification,
             regression=self._validation_loss_regression,
-        )[kind]
+        )[params.get('kind', 'classification')]
 
     def _validation_loss_classification(self, t, y):
-        shift = self._shift
+        shift = self.params_validation.get('shift', 1.0)
         ell = self._m(shift - t * y).sum()
         dell = -y * self._dm(shift - t * y)
         return ell, dell
@@ -179,7 +177,7 @@ class OptimizedSVM(
         kernel_fun,
         kernel_param,
         params_hpo=dict(),
-        validation_params=dict(),
+        params_validation=dict(),
         params_smo=dict(),
         params_newton=dict(),
         splits=None,
@@ -187,7 +185,7 @@ class OptimizedSVM(
         debug=False,
     ):
         FeatureScalingMixin.__init__(self, kernel_param.get('blocks', None))
-        ValidationMixin.__init__(self, validation_params)
+        ValidationMixin.__init__(self, params_validation)
         self.splits = splits
         self.kind = kind
         self.params = params
@@ -388,11 +386,11 @@ class OptimizedSVM(
 
         def callback(param):
             ypred = self.__last_fit.decision_function(x)
-            if self._validation_kind == 'regression':
+            if self._validation_loss == self._validation_loss_regression:
                 ymed = np.median(y)
                 err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
                 err_val = self.__last_value[0]
-            if self._validation_kind == 'classification':
+            if self._validation_loss == self._validation_loss_classification:
                 err_tr = (y * ypred <= 0.0).mean()
                 err_val = self.__last_value[0]
 
