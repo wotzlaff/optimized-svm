@@ -93,6 +93,7 @@ class Classification(ParamBase, KernelBase):
         self,
         x: Arr, y: Arr,
         kernel_fun, kernel_param,
+        w: Arr | None = None,
         shift: float = 1.0,
         lmbda: float = 1.0,
         smoothingParam: float = 0.5,
@@ -103,6 +104,7 @@ class Classification(ParamBase, KernelBase):
         KernelBase.__init__(self, kernel_fun, kernel_param)
         self._x = x
         self._y = y
+        self._w = np.ones_like(y) if w is None else w
         self.shift = shift
 
     @property
@@ -117,13 +119,13 @@ class Classification(ParamBase, KernelBase):
         return a
 
     def loss(self, t: Arr):
-        return self.m(self.shift - self._y * t)
+        return self._w * self.m(self.shift - self._y * t)
 
     def dloss(self, t: Arr):
-        return -self._y * self.dm(self.shift - self._y * t)
+        return -self._w * self._y * self.dm(self.shift - self._y * t)
 
     def ddloss(self, t: Arr):
-        return self.ddm(self.shift - self._y * t)
+        return self._w * self.ddm(self.shift - self._y * t)
 
 
 class Regression(ParamBase, KernelBase):
@@ -131,6 +133,7 @@ class Regression(ParamBase, KernelBase):
         self,
         x: Arr, y: Arr,
         kernel_fun, kernel_param,
+        w: Arr | None = None,
         epsilon: float = 1e-6,
         lmbda: float = 1.0,
         smoothingParam: float = 0.5,
@@ -141,6 +144,7 @@ class Regression(ParamBase, KernelBase):
         KernelBase.__init__(self, kernel_fun, kernel_param)
         self._x = np.concatenate((x, x))
         self._y = y
+        self._w = np.ones_like(y) if w is None else w
         self.__epsilon = epsilon
 
     @property
@@ -170,18 +174,27 @@ class Regression(ParamBase, KernelBase):
         r[:self.n] -= self._y
         r[self.n:] -= self._y
         f = -self.sign * r - self.__epsilon
-        return self.m(f)
+        res = self.m(f)
+        res[:self.n] *= self._w
+        res[self.n:] *= self._w
+        return res
 
     def dloss(self, t: Arr):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
         f = -self.sign * r - self.__epsilon
-        return -self.sign * self.dm(f)
+        res = -self.sign * self.dm(f)
+        res[:self.n] *= self._w
+        res[self.n:] *= self._w
+        return res
 
     def ddloss(self, t: Arr):
         r = t.copy()
         r[:self.n] -= self._y
         r[self.n:] -= self._y
         f = -self.sign * r - self.__epsilon
-        return self.ddm(f)
+        res = self.ddm(f)
+        res[:self.n] *= self._w
+        res[self.n:] *= self._w
+        return res

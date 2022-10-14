@@ -236,6 +236,7 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
     args = dict(
         x=prob._x.tolist(),
         y=prob._y.tolist(),
+        w=prob._w.tolist(),
         gamma=1.0,
         lmbda=prob.lmbda,
         smoothingParam=prob.smoothingParam,

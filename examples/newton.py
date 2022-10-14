@@ -30,6 +30,7 @@ def main():
         gamma * x, y,
         kernel_fun=rbf_kernel,
         kernel_param=dict(gamma=1.0),
+        w=np.random.rand(y.size),
         **params,
     )
     result = solve_twostep(
