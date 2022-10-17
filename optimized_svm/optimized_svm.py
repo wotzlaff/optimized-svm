@@ -319,7 +319,7 @@ class OptimizedSVM(
         x = np.array(x).astype(np.double)
         self.__no_nan = ~np.isnan(x).any(axis=0)
         x = x[:, self.__no_nan]
-        if self.kind == 'classification':
+        if self.kind in ['classification', 'balanced_classification']:
             self.classes_ = np.unique(y)
             assert len(self.classes_) == 2
             y = np.where(y == self.classes_[0], -1.0, +1.0)
@@ -363,7 +363,7 @@ class OptimizedSVM(
 
     def predict(self, x):
         d = self.decision_function(x)
-        if self.kind == 'classification':
+        if self.kind in ['classification', 'balanced_classification']:
             if not hasattr(self, 'classes_'):
                 raise NotFittedError()
             return np.where(d < 0.0, self.classes_[0], self.classes_[1])
