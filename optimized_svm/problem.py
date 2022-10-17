@@ -1,3 +1,4 @@
+from functools import partial
 import numpy as np
 import numpy.typing as npt
 from .kernel import KernelBase
@@ -136,6 +137,7 @@ class TrainingMixin:
         Problem = dict(
             classification=Classification,
             regression=Regression,
+            balanced_classification=partial(Classification, w='balanced'),
         )[kind]
         if 'ratioAsum' in params:
             assert 'maxAsum' not in params
