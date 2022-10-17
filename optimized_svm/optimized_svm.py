@@ -68,6 +68,8 @@ class OptimizedSVM(
             kernel_param=self.kernel_param,
         )
         res = solve_twostep(prob, self.params_smo, self.params_newton)
+
+        # extract status
         t = status['t'] = res['t_smo'] + res['t_refine']
         r_smo = status['r_smo'] = res['t_smo'] / t
         if self.verbose > 2:
@@ -75,20 +77,16 @@ class OptimizedSVM(
         z = a, b, c = res['a'], res['b'], res['c']
         status['n_sv'] = (a != 0.0).sum()
         status['r_sv'] = (a != 0.0).mean()
+
         # extract solution
         al = a / lmbda
         idx_sv = a != 0.0
         al_sv = al[idx_sv]
-
-        # capture avg
         solution = dict(a=prob.extract_original_a(a), b=b, c=c)
-
-        # scale inputs
-        xs_val = x_val
 
         # compute validation estimates and error
         k_val_sv, dk_val_sv = prob.k(
-            x=xs_val, idx0=idx_sv, deriv=True,
+            x=x_val, idx0=idx_sv, deriv=True,
         )
         n_param = 1 + dk_val_sv.shape[-1]
         ka_val = k_val_sv.T.dot(al_sv)
@@ -119,7 +117,7 @@ class OptimizedSVM(
 
         if k_p_p.shape[0] != k_p_p.shape[1]:
             k_p_p = prob.k(idx=idx_p, idx0=idx_p)
-            k_val_p = prob.k(x=xs_val, idx0=idx_p).T
+            k_val_p = prob.k(x=x_val, idx0=idx_p).T
 
         # solve transposed system
         lhs_p = dl_val.dot(k_val_p) / lmbda
@@ -137,6 +135,7 @@ class OptimizedSVM(
                 lhs_p, lhs_1,
             )
 
+        # compute error derivative
         derr = np.zeros(n_param)
         # dlmbda:
         rhs_p = ka[idx_p]
@@ -146,7 +145,6 @@ class OptimizedSVM(
         derr[1:] = hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
 
         return status, solution, err, derr, nerr
-
 
     def _objective_function(self, param, x, y, splits):
         self.__funevals += 1
@@ -334,7 +332,8 @@ class OptimizedSVM(
             params_smo=self.params_smo,
             params_newton=self.params_newton,
         )
-        print(optimized_params)
+        if self.verbose > 1:
+            print('optimized parameters:', optimized_params)
         self.__svm.fit(x, y)
 
     def decision_function(self, x):
