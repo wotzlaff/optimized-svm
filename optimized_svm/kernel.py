@@ -22,7 +22,7 @@ def rbf_kernel(x1, x2, kernel_param=dict(), deriv=False):
             axis=-1,
         )
         return k, dk
-    return k, -2.0 * k * d
+    return k, -2.0 * (k * d)[:, :, np.newaxis]
 
 
 class KernelBase:

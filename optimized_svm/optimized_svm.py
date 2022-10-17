@@ -58,6 +58,96 @@ class OptimizedSVM(
         self.__svm = None
         self.__no_nan = None
 
+    def _objective_function_part(self, x_tr, y_tr, x_val, y_val, lmbda):
+        status = dict()
+        prob = self._create_problem(
+            x_tr, y_tr,
+            kind=self.kind,
+            params=dict(self.params, lmbda=lmbda),
+            kernel_fun=self.kernel_fun,
+            kernel_param=self.kernel_param,
+        )
+        res = solve_twostep(prob, self.params_smo, self.params_newton)
+        t = status['t'] = res['t_smo'] + res['t_refine']
+        r_smo = status['r_smo'] = res['t_smo'] / t
+        if self.verbose > 2:
+            print(f'{t:.1f}s (SMO: {100*r_smo:.1f}%)')
+        z = a, b, c = res['a'], res['b'], res['c']
+        status['n_sv'] = (a != 0.0).sum()
+        status['r_sv'] = (a != 0.0).mean()
+        # extract solution
+        al = a / lmbda
+        idx_sv = a != 0.0
+        al_sv = al[idx_sv]
+
+        # capture avg
+        solution = dict(a=prob.extract_original_a(a), b=b, c=c)
+
+        # scale inputs
+        xs_val = x_val
+
+        # compute validation estimates and error
+        k_val_sv, dk_val_sv = prob.k(
+            x=xs_val, idx0=idx_sv, deriv=True,
+        )
+        n_param = 1 + dk_val_sv.shape[-1]
+        ka_val = k_val_sv.T.dot(al_sv)
+        y_val_pred = ka_val + b
+        l_val, dl_val = self._validation_loss(y_val_pred, y_val)
+        err = l_val
+        if self._validation_loss == self._validation_loss_classification:
+            nerr = ((y_val_pred * y_val) < 0.0).mean()
+        else:
+            err_std = np.abs(y_val - np.median(y_val)).sum()
+            nerr = np.abs(y_val - y_val_pred).sum() / err_std
+
+        # compute decision function values
+        k_tr_sv, dk_tr_sv = prob.k(idx=idx_sv, deriv=True)
+        ka = k_tr_sv.dot(al_sv)
+        dec = prob.decision(z, ka)
+        h = prob.ddloss(dec)
+
+        # extract relevant part
+        idx_p = h > 0
+        idx_p_in_sv = h[idx_sv] > 0
+        h_p = h[idx_p]
+        if h_p.size == 0:
+            return np.inf, np.zeros_like(derr)
+        k_p_sv = k_tr_sv[idx_p, :]
+        k_p_p = k_p_sv[:, idx_p_in_sv]
+        k_val_p = k_val_sv.T[:, idx_p_in_sv]
+
+        if k_p_p.shape[0] != k_p_p.shape[1]:
+            k_p_p = prob.k(idx=idx_p, idx0=idx_p)
+            k_val_p = prob.k(x=xs_val, idx0=idx_p).T
+
+        # solve transposed system
+        lhs_p = dl_val.dot(k_val_p) / lmbda
+        lhs_1 = dl_val.sum()
+        if prob.has_asum:
+            hu_p, _ = solve_rendered(
+                k_p_p / lmbda + np.diag(1.0 / h_p),
+                (np.ones_like(lhs_p), prob.sign[idx_p]),
+                lhs_p, (lhs_1, 0.0),
+            )
+        else:
+            hu_p, _ = solve_rendered(
+                k_p_p / lmbda + np.diag(1.0 / h_p),
+                np.ones_like(lhs_p),
+                lhs_p, lhs_1,
+            )
+
+        derr = np.zeros(n_param)
+        # dlmbda:
+        rhs_p = ka[idx_p]
+        derr[0] = hu_p.dot(rhs_p) - dl_val.dot(ka_val)
+        # dscaling:
+        rhs_p = -np.tensordot(dk_tr_sv[idx_p], al_sv, axes=(1, 0))
+        derr[1:] = hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
+
+        return status, solution, err, derr, nerr
+
+
     def _objective_function(self, param, x, y, splits):
         self.__funevals += 1
         log_lmbda = param[0]
@@ -78,106 +168,32 @@ class OptimizedSVM(
         err = 0.0
         derr = np.zeros_like(param)
         it = enumerate(tqdm(splits) if self.verbose == 1 else splits)
-        r_smos = []
-        ts = []
-        r_svs = []
-        n_svs = []
+        status = dict(r_smo=[], t=[], n_sv=[], r_sv=[])
         for _, (idx_tr, idx_val) in it:
             if self.verbose > 2:
                 print(f'## {_+1} of {len(splits)}')
             if self.verbose > 3:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
-            prob = self._create_problem(
+            status_t, sol_t, err_t, derr_t, nerr_t = self._objective_function_part(
                 xs[idx_tr], y[idx_tr],
-                kind=self.kind,
-                params=dict(self.params, lmbda=lmbda),
-                kernel_fun=self.kernel_fun,
-                kernel_param=self.kernel_param,
+                xs[idx_val], y[idx_val],
+                lmbda,
             )
-            res = solve_twostep(prob, self.params_smo, self.params_newton)
-            t = res['t_smo'] + res['t_refine']
-            ts.append(t)
-            r_smo = res['t_smo'] / t
-            r_smos.append(r_smo)
-            if self.verbose > 2:
-                print(f'{t:.1f}s (SMO: {100*r_smo:.1f}%)')
-            z = a, b, c = res['a'], res['b'], res['c']
-            n_svs.append((a != 0.0).sum())
-            r_svs.append((a != 0.0).mean())
-            # extract solution
-            al = a / lmbda
-            idx_sv = a != 0.0
-            al_sv = al[idx_sv]
-
-            # capture avg
-            a_avg[idx_tr] += prob.extract_original_a(a) / len(splits)
-            b_avg += b / len(splits)
-
-            # scale inputs
-            xs_val = xs[idx_val]
-
-            # compute validation estimates and error
-            k_val_sv, dk_val_sv = prob.k(
-                x=xs_val, idx0=idx_sv, deriv=True
-            )
-            ka_val = k_val_sv.T.dot(al_sv)
-            y_val_pred = ka_val + b
-            l_val, dl_val = self._validation_loss(y_val_pred, y[idx_val])
-            err += l_val
-            if self._validation_loss == self._validation_loss_classification:
-                nerr += ((y_val_pred * y[idx_val]) < 0.0).mean()
-            else:
-                err_std = np.abs(y[idx_val] - np.median(y[idx_val])).sum()
-                nerr += np.abs(y[idx_val] - y_val_pred).sum() / err_std
-
-            # compute decision function values
-            k_tr_sv, dk_tr_sv = prob.k(idx=idx_sv, deriv=True)
-            ka = k_tr_sv.dot(al_sv)
-            dec = prob.decision(z, ka)
-            h = prob.ddloss(dec)
-
-            # extract relevant part
-            idx_p = h > 0
-            idx_p_in_sv = h[idx_sv] > 0
-            h_p = h[idx_p]
-            if h_p.size == 0:
-                return np.inf, np.zeros_like(derr)
-            k_p_sv = k_tr_sv[idx_p, :]
-            k_p_p = k_p_sv[:, idx_p_in_sv]
-            k_val_p = k_val_sv.T[:, idx_p_in_sv]
-
-            if k_p_p.shape[0] != k_p_p.shape[1]:
-                k_p_p = prob.k(idx=idx_p, idx0=idx_p)
-                k_val_p = prob.k(x=xs_val, idx0=idx_p).T
-
-            # solve transposed system
-            lhs_p = dl_val.dot(k_val_p) / lmbda
-            lhs_1 = dl_val.sum()
-            if prob.has_asum:
-                hu_p, _ = solve_rendered(
-                    k_p_p / lmbda + np.diag(1.0 / h_p),
-                    (np.ones_like(lhs_p), prob.sign[idx_p]),
-                    lhs_p, (lhs_1, 0.0),
-                )
-            else:
-                hu_p, _ = solve_rendered(
-                    k_p_p / lmbda + np.diag(1.0 / h_p),
-                    np.ones_like(lhs_p),
-                    lhs_p, lhs_1,
-                )
-
-            # dlmbda:
-            rhs_p = ka[idx_p]
-            derr[0] += hu_p.dot(rhs_p) - dl_val.dot(ka_val)
-
-            # dscaling:
-            rhs_p = -np.tensordot(dk_tr_sv[idx_p], al_sv, axes=(1, 0))
-            derr[1:] += hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
+            for key, val in status_t.items():
+                status[key].append(val)
+            a_avg[idx_tr] += sol_t['a']
+            b_avg += sol_t['b']
+            err += err_t
+            derr += derr_t
+            nerr += nerr_t
         
-        t = sum(ts)
-        r_smo = np.exp(np.log(r_smos).mean())
-        n_sv = np.mean(n_svs)
-        r_sv = np.exp(np.log(r_svs).mean())
+        a_avg /= len(splits)
+        b_avg /= len(splits)
+
+        t = sum(status['t'])
+        r_smo = np.exp(np.log(status['r_smo']).mean())
+        n_sv = np.mean(status['n_sv'])
+        r_sv = np.exp(np.log(status['r_sv']).mean())
 
         if self._validation_loss == self._validation_loss_classification:
             n_val = sum(len(y[idx_val]) for _, idx_val in splits)
@@ -190,6 +206,7 @@ class OptimizedSVM(
             )
             err /= err_val
             derr /= err_val
+        nerr /= len(splits)
 
         self.__last_fit = SimpleSVM(
             kind=self.kind,
@@ -208,7 +225,7 @@ class OptimizedSVM(
         if self.verbose > 1:
             print(', '.join([
                 f'err = {err:g}',
-                f'nerr = {nerr / len(splits):g}',
+                f'nerr = {nerr:g}',
                 f'derr = {derr}',
                 f'time: {t:.1f}s',
                 f'SMO: {100*r_smo:.1f}%',
