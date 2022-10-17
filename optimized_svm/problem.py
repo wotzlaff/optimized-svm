@@ -93,7 +93,7 @@ class Classification(ParamBase, KernelBase):
         self,
         x: Arr, y: Arr,
         kernel_fun, kernel_param,
-        w: Arr | None = None,
+        w: Arr | None | str = None,
         shift: float = 1.0,
         lmbda: float = 1.0,
         smoothingParam: float = 0.5,
@@ -104,7 +104,13 @@ class Classification(ParamBase, KernelBase):
         KernelBase.__init__(self, kernel_fun, kernel_param)
         self._x = x
         self._y = y
-        self._w = np.ones_like(y) if w is None else w
+        if w is None:
+            self._w = np.ones_like(y)
+        elif w == 'balanced':
+            ratio = (y == 1.0).mean()
+            self._w = 1.0 / np.where(y == 1.0, ratio, 1.0 - ratio)
+        else:
+            self._w = w
         self.shift = shift
 
     @property
