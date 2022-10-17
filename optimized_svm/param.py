@@ -447,7 +447,8 @@ class OptimizedSVM(
         if self.blocks == 'all':
             self.kernel_param['blocks'] = self.blocks = None
             optimized_params = self._optimize_params(x, y, splits)
-            print(optimized_params)
+            if self.verbose > 1:
+                print('optimized parameters:', optimized_params)
             self.params_hpo['lmbda0'] = optimized_params['lmbda']
             self.params_hpo['scaling0'] = optimized_params['scaling'][0]
             self.blocks = [[ft] for ft in range(x.shape[1])]
