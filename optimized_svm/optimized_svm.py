@@ -116,7 +116,7 @@ class OptimizedSVM(
         idx_p_in_sv = h[idx_sv] > 0
         h_p = h[idx_p]
         if h_p.size == 0:
-            return np.inf, np.zeros(n_param)
+            return status, solution, np.inf, np.zeros(n_param), np.inf
         k_p_sv = k_tr_sv[idx_p, :]
         k_p_p = k_p_sv[:, idx_p_in_sv]
         k_val_p = k_val_sv.T[:, idx_p_in_sv]
