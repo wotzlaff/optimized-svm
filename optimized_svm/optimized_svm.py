@@ -8,6 +8,8 @@ from sklearn.base import BaseEstimator
 from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import KFold
 
+from optimized_svm.kernel import rbf_kernel
+
 from .newton import solve_twostep
 from .rendered import solve as solve_rendered
 from .problem import TrainingMixin
@@ -27,8 +29,8 @@ class OptimizedSVM(
         self,
         kind,
         params,
-        kernel_fun,
-        kernel_param,
+        kernel_fun=rbf_kernel,
+        kernel_param=dict(),
         params_hpo=dict(),
         params_validation=dict(),
         params_smo=dict(),
