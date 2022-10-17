@@ -29,7 +29,7 @@ class Classification(ParamBase, KernelBase):
             self._w = np.ones_like(y)
         elif w == 'balanced':
             ratio = (y == 1.0).mean()
-            self._w = 1.0 / np.where(y == 1.0, ratio, 1.0 - ratio)
+            self._w = 0.5 / np.where(y == 1.0, ratio, 1.0 - ratio)
         else:
             self._w = w
         self.shift = shift

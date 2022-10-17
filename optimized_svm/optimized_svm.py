@@ -95,9 +95,14 @@ class OptimizedSVM(
         err = l_val
         if self._validation_loss == self._validation_loss_classification:
             nerr = ((y_val_pred * y_val) < 0.0).mean()
-        else:
+        elif self._validation_loss == self._validation_loss_balanced_classification:
+            w = self._balanced_weights(y_val)
+            nerr = (w * ((y_val_pred * y_val) < 0.0)).mean()
+        elif self._validation_loss == self._validation_loss_regression:
             err_std = np.abs(y_val - np.median(y_val)).sum()
             nerr = np.abs(y_val - y_val_pred).sum() / err_std
+        else:
+            raise ValueError('unknown validation loss')
 
         # compute decision function values
         k_tr_sv, dk_tr_sv = prob.k(idx=idx_sv, deriv=True)
@@ -193,17 +198,22 @@ class OptimizedSVM(
         n_sv = np.mean(status['n_sv'])
         r_sv = np.exp(np.log(status['r_sv']).mean())
 
-        if self._validation_loss == self._validation_loss_classification:
+        if self._validation_loss in [
+            self._validation_loss_classification,
+            self._validation_loss_balanced_classification,
+        ]:
             n_val = sum(len(y[idx_val]) for _, idx_val in splits)
             err /= n_val
             derr /= n_val
-        else:
+        elif self._validation_loss == self._validation_loss_regression:
             err_val = sum(
                 np.sum(np.abs(y[idx_val] - np.median(y[idx_val])))
                 for _, idx_val in splits
             )
             err /= err_val
             derr /= err_val
+        else:
+            raise ValueError('unknown validation loss')
         nerr /= len(splits)
 
         self.__last_fit = SimpleSVM(
@@ -254,13 +264,19 @@ class OptimizedSVM(
 
         def callback(param):
             ypred = self.__last_fit.decision_function(x)
-            if self._validation_loss == self._validation_loss_regression:
-                ymed = np.median(y)
-                err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
-                err_val = self.__last_value[0]
             if self._validation_loss == self._validation_loss_classification:
                 err_tr = (y * ypred <= 0.0).mean()
                 err_val = self.__last_value[0]
+            elif self._validation_loss == self._validation_loss_balanced_classification:
+                w = self._balanced_weights(y)
+                err_tr = (w * (y * ypred <= 0.0)).mean()
+                err_val = self.__last_value[0]
+            elif self._validation_loss == self._validation_loss_regression:
+                ymed = np.median(y)
+                err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
+                err_val = self.__last_value[0]
+            else:
+                raise ValueError('unknown validation loss')
 
             print(' / '.join([
                 f'{self.__funevals} fevals',
