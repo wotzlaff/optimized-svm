@@ -13,7 +13,7 @@ def diff(x1, x2, idx=slice(None)):
 def rbf_kernel(x1, x2, kernel_param=dict(), deriv=False):
     blocks = kernel_param.get('blocks', None)
     d = diff(x1, x2, slice(None))
-    k = np.exp(-kernel_param['gamma'] * d)
+    k = np.exp(-kernel_param.get('gamma', 1.0) * d)
     if not deriv:
         return k
     if blocks is not None:
