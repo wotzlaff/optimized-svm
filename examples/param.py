@@ -58,12 +58,10 @@ def main():
             # blocks=[[0], [1]],
         ),
         params_hpo=dict(
+            kind=kind,
             scaling0=scaling,
             lmbda0=params['lmbda'],
             iprint=1,
-        ),
-        validation_params=dict(
-            kind=kind,
         ),
         # debug=True,
         verbose=verbose,
@@ -71,7 +69,7 @@ def main():
         params_newton=params_newton,
     )
     svm.fit(x[:n//2], y[:n//2])
-    yest = svm.predict(x)
+    yest = svm.decision_function(x)
 
     import matplotlib.pyplot as plt
     if kind == 'classification':
