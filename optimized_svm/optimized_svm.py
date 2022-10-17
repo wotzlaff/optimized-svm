@@ -30,9 +30,8 @@ class OptimizedSVM(
         kind,
         params,
         kernel_fun=rbf_kernel,
-        kernel_param=dict(),
+        kernel_param=dict(gamma=1.0),
         params_hpo=dict(),
-        params_validation=dict(),
         params_smo=dict(),
         params_newton=dict(),
         splits=None,
@@ -40,7 +39,7 @@ class OptimizedSVM(
         debug=False,
     ):
         FeatureScalingMixin.__init__(self, kernel_param.get('blocks', None))
-        ValidationMixin.__init__(self, params_validation)
+        ValidationMixin.__init__(self, params_hpo)
         self.splits = splits
         self.kind = kind
         self.params = params
@@ -95,12 +94,12 @@ class OptimizedSVM(
         y_val_pred = ka_val + b
         l_val, dl_val = self._validation_loss(y_val_pred, y_val)
         err = l_val
-        if self._validation_loss == self._validation_loss_classification:
+        if self.params_hpo['kind'] == 'classification':
             nerr = ((y_val_pred * y_val) < 0.0).mean()
-        elif self._validation_loss == self._validation_loss_balanced_classification:
+        elif self.params_hpo['kind'] == 'balanced_classification':
             w = self._balanced_weights(y_val)
             nerr = (w * ((y_val_pred * y_val) < 0.0)).mean()
-        elif self._validation_loss == self._validation_loss_regression:
+        elif self.params_hpo['kind'] == 'regression':
             err_std = np.abs(y_val - np.median(y_val)).sum()
             nerr = np.abs(y_val - y_val_pred).sum() / err_std
         else:
@@ -200,14 +199,14 @@ class OptimizedSVM(
         n_sv = np.mean(status['n_sv'])
         r_sv = np.exp(np.log(status['r_sv']).mean())
 
-        if self._validation_loss in [
-            self._validation_loss_classification,
-            self._validation_loss_balanced_classification,
+        if self.params_hpo['kind'] in [
+            'classification',
+            'balanced_classification',
         ]:
             n_val = sum(len(y[idx_val]) for _, idx_val in splits)
             err /= n_val
             derr /= n_val
-        elif self._validation_loss == self._validation_loss_regression:
+        elif self.params_hpo['kind'] == 'regression':
             err_val = sum(
                 np.sum(np.abs(y[idx_val] - np.median(y[idx_val])))
                 for _, idx_val in splits
@@ -266,14 +265,14 @@ class OptimizedSVM(
 
         def callback(param):
             ypred = self.__last_fit.decision_function(x)
-            if self._validation_loss == self._validation_loss_classification:
+            if self.params_hpo['kind'] == 'classification':
                 err_tr = (y * ypred <= 0.0).mean()
                 err_val = self.__last_value[0]
-            elif self._validation_loss == self._validation_loss_balanced_classification:
+            elif self.params_hpo['kind'] == 'balanced_classification':
                 w = self._balanced_weights(y)
                 err_tr = (w * (y * ypred <= 0.0)).mean()
                 err_val = self.__last_value[0]
-            elif self._validation_loss == self._validation_loss_regression:
+            elif self.params_hpo['kind'] == 'regression':
                 ymed = np.median(y)
                 err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
                 err_val = self.__last_value[0]
