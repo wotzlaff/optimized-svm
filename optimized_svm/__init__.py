@@ -1,4 +1,5 @@
-from .param import OptimizedSVM, SimpleSVM
+from .simple import SimpleSVM
+from .optimized_svm import OptimizedSVM
 from .problem import Classification, Regression
 from .kernel import rbf_kernel
 
