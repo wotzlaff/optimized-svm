@@ -356,6 +356,8 @@ class OptimizedSVM(
         y = self._normalize_labels(y)
         if self.splits is None:
             splits = list(KFold(5).split(x))
+        elif isinstance(self.splits, int):
+            splits = list(KFold(self.splits).split(x))
         else:
             splits = self.splits
 
