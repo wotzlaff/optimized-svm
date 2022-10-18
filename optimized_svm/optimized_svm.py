@@ -353,6 +353,7 @@ class OptimizedSVM(
             self.blocks = [[ft] for ft in range(x.shape[1])]
             self.kernel_param['blocks'] = self.blocks
         optimized_params = self._optimize_params(x, y, splits)
+        self._optimized_params = optimized_params
         self.__svm = SimpleSVM(
             kind=self.kind,
             params=dict(self.params, lmbda=optimized_params['lmbda']),
