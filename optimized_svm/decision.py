@@ -1,37 +1,22 @@
 import numpy as np
 import numpy.typing as npt
-from .smooth_max import get_maxfun
 
 Arr = npt.NDArray[np.float64]
 Vars = tuple[Arr, float, float]
 
 
-class ParamBase:
+class DecisionMixin:
     def __init__(
         self,
         lmbda: float,
-        smoothingParam: float,
-        maxfunDegree: str,
         maxAsum: float = float('inf')
     ):
         self.lmbda = lmbda
-        self.smoothingParam = smoothingParam
-        self.maxfunDegree = maxfunDegree
         self.maxAsum = maxAsum
-
 
     @property
     def has_asum(self):
         return not np.isinf(self.maxAsum)
-
-    def m(self, t: Arr):
-        return get_maxfun(self.smoothingParam, self.maxfunDegree)[0](t)
-
-    def dm(self, t: Arr):
-        return get_maxfun(self.smoothingParam, self.maxfunDegree)[1](t)
-
-    def ddm(self, t: Arr):
-        return get_maxfun(self.smoothingParam, self.maxfunDegree)[2](t)
 
     def decision(self, z: Vars, ka: Arr | None = None):
         a, b, c = z

@@ -89,6 +89,29 @@ def get_maxfun(smoothingParam, deg='6'):
     ]
 
 
+class SmoothMaxMixin:
+    def __init__(
+        self,
+        smoothingParam: float,
+        maxfunDegree: str,
+    ):
+        self.smoothingParam = smoothingParam
+        self.maxfunDegree = maxfunDegree
+
+    @property
+    def has_asum(self):
+        return not np.isinf(self.maxAsum)
+
+    def m(self, t):
+        return get_maxfun(self.smoothingParam, self.maxfunDegree)[0](t)
+
+    def dm(self, t):
+        return get_maxfun(self.smoothingParam, self.maxfunDegree)[1](t)
+
+    def ddm(self, t):
+        return get_maxfun(self.smoothingParam, self.maxfunDegree)[2](t)
+
+
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     f, axs = plt.subplots(3, 3)

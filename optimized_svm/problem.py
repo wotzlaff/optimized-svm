@@ -1,15 +1,16 @@
 from functools import partial
 import numpy as np
 import numpy.typing as npt
-from .kernel import KernelBase
-from .param import ParamBase
+from .kernel import KernelMxin
+from .decision import DecisionMixin
+from .smooth_max import SmoothMaxMixin
 
 Arr = npt.NDArray[np.float64]
 Vars = tuple[Arr, float, float]
 
 
 
-class Classification(ParamBase, KernelBase):
+class Classification(SmoothMaxMixin, DecisionMixin, KernelMxin):
     def __init__(
         self,
         x: Arr, y: Arr,
@@ -21,8 +22,9 @@ class Classification(ParamBase, KernelBase):
         maxfunDegree: str = '2',
         maxAsum: float = float('inf'),
     ):
-        ParamBase.__init__(self, lmbda, smoothingParam, maxfunDegree, maxAsum)
-        KernelBase.__init__(self, kernel_fun, kernel_param)
+        SmoothMaxMixin.__init__(self, smoothingParam, maxfunDegree)
+        DecisionMixin.__init__(self, lmbda, maxAsum)
+        KernelMxin.__init__(self, kernel_fun, kernel_param)
         self._x = x
         self._y = y
         if w is None:
@@ -55,7 +57,7 @@ class Classification(ParamBase, KernelBase):
         return self._w * self.ddm(self.shift - self._y * t)
 
 
-class Regression(ParamBase, KernelBase):
+class Regression(SmoothMaxMixin, DecisionMixin, KernelMxin):
     def __init__(
         self,
         x: Arr, y: Arr,
@@ -67,8 +69,9 @@ class Regression(ParamBase, KernelBase):
         maxfunDegree: str = '2',
         maxAsum: float = float('inf'),
     ):
-        ParamBase.__init__(self, lmbda, smoothingParam, maxfunDegree, maxAsum)
-        KernelBase.__init__(self, kernel_fun, kernel_param)
+        SmoothMaxMixin.__init__(self, smoothingParam, maxfunDegree)
+        DecisionMixin.__init__(self, lmbda, maxAsum)
+        KernelMxin.__init__(self, kernel_fun, kernel_param)
         self._x = np.concatenate((x, x))
         self._y = y
         self._w = np.ones_like(y) if w is None else w

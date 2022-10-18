@@ -25,7 +25,7 @@ def rbf_kernel(x1, x2, kernel_param=dict(), deriv=False):
     return k, -2.0 * (k * d)[:, :, np.newaxis]
 
 
-class KernelBase:
+class KernelMxin:
     _x: Arr
 
     def __init__(self, kernel_fun, kernel_param):
