@@ -4,14 +4,15 @@ import numpy.typing as npt
 import nimsmo
 
 from .rendered import solve as solve_rendered
-from .problem import Classification, Regression
+from .problem import LSSVR, Classification, Regression
 
+Problem = Classification | Regression | LSSVR
 Arr = npt.NDArray[np.float64]
 Vars = tuple[Arr, float, float]
 
 
 def solve_system(
-    prob: Classification | Regression,
+    prob: Problem,
     dec: Arr, a: Arr, g: Arr,
     lmbda: float, max_asum: float
 ) -> tuple[Arr, float, float]:
@@ -48,7 +49,7 @@ def solve_system(
 
 
 def descent_step(
-    prob: Classification | Regression,
+    prob: Problem,
     z: Vars,
     ka: Arr, dec: Arr,
     obj: float,
@@ -134,7 +135,7 @@ def descent_step(
 
 
 def solve(
-    prob: Classification | Regression,
+    prob: Problem,
     z0: Vars | None = None,
     tol: float = 1e-10,
     verbose: int = 0,
@@ -148,13 +149,13 @@ def solve(
     has_asum = not np.isinf(max_asum)
 
     if z0 is None:
-        n = prob.size
+        n = prob.n
         z = np.zeros(n), 0.0, 0.0
         ka = np.zeros(n)
     else:
         z = z0
         a = z[0]
-        assert a.size == prob.size
+        assert a.size == prob.n
         idx_sv = a != 0
         ka = prob.k(idx=idx_sv).dot(a[idx_sv]) / lmbda
 
@@ -239,15 +240,22 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
         w=prob._w.tolist(),
         gamma=1.0,
         lmbda=prob.lmbda,
-        smoothingParam=prob.smoothingParam,
-        maxAsum=prob.maxAsum,
         **params_smo,
     )
+    if hasattr(prob, 'smoothingParam'):
+        args['smoothingParam'] = prob.smoothingParam
+    if hasattr(prob, 'maxAsum'):
+        args['maxAsum'] = prob.maxAsum
+
     t0 = time.time()
     if isinstance(prob, Classification):
         result = nimsmo.solveClassification(**args, shift=prob.shift)
-    if isinstance(prob, Regression):
+    elif isinstance(prob, Regression):
         result = nimsmo.solveRegression(**args, epsilon=prob.epsilon)
+    elif isinstance(prob, LSSVR):
+        result = dict(a=np.zeros(prob.n), b=0.0, c=0.0)
+    else:
+        raise ValueError('unknown problem')
     dt_smo = time.time() - t0
     if verbose > 0:
         print(f't(SMO) = {dt_smo:10.1f}s')

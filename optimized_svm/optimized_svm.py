@@ -16,7 +16,7 @@ from .problem import TrainingMixin
 from .deriv_check import check_grad
 from .simple import SimpleSVM
 from .scaling import FeatureScalingMixin
-from .validation import ValidationMixin
+from .validation import ValidationMixin, balanced_weights
 
 
 class OptimizedSVM(
@@ -97,11 +97,14 @@ class OptimizedSVM(
         if self.params_hpo['kind'] == 'classification':
             nerr = ((y_val_pred * y_val) < 0.0).mean()
         elif self.params_hpo['kind'] == 'balanced_classification':
-            w = self._balanced_weights(y_val)
+            w = balanced_weights(y_val)
             nerr = (w * ((y_val_pred * y_val) < 0.0)).mean()
         elif self.params_hpo['kind'] == 'regression':
             err_std = np.abs(y_val - np.median(y_val)).sum()
             nerr = np.abs(y_val - y_val_pred).sum() / err_std
+        elif self.params_hpo['kind'] == 'ls':
+            err_std = np.std(y_val)
+            nerr = ((y_val - y_val_pred) ** 2).sum() / err_std
         else:
             raise ValueError('unknown validation loss')
 
@@ -213,6 +216,13 @@ class OptimizedSVM(
             )
             err /= err_val
             derr /= err_val
+        elif self.params_hpo['kind'] == 'ls':
+            err_val = sum(
+                np.std(y[idx_val])
+                for _, idx_val in splits
+            )
+            err /= err_val
+            derr /= err_val
         else:
             raise ValueError('unknown validation loss')
         nerr /= len(splits)
@@ -269,12 +279,16 @@ class OptimizedSVM(
                 err_tr = (y * ypred <= 0.0).mean()
                 err_val = self.__last_value[0]
             elif self.params_hpo['kind'] == 'balanced_classification':
-                w = self._balanced_weights(y)
+                w = balanced_weights(y)
                 err_tr = (w * (y * ypred <= 0.0)).mean()
                 err_val = self.__last_value[0]
             elif self.params_hpo['kind'] == 'regression':
                 ymed = np.median(y)
                 err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
+                err_val = self.__last_value[0]
+            elif self.params_hpo['kind'] == 'ls':
+                ymed = np.median(y)
+                err_tr = np.sum((y - ypred) ** 2) / np.std(y)
                 err_val = self.__last_value[0]
             else:
                 raise ValueError('unknown validation loss')

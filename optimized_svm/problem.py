@@ -130,6 +130,44 @@ class Regression(SmoothMaxMixin, DecisionMixin, KernelMxin):
         return res
 
 
+class LSSVR(DecisionMixin, KernelMxin):
+    def __init__(
+        self,
+        x: Arr, y: Arr,
+        kernel_fun, kernel_param,
+        w: Arr | None = None,
+        lmbda: float = 1.0,
+    ):
+        DecisionMixin.__init__(self, lmbda, maxAsum=float('inf'))
+        KernelMxin.__init__(self, kernel_fun, kernel_param)
+        self._x = x
+        self._y = y
+        self._w = np.ones_like(y) if w is None else w
+
+    @property
+    def n(self):
+        return self._y.size
+
+    @property
+    def sign(self):
+        return np.zeros(self.n)
+
+    def extract_original_a(self, a: Arr):
+        return a
+
+    def loss(self, t: Arr):
+        e = t - self._y
+        return 0.5 * self._w * (e ** 2)
+
+    def dloss(self, t: Arr):
+        e = t - self._y
+        return self._w * e
+
+    def ddloss(self, t: Arr):
+        e = t - self._y
+        return self._w
+
+
 class TrainingMixin:
     def _create_problem(
         self,
@@ -141,6 +179,7 @@ class TrainingMixin:
             classification=Classification,
             regression=Regression,
             balanced_classification=partial(Classification, w='balanced'),
+            ls=LSSVR,
         )[kind]
         if 'ratioAsum' in params:
             assert 'maxAsum' not in params

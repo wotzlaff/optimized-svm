@@ -13,17 +13,19 @@ def main():
         classification=classification,
     )
     # x[:, 0] *= 10
-    kind = 'classification' if classification else 'regression'
-    params = dict(
-        lmbda=1.0,
-        smoothingParam=0.5,
-        maxfunDegree='2',
-        # maxAsum=0.01 * n * 0.8,
-    )
+    # kind = 'classification' if classification else 'regression'
+    kind = 'ls'
+    params = dict(lmbda=1.0)
+    if kind in ['classification', 'regression']:
+        params.update(dict(
+            smoothingParam=0.5,
+            maxfunDegree='2',
+            maxAsum=0.01 * n * 0.8,
+        ))
     scaling = 1.0
-    if classification:
+    if kind == 'classification':
         params['shift'] = 1.0
-    else:
+    elif kind == 'regression':
         params['epsilon'] = 0.0
     params_smo = dict(
         verbose=0,
@@ -97,7 +99,7 @@ def main():
 
         plt.axhline(1.0)
         plt.axhline(0.0)
-    elif kind == 'regression':
+    elif kind in ['regression', 'ls']:
         plt.plot(y[:n//2], yest0[:n//2], 'bo', label='intial(train)')
         plt.plot(y[n//2:], yest0[n//2:], 'ro', label='initial(val)')
         plt.plot(y[:n//2], yest[:n//2], 'kx', label='after(train)')
