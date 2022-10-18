@@ -343,6 +343,7 @@ class OptimizedSVM(
             callback=callback if self.verbose > 2 else None,
         )
         p_opt = res.x
+        self.minimize_result_ = res
         return dict(
             lmbda=np.exp(p_opt[0]),
             scaling=np.exp(p_opt[1:]),
