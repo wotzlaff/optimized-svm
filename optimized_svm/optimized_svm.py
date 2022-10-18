@@ -103,7 +103,7 @@ class OptimizedSVM(
             err_std = np.abs(y_val - np.median(y_val)).sum()
             nerr = np.abs(y_val - y_val_pred).sum() / err_std
         elif self.params_hpo['kind'] == 'ls':
-            err_std = np.std(y_val)
+            err_std = np.sum(y_val - np.mean(y_val))
             nerr = ((y_val - y_val_pred) ** 2).sum() / err_std
         else:
             raise ValueError('unknown validation loss')
@@ -218,7 +218,7 @@ class OptimizedSVM(
             derr /= err_val
         elif self.params_hpo['kind'] == 'ls':
             err_val = sum(
-                np.std(y[idx_val])
+                np.sum((y[idx_val] - np.mean(y[idx_val])) ** 2)
                 for _, idx_val in splits
             )
             err /= err_val
@@ -287,8 +287,8 @@ class OptimizedSVM(
                 err_tr = np.abs(y - ypred).sum() / np.abs(y - ymed).sum()
                 err_val = self.__last_value[0]
             elif self.params_hpo['kind'] == 'ls':
-                ymed = np.median(y)
-                err_tr = np.sum((y - ypred) ** 2) / np.std(y)
+                ym = np.mean(y)
+                err_tr = np.sum((y - ypred) ** 2) / np.sum((y - ym) ** 2)
                 err_val = self.__last_value[0]
             else:
                 raise ValueError('unknown validation loss')
