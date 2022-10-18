@@ -103,7 +103,7 @@ class OptimizedSVM(
             err_std = np.abs(y_val - np.median(y_val)).sum()
             nerr = np.abs(y_val - y_val_pred).sum() / err_std
         elif self.params_hpo['kind'] == 'ls':
-            err_std = np.sum(y_val - np.mean(y_val))
+            err_std = np.sum((y_val - np.mean(y_val)) ** 2)
             nerr = ((y_val - y_val_pred) ** 2).sum() / err_std
         else:
             raise ValueError('unknown validation loss')
