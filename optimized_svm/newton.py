@@ -155,7 +155,7 @@ def solve(
     else:
         z = z0
         a = z[0]
-        assert a.size == prob.n
+        assert a.size == prob.size
         idx_sv = a != 0
         ka = prob.k(idx=idx_sv).dot(a[idx_sv]) / lmbda
 
@@ -253,7 +253,7 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
     elif isinstance(prob, Regression):
         result = nimsmo.solveRegression(**args, epsilon=prob.epsilon)
     elif isinstance(prob, LSSVR):
-        result = dict(a=np.zeros(prob.n), b=0.0, c=0.0)
+        result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
     else:
         raise ValueError('unknown problem')
     dt_smo = time.time() - t0

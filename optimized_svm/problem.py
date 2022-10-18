@@ -145,12 +145,12 @@ class LSSVR(DecisionMixin, KernelMxin):
         self._w = np.ones_like(y) if w is None else w
 
     @property
-    def n(self):
-        return self._y.size
+    def size(self):
+        return self._x.shape[0]
 
     @property
     def sign(self):
-        return np.zeros(self.n)
+        return np.zeros(self.size)
 
     def extract_original_a(self, a: Arr):
         return a
