@@ -75,8 +75,7 @@ def descent_step(
         else:
             dn_c = 0.0
         if final_step:
-            # this should not happen
-            return
+            raise ValueError('unexpected final_step')
         return dn_a, dn_b, dn_c
 
     if direction == 'newton':

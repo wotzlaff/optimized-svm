@@ -8,8 +8,8 @@ from sklearn.base import BaseEstimator
 from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import KFold
 
-from optimized_svm.kernel import rbf_kernel
-
+from .kernel import rbf_kernel
+from .normalization import NormalizationMixin
 from .newton import solve_twostep
 from .rendered import solve as solve_rendered
 from .problem import TrainingMixin
@@ -20,7 +20,11 @@ from .validation import ValidationMixin, balanced_weights
 
 
 class OptimizedSVM(
-    BaseEstimator, ValidationMixin, TrainingMixin, FeatureScalingMixin,
+    BaseEstimator,
+    NormalizationMixin,
+    ValidationMixin,
+    TrainingMixin,
+    FeatureScalingMixin,
 ):
     default_scaling0 = 'auto'
     default_lmbda0 = 1.0
@@ -68,7 +72,23 @@ class OptimizedSVM(
             kernel_fun=self.kernel_fun,
             kernel_param=self.kernel_param,
         )
-        res = solve_twostep(prob, self.params_smo, self.params_newton)
+        n_param = 1
+        blocks = self.kernel_param.get('blocks', None)
+        if blocks is None:
+            n_param += 1
+        else:
+            n_param += len(blocks)
+
+        try:
+            res = solve_twostep(prob, self.params_smo, self.params_newton)
+        except RuntimeError as e:
+            if e.args[0] != 'step failed':
+                raise
+            return (
+                dict(t=0, r_smo=0, n_sv=0, r_sv=0),
+                dict(a=np.zeros(x_tr.shape[0]), b=0.0, c=0.0),
+                np.inf, np.zeros(n_param), np.inf,
+            )
 
         # extract status
         t = status['t'] = res['t_smo'] + res['t_refine']
@@ -89,7 +109,6 @@ class OptimizedSVM(
         k_val_sv, dk_val_sv = prob.k(
             x=x_val, idx0=idx_sv, deriv=True,
         )
-        n_param = 1 + dk_val_sv.shape[-1]
         ka_val = k_val_sv.T.dot(al_sv)
         y_val_pred = ka_val + b
         l_val, dl_val = self._validation_loss(y_val_pred, y_val)
@@ -333,11 +352,8 @@ class OptimizedSVM(
         x = np.array(x).astype(np.double)
         self.__no_nan = ~np.isnan(x).any(axis=0)
         x = x[:, self.__no_nan]
-        if self.kind in ['classification', 'balanced_classification']:
-            self.classes_ = np.unique(y)
-            assert len(self.classes_) == 2
-            y = np.where(y == self.classes_[0], -1.0, +1.0)
-        y = np.array(y).astype(np.double)
+        yr = y
+        y = self._normalize_labels(y)
         if self.splits is None:
             splits = list(KFold(5).split(x))
         else:
@@ -366,7 +382,7 @@ class OptimizedSVM(
         )
         if self.verbose > 1:
             print('optimized parameters:', optimized_params)
-        self.__svm.fit(x, y)
+        self.__svm.fit(x, yr)
 
     def decision_function(self, x):
         x = np.array(x).astype(np.double)
@@ -378,8 +394,4 @@ class OptimizedSVM(
 
     def predict(self, x):
         d = self.decision_function(x)
-        if self.kind in ['classification', 'balanced_classification']:
-            if not hasattr(self, 'classes_'):
-                raise NotFittedError()
-            return np.where(d < 0.0, self.classes_[0], self.classes_[1])
-        return d
+        return self._denormalize_decisions(d)

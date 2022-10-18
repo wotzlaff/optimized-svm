@@ -1,12 +1,17 @@
-import numpy as np
 from sklearn.base import BaseEstimator
-from sklearn.exceptions import NotFittedError
+
+from optimized_svm.normalization import NormalizationMixin
 from .problem import TrainingMixin
 from .scaling import FeatureScalingMixin
 from .newton import solve_twostep
 
 
-class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
+class SimpleSVM(
+    BaseEstimator,
+    NormalizationMixin,
+    TrainingMixin,
+    FeatureScalingMixin,
+):
     def __init__(
         self,
         kind,
@@ -30,10 +35,7 @@ class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
         self.verbose = verbose
 
     def fit(self, x, y):
-        if self.kind == 'classification':
-            self.classes_ = np.unique(y)
-            assert len(self.classes_) == 2
-            y = np.where(y == self.classes_[0], -1.0, +1.0)
+        y = self._normalize_labels(y)
         xs = self.scale(x, self.scaling)
         self._prob = self._create_problem(
             xs, y,
@@ -64,7 +66,7 @@ class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
         self._idx_sv = idx_sv
         self._asv = a[idx_sv]
         self._xsv = xs[idx_sv]
-    
+
     def decision_function(self, x):
         lmbda = self.params['lmbda']
         xs = self.scale(x, self.scaling)
@@ -76,8 +78,4 @@ class SimpleSVM(BaseEstimator, TrainingMixin, FeatureScalingMixin):
 
     def predict(self, x):
         d = self.decision_function(x)
-        if self.kind == 'classification':
-            if not hasattr(self, 'classes_'):
-                raise NotFittedError()
-            return np.where(d < 0.0, self.classes_[0], self.classes_[1])
-        return d
+        return self._denormalize_decisions(d)
