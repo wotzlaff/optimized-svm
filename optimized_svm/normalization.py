@@ -14,7 +14,7 @@ class NormalizationMixin:
             return (y - self.offset_) / self.scale_
         elif self.kind == 'ls':
             self.offset_ = np.mean(y)
-            self.scale_ = np.abs(y - self.offset_).mean()
+            self.scale_ = np.sqrt(np.mean((y - self.offset_) ** 2))
             return (y - self.offset_) / self.scale_
 
     def _denormalize_decisions(self, d):
