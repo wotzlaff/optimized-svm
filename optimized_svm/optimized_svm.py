@@ -113,19 +113,6 @@ class OptimizedSVM(
         y_val_pred = ka_val + b
         l_val, dl_val = self._validation_loss(y_val_pred, y_val)
         err = l_val
-        if self.params_hpo['kind'] == 'classification':
-            nerr = ((y_val_pred * y_val) < 0.0).mean()
-        elif self.params_hpo['kind'] == 'balanced_classification':
-            w = balanced_weights(y_val)
-            nerr = (w * ((y_val_pred * y_val) < 0.0)).mean()
-        elif self.params_hpo['kind'] == 'regression':
-            err_std = np.abs(y_val - np.median(y_val)).sum()
-            nerr = np.abs(y_val - y_val_pred).sum() / err_std
-        elif self.params_hpo['kind'] == 'ls':
-            err_std = np.sum((y_val - np.mean(y_val)) ** 2)
-            nerr = ((y_val - y_val_pred) ** 2).sum() / err_std
-        else:
-            raise ValueError('unknown validation loss')
 
         # compute decision function values
         k_tr_sv, dk_tr_sv = prob.k(idx=idx_sv, deriv=True)
@@ -172,7 +159,7 @@ class OptimizedSVM(
         rhs_p = -np.tensordot(dk_tr_sv[idx_p], al_sv, axes=(1, 0))
         derr[1:] = hu_p.dot(rhs_p) + dk_val_sv.T.dot(al_sv).dot(dl_val)
 
-        return status, solution, err, derr, nerr
+        return status, solution, err, derr
 
     def _objective_function(self, param, x, y, splits):
         self.__funevals += 1
@@ -184,13 +171,11 @@ class OptimizedSVM(
         xs = self.scale(x, scaling)
 
         if self.verbose > 1:
-            print(f'lmbda = {lmbda:g}, ', end='')
-            print(f'scaling = {np.mean(scaling):g}, ', end='')
+            print(f'lmbda = {lmbda:g}, scaling = {np.mean(scaling):g}')
 
         a_avg = np.zeros(x.shape[0])
         b_avg = 0.0
 
-        nerr = 0.0
         err = 0.0
         derr = np.zeros_like(param)
         it = enumerate(tqdm(splits) if self.verbose == 1 else splits)
@@ -200,7 +185,7 @@ class OptimizedSVM(
                 print(f'## {_+1} of {len(splits)}')
             if self.verbose > 3:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
-            status_t, sol_t, err_t, derr_t, nerr_t = self._objective_function_part(
+            status_t, sol_t, err_t, derr_t = self._objective_function_part(
                 xs[idx_tr], y[idx_tr],
                 xs[idx_val], y[idx_val],
                 lmbda,
@@ -211,7 +196,6 @@ class OptimizedSVM(
             b_avg += sol_t['b']
             err += err_t
             derr += derr_t
-            nerr += nerr_t
         
         a_avg /= len(splits)
         b_avg /= len(splits)
@@ -244,7 +228,6 @@ class OptimizedSVM(
             derr /= err_val
         else:
             raise ValueError('unknown validation loss')
-        nerr /= len(splits)
 
         self.__last_fit = SimpleSVM(
             kind=self.kind,
@@ -263,7 +246,6 @@ class OptimizedSVM(
         if self.verbose > 1:
             print(', '.join([
                 f'err = {err:g}',
-                f'nerr = {nerr:g}',
                 f'derr = {derr}',
                 f'time: {t:.1f}s',
                 f'SMO: {100*r_smo:.1f}%',
