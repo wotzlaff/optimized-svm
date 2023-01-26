@@ -318,9 +318,9 @@ class OptimizedSVM(
             ),
             jac=True,
             bounds=[
-                np.log(self.params_hpo.get('lmbda_bounds', [1e-6, 1.0]))
+                np.log(self.params_hpo.get('lmbda_bounds', (1e-6, 1.0)))
             ] + nblocks * [
-                np.log(self.params_hpo.get('scaling_bounds', [1e-6, 1.0]))
+                np.log(self.params_hpo.get('scaling_bounds', (1e-6, 100.0)))
             ],
             callback=callback if self.verbose > 2 else None,
         )
