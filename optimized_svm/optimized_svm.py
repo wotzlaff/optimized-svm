@@ -87,7 +87,7 @@ class OptimizedSVM(
             return (
                 dict(t=0, r_smo=0, n_sv=0, r_sv=0),
                 dict(a=np.zeros(x_tr.shape[0]), b=0.0, c=0.0),
-                np.inf, np.zeros(n_param), np.inf,
+                np.inf, np.zeros(n_param),
             )
 
         # extract status
@@ -125,7 +125,7 @@ class OptimizedSVM(
         idx_p_in_sv = h[idx_sv] > 0
         h_p = h[idx_p]
         if h_p.size == 0:
-            return status, solution, np.inf, np.zeros(n_param), np.inf
+            return status, solution, np.inf, np.zeros(n_param)
         k_p_sv = k_tr_sv[idx_p, :]
         k_p_p = k_p_sv[:, idx_p_in_sv]
         k_val_p = k_val_sv.T[:, idx_p_in_sv]
