@@ -248,9 +248,9 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
 
     t0 = time.time()
     if isinstance(prob, Classification):
-        result = nimsmo.solveClassification(**args, shift=prob.shift)
+        result = nimsmo.solveClassification(**args, shrinkingPeriod=len(args['y']), shift=prob.shift)
     elif isinstance(prob, Regression):
-        result = nimsmo.solveRegression(**args, epsilon=prob.epsilon)
+        result = nimsmo.solveRegression(**args, shrinkingPeriod=len(args['y']), epsilon=prob.epsilon)
     elif isinstance(prob, LSSVR):
         result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
     else:
