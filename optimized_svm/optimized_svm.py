@@ -100,7 +100,7 @@ class OptimizedSVM(
             return (
                 dict(t=0, r_smo=0, n_sv=0, r_sv=0),
                 dict(a=np.zeros(x_tr.shape[0]), b=0.0, c=0.0),
-                np.inf, np.zeros(n_param),
+                1e100, np.zeros(n_param),
             )
 
         # extract status
@@ -138,7 +138,7 @@ class OptimizedSVM(
         idx_p_in_sv = h[idx_sv] > 0
         h_p = h[idx_p]
         if h_p.size == 0:
-            return status, solution, np.inf, np.zeros(n_param)
+            return status, solution, 1e100, np.zeros(n_param)
         k_p_sv = k_tr_sv[idx_p, :]
         k_p_p = k_p_sv[:, idx_p_in_sv]
         k_val_p = k_val_sv.T[:, idx_p_in_sv]
@@ -190,6 +190,7 @@ class OptimizedSVM(
         a_avg = np.zeros(x.shape[0])
         b_avg = 0.0
 
+        n_val = 0
         err = 0.0
         derr = np.zeros_like(param)
         it = enumerate(tqdm(splits) if self.verbose == 1 else splits)
@@ -199,11 +200,12 @@ class OptimizedSVM(
                 print(f'## {_+1} of {len(splits)}')
             if self.verbose > 3:
                 print(f'  |T| = {len(y[idx_tr])}, |V| = {len(y[idx_val])}')
+            x_tr, y_tr = xs[idx_tr], y[idx_tr]
+            x_val, y_val = xs[idx_val], y[idx_val]
             status_t, sol_t, err_t, derr_t = self._objective_function_part(
-                xs[idx_tr], y[idx_tr],
-                xs[idx_val], y[idx_val],
-                lmbda,
+                x_tr, y_tr, x_val, y_val, lmbda,
             )
+            n_val += y_val.size
             for key, val in status_t.items():
                 status[key].append(val)
             a_avg[idx_tr] += sol_t['a']
@@ -219,29 +221,32 @@ class OptimizedSVM(
         n_sv = np.mean(status['n_sv'])
         r_sv = np.exp(np.log(status['r_sv']).mean())
 
-        if self.params_hpo['kind'] in [
-            'classification',
-            'balanced_classification',
-        ]:
-            n_val = sum(len(y[idx_val]) for _, idx_val in splits)
+        if self.params_hpo.get('normalize_objective', False):
+            if self.params_hpo['kind'] in [
+                'classification',
+                'balanced_classification',
+            ]:
+                err /= n_val
+                derr /= n_val
+            elif self.params_hpo['kind'] == 'regression':
+                err_val = sum(
+                    np.sum(np.abs(y[idx_val] - np.median(y[idx_val])))
+                    for _, idx_val in splits
+                )
+                err /= err_val
+                derr /= err_val
+            elif self.params_hpo['kind'] == 'ls':
+                err_val = sum(
+                    np.sum((y[idx_val] - np.mean(y[idx_val])) ** 2)
+                    for _, idx_val in splits
+                )
+                err /= err_val
+                derr /= err_val
+            else:
+                raise ValueError('unknown validation loss')
+        else:
             err /= n_val
             derr /= n_val
-        elif self.params_hpo['kind'] == 'regression':
-            err_val = sum(
-                np.sum(np.abs(y[idx_val] - np.median(y[idx_val])))
-                for _, idx_val in splits
-            )
-            err /= err_val
-            derr /= err_val
-        elif self.params_hpo['kind'] == 'ls':
-            err_val = sum(
-                np.sum((y[idx_val] - np.mean(y[idx_val])) ** 2)
-                for _, idx_val in splits
-            )
-            err /= err_val
-            derr /= err_val
-        else:
-            raise ValueError('unknown validation loss')
 
         self.__last_fit = SimpleSVM(
             kind=self.kind,
@@ -403,6 +408,16 @@ class OptimizedSVM(
         if self.__svm is None:
             return np.zeros(x.shape[0])
         return self.__svm.decision_function(x)
+
+    @property
+    def status(self):
+        return dict(
+            n_evals=self.__funevals,
+            time=time.time() - self.__time_start,
+            value=self.__last_value,
+            params=self._optimized_params,
+            nsv=self.__svm._asv.size,
+        )
 
     def predict(self, x):
         d = self.decision_function(x)

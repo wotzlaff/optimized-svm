@@ -10,6 +10,9 @@ Problem = Classification | Regression | LSSVR
 Arr = npt.NDArray[np.float64]
 Vars = tuple[Arr, float, float]
 
+class ConvergenceError(Exception):
+    pass
+
 
 def solve_system(
     prob: Problem,
@@ -225,7 +228,7 @@ def solve(
             z, ka, _dobj = result
             fresh_ka = False
             continue
-        raise RuntimeError('step failed')
+        raise ConvergenceError()
 
     if verbose > 0:
         print('--- solved ---')
@@ -262,11 +265,17 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
     b = result['b']
     c = result['c']
     t0 = time.time()
-    result = solve(
-        prob,
-        z0=(a, b, c),
-        **params_newton,
-    )
+    try:
+        result = solve(
+            prob,
+            z0=(a, b, c),
+            **params_newton,
+        )
+    except ConvergenceError:
+        idx_sv = a != 0
+        ka = prob.k(idx=idx_sv).dot(a[idx_sv]) / prob.lmbda
+        result = dict(a=a, b=b, c=c, ka=ka)
+
     dt_refine = time.time() - t0
     if verbose > 0:
         print(f't(ref) = {dt_refine:10.1f}s')
