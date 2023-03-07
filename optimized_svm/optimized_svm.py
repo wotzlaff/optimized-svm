@@ -5,7 +5,6 @@ from tqdm import tqdm
 import numpy as np
 from scipy.optimize import minimize
 from sklearn.base import BaseEstimator
-from sklearn.exceptions import NotFittedError
 from sklearn.model_selection import KFold
 
 from .kernel import rbf_kernel
@@ -17,6 +16,10 @@ from .deriv_check import check_grad
 from .simple import SimpleSVM
 from .scaling import FeatureScalingMixin
 from .validation import ValidationMixin, balanced_weights
+
+
+class TimeoutError(Exception):
+    pass
 
 
 class OptimizedSVM(
@@ -63,7 +66,17 @@ class OptimizedSVM(
         self.__svm = None
         self.__no_nan = None
 
+    def _check_timeout(self):
+        timeout = (
+            self.params_hpo.get('timeLimit', None) is not None
+            and
+            time.time() - self.__time_start >= self.params_hpo['timeLimit']
+        )
+        if timeout:
+            raise TimeoutError()
+
     def _objective_function_part(self, x_tr, y_tr, x_val, y_val, lmbda):
+        self._check_timeout()
         status = dict()
         prob = self._create_problem(
             x_tr, y_tr,
@@ -162,6 +175,7 @@ class OptimizedSVM(
         return status, solution, err, derr
 
     def _objective_function(self, param, x, y, splits):
+        self._check_timeout()
         self.__funevals += 1
         log_lmbda = param[0]
         lmbda = np.exp(log_lmbda)
@@ -196,7 +210,7 @@ class OptimizedSVM(
             b_avg += sol_t['b']
             err += err_t
             derr += derr_t
-        
+
         a_avg /= len(splits)
         b_avg /= len(splits)
 
@@ -238,6 +252,7 @@ class OptimizedSVM(
             blocks=self.blocks,
             params_smo=self.params_smo,
             params_newton=self.params_newton,
+            normalize=self.params_hpo.get('normalize', True),
         )
         if self.kind == 'classes_':
             self.__last_fit.classes_ = self.classes_
@@ -274,7 +289,14 @@ class OptimizedSVM(
             )
             return
 
+        last_param = None
+
         def callback(param):
+            nonlocal last_param
+            last_param = param.copy()
+            self._check_timeout()
+            if self.verbose <= 2:
+                return
             ypred = self.__last_fit.decision_function(x)
             if self.params_hpo['kind'] == 'classification':
                 err_tr = (y * ypred <= 0.0).mean()
@@ -304,28 +326,31 @@ class OptimizedSVM(
                 f'ratio = {err_tr / err_val:.3f}'
             ]))
 
-        res = minimize(
-            partial(self._objective_function, x=x, y=y, splits=splits),
-            p0,
-            method='L-BFGS-B',
-            options=dict(
-                ftol=self.params_hpo.get('ftol', 1e-6),
-                gtol=self.params_hpo.get('gtol', 1e-6),
-                maxfun=self.params_hpo.get('maxfun', 15000),
-                maxiter=self.params_hpo.get('maxiter', 15000),
-                maxls=self.params_hpo.get('maxls', 20),
-                iprint=self.params_hpo.get('iprint', -1),
-            ),
-            jac=True,
-            bounds=[
-                np.log(self.params_hpo.get('lmbda_bounds', (1e-6, 1.0)))
-            ] + nblocks * [
-                np.log(self.params_hpo.get('scaling_bounds', (1e-6, 100.0)))
-            ],
-            callback=callback if self.verbose > 2 else None,
-        )
-        p_opt = res.x
-        self.minimize_result_ = res
+        try:
+            res = minimize(
+                partial(self._objective_function, x=x, y=y, splits=splits),
+                p0,
+                method='L-BFGS-B',
+                options=dict(
+                    ftol=self.params_hpo.get('ftol', 1e-6),
+                    gtol=self.params_hpo.get('gtol', 1e-6),
+                    maxfun=self.params_hpo.get('maxfun', 15000),
+                    maxiter=self.params_hpo.get('maxiter', 15000),
+                    maxls=self.params_hpo.get('maxls', 20),
+                    iprint=self.params_hpo.get('iprint', -1),
+                ),
+                jac=True,
+                bounds=[
+                    np.log(self.params_hpo.get('lmbda_bounds', (1e-6, 1.0)))
+                ] + nblocks * [
+                    np.log(self.params_hpo.get('scaling_bounds', (1e-6, 100.0)))
+                ],
+                callback=callback,
+            )
+            p_opt = res.x
+            self.minimize_result_ = res
+        except TimeoutError:
+            p_opt = last_param
         return dict(
             lmbda=np.exp(p_opt[0]),
             scaling=np.exp(p_opt[1:]),
@@ -336,7 +361,8 @@ class OptimizedSVM(
         self.__no_nan = ~np.isnan(x).any(axis=0)
         x = x[:, self.__no_nan]
         yr = y
-        y = self._normalize_labels(y)
+        if self.params_hpo.get('normalize', True):
+            y = self._normalize_labels(y)
         if self.splits is None:
             splits = list(KFold(5).split(x))
         elif isinstance(self.splits, int):
@@ -364,6 +390,7 @@ class OptimizedSVM(
             blocks=self.blocks,
             params_smo=self.params_smo,
             params_newton=self.params_newton,
+            normalize=self.params_hpo.get('normalize', True),
         )
         if self.verbose > 1:
             print('optimized parameters:', optimized_params)
@@ -379,4 +406,5 @@ class OptimizedSVM(
 
     def predict(self, x):
         d = self.decision_function(x)
-        return self._denormalize_decisions(d)
+        normalize = self.params_hpo.get('normalize', True)
+        return self._denormalize_decisions(d) if normalize else d

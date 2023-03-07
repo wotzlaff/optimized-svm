@@ -20,6 +20,7 @@ class SimpleSVM(
         kernel_fun,
         kernel_param,
         blocks=None,
+        normalize=True,
         params_smo=dict(),
         params_newton=dict(),
         verbose=0,
@@ -33,9 +34,11 @@ class SimpleSVM(
         self.params_smo = params_smo
         self.params_newton = params_newton
         self.verbose = verbose
+        self.normalize = normalize
 
     def fit(self, x, y):
-        y = self._normalize_labels(y)
+        if self.normalize:
+            y = self._normalize_labels(y)
         xs = self.scale(x, self.scaling)
         self._prob = self._create_problem(
             xs, y,
@@ -78,4 +81,6 @@ class SimpleSVM(
 
     def predict(self, x):
         d = self.decision_function(x)
-        return self._denormalize_decisions(d)
+        if self.normalize:
+            d = self._denormalize_decisions(d)
+        return d
