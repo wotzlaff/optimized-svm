@@ -31,8 +31,8 @@ class KernelMixin:
     def __init__(self, kernel_fun, kernel_param):
         self.kernel_fun = kernel_fun
         self.kernel_param = kernel_param
-        # if self.n <= 10000:
-        #     self._precompute_kernel()
+        if self.n <= 10000:
+            self._precompute_kernel()
 
     @property
     def n(self):
