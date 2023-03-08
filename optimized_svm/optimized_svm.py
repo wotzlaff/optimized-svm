@@ -62,6 +62,8 @@ class OptimizedSVM(
         self.__last_value = None
         self.__time_start = None
         self.__funevals = 0
+        self.__time_smo = 0.0
+        self.__time_refine = 0.0
 
         self.__svm = None
         self.__no_nan = None
@@ -94,6 +96,8 @@ class OptimizedSVM(
 
         try:
             res = solve_twostep(prob, self.params_smo, self.params_newton)
+            self.__time_smo += res['t_smo']
+            self.__time_refine += res['t_refine']
         except RuntimeError as e:
             if e.args[0] != 'step failed':
                 raise
@@ -417,6 +421,8 @@ class OptimizedSVM(
             value=self.__last_value,
             params=self._optimized_params,
             nsv=self.__svm._asv.size,
+            time_smo=self.__time_smo,
+            time_refine=self.__time_refine,
         )
 
     def predict(self, x):

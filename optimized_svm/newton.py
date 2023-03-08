@@ -250,14 +250,17 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
         args['maxAsum'] = prob.maxAsum
 
     t0 = time.time()
-    if isinstance(prob, Classification):
-        result = nimsmo.solveClassification(**args, shrinkingPeriod=len(args['y']), shift=prob.shift)
-    elif isinstance(prob, Regression):
-        result = nimsmo.solveRegression(**args, shrinkingPeriod=len(args['y']), epsilon=prob.epsilon)
-    elif isinstance(prob, LSSVR):
+    if params_smo.get('maxSteps') == 0:
         result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
     else:
-        raise ValueError('unknown problem')
+        if isinstance(prob, Classification):
+            result = nimsmo.solveClassification(**args, shrinkingPeriod=len(args['y']), shift=prob.shift)
+        elif isinstance(prob, Regression):
+            result = nimsmo.solveRegression(**args, shrinkingPeriod=len(args['y']), epsilon=prob.epsilon)
+        elif isinstance(prob, LSSVR):
+            result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
+        else:
+            raise ValueError('unknown problem')
     dt_smo = time.time() - t0
     if verbose > 0:
         print(f't(SMO) = {dt_smo:10.1f}s')
