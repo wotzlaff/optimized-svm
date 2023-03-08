@@ -25,12 +25,22 @@ def rbf_kernel(x1, x2, kernel_param=dict(), deriv=False):
     return k, -2.0 * (k * d)[:, :, np.newaxis]
 
 
-class KernelMxin:
+class KernelMixin:
     _x: Arr
 
     def __init__(self, kernel_fun, kernel_param):
         self.kernel_fun = kernel_fun
         self.kernel_param = kernel_param
+        # if self.n <= 10000:
+        #     self._precompute_kernel()
+
+    @property
+    def n(self):
+        return self._x.shape[0]
+
+    @property
+    def precomputed(self):
+        return hasattr(self, '_k')
 
     def k(
         self,
@@ -39,6 +49,8 @@ class KernelMxin:
         idx0=None,
         deriv: bool = False,
     ):
+        if not deriv and self.precomputed and x is None:
+            return self._k[slice(None) if idx0 is None else idx0, :][:, slice(None) if idx is None else idx]
         if idx0 is None:
             x0 = self._x
         else:
@@ -52,3 +64,6 @@ class KernelMxin:
             self.kernel_param,
             deriv=deriv,
         )
+
+    def _precompute_kernel(self):
+        self._k = self.kernel_fun(self._x, self._x, self.kernel_param)

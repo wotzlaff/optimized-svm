@@ -1,7 +1,7 @@
 from functools import partial
 import numpy as np
 import numpy.typing as npt
-from .kernel import KernelMxin
+from .kernel import KernelMixin
 from .decision import DecisionMixin
 from .smooth_max import SmoothMaxMixin
 
@@ -9,8 +9,7 @@ Arr = npt.NDArray[np.float64]
 Vars = tuple[Arr, float, float]
 
 
-
-class Classification(SmoothMaxMixin, DecisionMixin, KernelMxin):
+class Classification(SmoothMaxMixin, DecisionMixin, KernelMixin):
     def __init__(
         self,
         x: Arr, y: Arr,
@@ -24,9 +23,9 @@ class Classification(SmoothMaxMixin, DecisionMixin, KernelMxin):
     ):
         SmoothMaxMixin.__init__(self, smoothingParam, maxfunDegree)
         DecisionMixin.__init__(self, lmbda, maxAsum)
-        KernelMxin.__init__(self, kernel_fun, kernel_param)
         self._x = x
         self._y = y
+        KernelMixin.__init__(self, kernel_fun, kernel_param)
         if w is None:
             self._w = np.ones_like(y)
         elif w == 'balanced':
@@ -57,7 +56,7 @@ class Classification(SmoothMaxMixin, DecisionMixin, KernelMxin):
         return self._w * self.ddm(self.shift - self._y * t)
 
 
-class Regression(SmoothMaxMixin, DecisionMixin, KernelMxin):
+class Regression(SmoothMaxMixin, DecisionMixin, KernelMixin):
     def __init__(
         self,
         x: Arr, y: Arr,
@@ -71,9 +70,9 @@ class Regression(SmoothMaxMixin, DecisionMixin, KernelMxin):
     ):
         SmoothMaxMixin.__init__(self, smoothingParam, maxfunDegree)
         DecisionMixin.__init__(self, lmbda, maxAsum)
-        KernelMxin.__init__(self, kernel_fun, kernel_param)
         self._x = np.concatenate((x, x))
         self._y = y
+        KernelMixin.__init__(self, kernel_fun, kernel_param)
         self._w = np.ones_like(y) if w is None else w
         self.__epsilon = epsilon
 
@@ -130,7 +129,7 @@ class Regression(SmoothMaxMixin, DecisionMixin, KernelMxin):
         return res
 
 
-class LSSVR(DecisionMixin, KernelMxin):
+class LSSVR(DecisionMixin, KernelMixin):
     def __init__(
         self,
         x: Arr, y: Arr,
@@ -139,9 +138,9 @@ class LSSVR(DecisionMixin, KernelMxin):
         lmbda: float = 1.0,
     ):
         DecisionMixin.__init__(self, lmbda, maxAsum=float('inf'))
-        KernelMxin.__init__(self, kernel_fun, kernel_param)
         self._x = x
         self._y = y
+        KernelMixin.__init__(self, kernel_fun, kernel_param)
         self._w = np.ones_like(y) if w is None else w
 
     @property
@@ -164,7 +163,6 @@ class LSSVR(DecisionMixin, KernelMxin):
         return self._w * e
 
     def ddloss(self, t: Arr):
-        e = t - self._y
         return self._w
 
 
