@@ -207,6 +207,8 @@ def solve(
         if result is not None:
             z, ka, dobj = result
             if dobj ** 2 < tol:
+                if fresh_ka:
+                    break
                 recompute_ka = True
             fresh_ka = False
             continue
