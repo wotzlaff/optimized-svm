@@ -282,7 +282,9 @@ class OptimizedSVM(
         self.__time_start = time.time()
         scaling = self.params_hpo.get('scaling0', OptimizedSVM.default_scaling0)
         if scaling == 'auto':
-            scaling = np.sqrt(np.log(2) / ((x - x[0]) ** 2).sum(axis=1).mean())
+            xm = x.mean(axis=0)
+            xs = ((x - xm) ** 2).sum(axis=1).mean()
+            scaling = np.sqrt(np.log(2) / xs)
         nblocks = 1 if self.blocks is None else len(self.blocks)
         if isinstance(scaling, float):
             scaling = [scaling] * nblocks
