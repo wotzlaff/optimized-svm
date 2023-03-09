@@ -65,6 +65,7 @@ class OptimizedSVM(
         self.__time_smo = 0.0
         self.__time_refine = 0.0
         self.__time_fit = 0.0
+        self.__time_all = 0.0
 
         self.__svm = None
         self.__no_nan = None
@@ -409,6 +410,7 @@ class OptimizedSVM(
         t0 = time.time()
         self.__svm.fit(x, yr)
         self.__time_fit = time.time() - t0
+        self.__time_all = time.time() - self.__time_start
 
     def decision_function(self, x):
         x = np.array(x).astype(np.double)
@@ -422,7 +424,7 @@ class OptimizedSVM(
     def status(self):
         return dict(
             n_evals=self.__funevals,
-            time=time.time() - self.__time_start,
+            time=self.__time_all,
             value=self.__last_value,
             params=self._optimized_params,
             nsv=self.__svm._asv.size,
