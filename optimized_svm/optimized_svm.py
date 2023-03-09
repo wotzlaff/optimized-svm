@@ -64,6 +64,7 @@ class OptimizedSVM(
         self.__funevals = 0
         self.__time_smo = 0.0
         self.__time_refine = 0.0
+        self.__time_fit = 0.0
 
         self.__svm = None
         self.__no_nan = None
@@ -405,7 +406,9 @@ class OptimizedSVM(
         )
         if self.verbose > 1:
             print('optimized parameters:', optimized_params)
+        t0 = time.time()
         self.__svm.fit(x, yr)
+        self.__time_fit = time.time() - t0
 
     def decision_function(self, x):
         x = np.array(x).astype(np.double)
@@ -425,6 +428,7 @@ class OptimizedSVM(
             nsv=self.__svm._asv.size,
             time_smo=self.__time_smo,
             time_refine=self.__time_refine,
+            time_fit=self.__time_fit,
         )
 
     def predict(self, x):
