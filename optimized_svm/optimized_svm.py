@@ -66,6 +66,7 @@ class OptimizedSVM(
         self.__time_refine = 0.0
         self.__time_fit = 0.0
         self.__time_all = 0.0
+        self.__time_optimize = 0.0
 
         self.__svm = None
         self.__no_nan = None
@@ -392,7 +393,9 @@ class OptimizedSVM(
             self.params_hpo['scaling0'] = optimized_params['scaling'][0]
             self.blocks = [[ft] for ft in range(x.shape[1])]
             self.kernel_param['blocks'] = self.blocks
+        t0 = time.time()
         optimized_params = self._optimize_params(x, y, splits)
+        self.__time_optimize = time.time() - t0
         self._optimized_params = optimized_params
         self.__svm = SimpleSVM(
             kind=self.kind,
@@ -431,6 +434,7 @@ class OptimizedSVM(
             time_smo=self.__time_smo,
             time_refine=self.__time_refine,
             time_fit=self.__time_fit,
+            time_optimize=self.__time_optimize,
         )
 
     def predict(self, x):
