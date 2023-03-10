@@ -365,6 +365,11 @@ class OptimizedSVM(
             self.minimize_result_ = res
         except TimeoutError:
             p_opt = last_param
+        if p_opt is None:
+            return dict(
+                lmbda=np.exp(p0[0]),
+                scaling=np.exp(p0[1:]),
+            )
         return dict(
             lmbda=np.exp(p_opt[0]),
             scaling=np.exp(p_opt[1:]),
