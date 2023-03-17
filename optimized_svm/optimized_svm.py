@@ -264,7 +264,7 @@ class OptimizedSVM(
             blocks=self.blocks,
             params_smo=self.params_smo,
             params_newton=self.params_newton,
-            normalize=self.params_hpo.get('normalize', True),
+            normalize=self.params_hpo.get('normalize_labels', True),
         )
         if self.kind == 'classes_':
             self.__last_fit.classes_ = self.classes_
@@ -380,7 +380,7 @@ class OptimizedSVM(
         self.__no_nan = ~np.isnan(x).any(axis=0)
         x = x[:, self.__no_nan]
         yr = y
-        if self.params_hpo.get('normalize', True):
+        if self.params_hpo.get('normalize_labels', True):
             y = self._normalize_labels(y)
         if self.splits is None:
             splits = list(KFold(5).split(x))
@@ -411,7 +411,7 @@ class OptimizedSVM(
             blocks=self.blocks,
             params_smo=self.params_smo,
             params_newton=self.params_newton,
-            normalize=self.params_hpo.get('normalize', True),
+            normalize=self.params_hpo.get('normalize_labels', True),
         )
         if self.verbose > 1:
             print('optimized parameters:', optimized_params)
@@ -444,5 +444,5 @@ class OptimizedSVM(
 
     def predict(self, x):
         d = self.decision_function(x)
-        normalize = self.params_hpo.get('normalize', True)
+        normalize = self.params_hpo.get('normalize_labels', True)
         return self._denormalize_decisions(d) if normalize else d
