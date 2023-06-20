@@ -29,6 +29,7 @@ def main():
         kernel_fun=rbf_kernel,
         kernel_param=dict(gamma=1.0),
         params_hpo=dict(
+            normalize_objective=True,
             kind=kind,
             scaling0=scaling,
             lmbda0=params['lmbda'],
@@ -37,7 +38,7 @@ def main():
             scaling_bounds=(1e-6, 1e3),
         ),
         # debug=True,
-        verbose=3,
+        # verbose=3,
         params_smo=params_smo,
         params_newton=params_newton,
     )
