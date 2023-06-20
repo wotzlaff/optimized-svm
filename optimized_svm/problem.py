@@ -1,6 +1,7 @@
 from functools import partial
 import numpy as np
 import numpy.typing as npt
+from scipy.special import factorial
 from .kernel import KernelMixin
 from .decision import DecisionMixin
 from .smooth_max import SmoothMaxMixin
@@ -166,6 +167,82 @@ class LSSVR(DecisionMixin, KernelMixin):
         return self._w
 
 
+class PoissonSVM(DecisionMixin, KernelMixin):
+    def __init__(
+        self,
+        x: Arr, y: Arr,
+        kernel_fun, kernel_param,
+        w: Arr | None = None,
+        lmbda: float = 1.0,
+    ):
+        DecisionMixin.__init__(self, lmbda, maxAsum=float('inf'))
+        self._x = x
+        self._y = y
+        KernelMixin.__init__(self, kernel_fun, kernel_param)
+        self._w = np.ones_like(y) if w is None else w
+
+    @property
+    def size(self):
+        return self._x.shape[0]
+
+    @property
+    def sign(self):
+        return np.zeros(self.size)
+
+    def extract_original_a(self, a: Arr):
+        return a
+
+    def loss(self, t: Arr):
+        et = np.exp(t)
+        return self._w * (et - self._y * t + np.log(factorial(self._y)))
+
+    def dloss(self, t: Arr):
+        et = np.exp(t)
+        return self._w * (et - self._y)
+
+    def ddloss(self, t: Arr):
+        et = np.exp(t)
+        return self._w * et
+
+
+class PoissonSVM(DecisionMixin, KernelMixin):
+    def __init__(
+        self,
+        x: Arr, y: Arr,
+        kernel_fun, kernel_param,
+        w: Arr | None = None,
+        lmbda: float = 1.0,
+    ):
+        DecisionMixin.__init__(self, lmbda, maxAsum=float('inf'))
+        self._x = x
+        self._y = y
+        KernelMixin.__init__(self, kernel_fun, kernel_param)
+        self._w = np.ones_like(y) if w is None else w
+
+    @property
+    def size(self):
+        return self._x.shape[0]
+
+    @property
+    def sign(self):
+        return np.zeros(self.size)
+
+    def extract_original_a(self, a: Arr):
+        return a
+
+    def loss(self, t: Arr):
+        et = np.exp(t)
+        return self._w * (et - self._y * t + np.log(factorial(self._y)))
+
+    def dloss(self, t: Arr):
+        et = np.exp(t)
+        return self._w * (et - self._y)
+
+    def ddloss(self, t: Arr):
+        et = np.exp(t)
+        return self._w * et
+
+
 class TrainingMixin:
     def _create_problem(
         self,
@@ -178,6 +255,7 @@ class TrainingMixin:
             regression=Regression,
             balanced_classification=partial(Classification, w='balanced'),
             ls=LSSVR,
+            poisson=PoissonSVM,
         )[kind]
         if 'ratioAsum' in params:
             assert 'maxAsum' not in params

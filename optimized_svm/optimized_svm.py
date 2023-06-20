@@ -4,6 +4,7 @@ from tqdm import tqdm
 
 import numpy as np
 from scipy.optimize import minimize
+from scipy.special import factorial
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import KFold
 
@@ -233,27 +234,26 @@ class OptimizedSVM(
                 'classification',
                 'balanced_classification',
             ]:
-                err /= n_val
-                derr /= n_val
+                err_val = n_val
             elif self.params_hpo['kind'] == 'regression':
                 err_val = sum(
                     np.sum(np.abs(y[idx_val] - np.median(y[idx_val])))
                     for _, idx_val in splits
                 )
-                err /= err_val
-                derr /= err_val
             elif self.params_hpo['kind'] == 'ls':
                 err_val = sum(
                     np.sum((y[idx_val] - np.mean(y[idx_val])) ** 2)
                     for _, idx_val in splits
                 )
-                err /= err_val
-                derr /= err_val
+            elif self.params_hpo['kind'] == 'poisson':
+                err_val = sum(
+                    y[idx_val].sum() * (1.0 - np.log(np.mean(y[idx_val]))) + np.log(factorial(y[idx_val])).sum()
+                    for _, idx_val in splits
+                )
             else:
                 raise ValueError('unknown validation loss')
-        else:
-            err /= n_val
-            derr /= n_val
+            err /= err_val
+            derr /= err_val
 
         self.__last_fit = SimpleSVM(
             kind=self.kind,
@@ -326,6 +326,10 @@ class OptimizedSVM(
             elif self.params_hpo['kind'] == 'ls':
                 ym = np.mean(y)
                 err_tr = np.sum((y - ypred) ** 2) / np.sum((y - ym) ** 2)
+                err_val = self.__last_value[0]
+            elif self.params_hpo['kind'] == 'poisson':
+                err_tr = np.exp(ypred).sum() - y.dot(ypred) + np.log(factorial(y)).sum()
+                err_tr /= y.sum() * (1.0 - np.log(np.mean(y))) + np.log(factorial(y)).sum()
                 err_val = self.__last_value[0]
             else:
                 raise ValueError('unknown validation loss')

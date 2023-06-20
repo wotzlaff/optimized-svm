@@ -4,9 +4,9 @@ import numpy.typing as npt
 import nimsmo
 
 from .rendered import solve as solve_rendered
-from .problem import LSSVR, Classification, Regression
+from .problem import LSSVR, Classification, Regression, PoissonSVM
 
-Problem = Classification | Regression | LSSVR
+Problem = Classification | Regression | LSSVR | PoissonSVM
 Arr = npt.NDArray[np.float64]
 Vars = tuple[Arr, float, float]
 
@@ -259,7 +259,7 @@ def solve_twostep(prob, params_smo, params_newton, verbose=0):
             result = nimsmo.solveClassification(**args, shrinkingPeriod=len(args['y']), shift=prob.shift)
         elif isinstance(prob, Regression):
             result = nimsmo.solveRegression(**args, shrinkingPeriod=len(args['y']), epsilon=prob.epsilon)
-        elif isinstance(prob, LSSVR):
+        elif isinstance(prob, LSSVR) or isinstance(prob, PoissonSVM):
             result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
         else:
             raise ValueError('unknown problem')

@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import factorial
 from .smooth_max import get_maxfun
 
 
@@ -32,6 +33,12 @@ class ValidationMixin:
             dell = dm(t - y) - dm(y - t)
             return ell, dell
 
+        def _validation_loss_poisson(t, y):
+            et = np.exp(t)
+            ell = et.sum() - t.dot(y) + np.log(factorial(y)).sum()
+            dell = et - y
+            return ell, dell
+
         def _validation_loss_ls(t, y):
             e = t - y
             return 0.5 * (e ** 2).sum(), e
@@ -41,5 +48,6 @@ class ValidationMixin:
             balanced_classification=_validation_loss_balanced_classification,
             regression=_validation_loss_regression,
             ls=_validation_loss_ls,
+            poisson=_validation_loss_poisson,
         )[params['kind']]
 
