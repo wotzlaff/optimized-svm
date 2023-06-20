@@ -16,8 +16,10 @@ class NormalizationMixin:
             self.offset_ = np.mean(y)
             self.scale_ = np.sqrt(np.mean((y - self.offset_) ** 2))
             return (y - self.offset_) / self.scale_
-        elif self.kind == 'poisson':
+        elif self.kind in ['poisson', 'approx_poisson']:
             return y
+        else:
+            raise ValueError('unknown SVM kind')
 
     def _denormalize_decisions(self, d):
         if self.kind in ['classification', 'balanced_classification']:
@@ -26,5 +28,7 @@ class NormalizationMixin:
             return np.where(d < 0.0, self.classes_[0], self.classes_[1])
         elif self.kind in ['regression', 'ls']:
             return d * self.scale_ + self.offset_
-        elif self.kind == 'poisson':
+        elif self.kind in ['poisson', 'approx_poisson']:
             return np.exp(d)
+        else:
+            raise ValueError('unknown SVM kind')

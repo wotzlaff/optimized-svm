@@ -243,6 +243,46 @@ class PoissonSVM(DecisionMixin, KernelMixin):
         return self._w * et
 
 
+class ApproxPoissonSVM(DecisionMixin, KernelMixin):
+    def __init__(
+        self,
+        x: Arr, y: Arr,
+        kernel_fun, kernel_param,
+        w: Arr | None = None,
+        lmbda: float = 1.0,
+    ):
+        DecisionMixin.__init__(self, lmbda, maxAsum=float('inf'))
+        self._x = x
+        self._y = y
+        KernelMixin.__init__(self, kernel_fun, kernel_param)
+        self._w = np.ones_like(y) if w is None else w
+
+    @property
+    def size(self):
+        return self._x.shape[0]
+
+    @property
+    def sign(self):
+        return np.zeros(self.size)
+
+    def extract_original_a(self, a: Arr):
+        return a
+
+    def loss(self, t: Arr):
+        r = -self._y * t
+        r[t > 0.0] = np.exp(t[t > 0.0]) - (self._y[t > 0.0] + 1.00) * t[t > 0.0] - 1.0
+        return self._w * (r + gammaln(self._y+1))
+
+    def dloss(self, t: Arr):
+        dr = -self._y
+        dr[t > 0.0] = np.exp(t[t > 0.0]) - (self._y[t > 0.0] + 1.0)
+        return self._w * dr
+
+    def ddloss(self, t: Arr):
+        ddr = np.zeros_like(t)
+        ddr[t > 0.0] = np.exp(t[t > 0.0])
+        return self._w * ddr
+
 class TrainingMixin:
     def _create_problem(
         self,
@@ -256,6 +296,7 @@ class TrainingMixin:
             balanced_classification=partial(Classification, w='balanced'),
             ls=LSSVR,
             poisson=PoissonSVM,
+            approx_poisson=ApproxPoissonSVM,
         )[kind]
         if 'ratioAsum' in params:
             assert 'maxAsum' not in params
