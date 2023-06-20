@@ -3,10 +3,6 @@ from optimized_svm import OptimizedSVM, rbf_kernel
 from sample import data
 import matplotlib.pyplot as plt
 
-# import matplotlib
-# matplotlib.use('TKAgg')
-
-
 def main():
     n, nft = 2000, 2
     x, y = data(n, nft, scale=4, classification=False)
