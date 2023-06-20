@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 import numpy as np
 from scipy.optimize import minimize
-from scipy.special import factorial
+from scipy.special import gammaln
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import KFold
 
@@ -247,7 +247,7 @@ class OptimizedSVM(
                 )
             elif self.params_hpo['kind'] == 'poisson':
                 err_val = sum(
-                    y[idx_val].sum() * (1.0 - np.log(np.mean(y[idx_val]))) + np.log(factorial(y[idx_val])).sum()
+                    y[idx_val].sum() * (1.0 - np.log(np.mean(y[idx_val]))) + gammaln(y[idx_val]+1).sum()
                     for _, idx_val in splits
                 )
             else:
@@ -328,8 +328,9 @@ class OptimizedSVM(
                 err_tr = np.sum((y - ypred) ** 2) / np.sum((y - ym) ** 2)
                 err_val = self.__last_value[0]
             elif self.params_hpo['kind'] == 'poisson':
-                err_tr = np.exp(ypred).sum() - y.dot(ypred) + np.log(factorial(y)).sum()
-                err_tr /= y.sum() * (1.0 - np.log(np.mean(y))) + np.log(factorial(y)).sum()
+                yr = gammaln(y+1).sum()
+                err_tr = np.exp(ypred).sum() - y.dot(ypred) + yr
+                err_tr /= y.sum() * (1.0 - np.log(np.mean(y))) + yr
                 err_val = self.__last_value[0]
             else:
                 raise ValueError('unknown validation loss')

@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.special import factorial
+from scipy.special import gammaln
 from .smooth_max import get_maxfun
 
 
@@ -35,7 +35,7 @@ class ValidationMixin:
 
         def _validation_loss_poisson(t, y):
             et = np.exp(t)
-            ell = et.sum() - t.dot(y) + np.log(factorial(y)).sum()
+            ell = et.sum() - t.dot(y) + gammaln(y+1).sum()
             dell = et - y
             return ell, dell
 

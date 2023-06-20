@@ -1,7 +1,7 @@
 from functools import partial
 import numpy as np
 import numpy.typing as npt
-from scipy.special import factorial
+from scipy.special import gammaln
 from .kernel import KernelMixin
 from .decision import DecisionMixin
 from .smooth_max import SmoothMaxMixin
@@ -194,7 +194,7 @@ class PoissonSVM(DecisionMixin, KernelMixin):
 
     def loss(self, t: Arr):
         et = np.exp(t)
-        return self._w * (et - self._y * t + np.log(factorial(self._y)))
+        return self._w * (et - self._y * t + gammaln(self._y+1))
 
     def dloss(self, t: Arr):
         et = np.exp(t)
@@ -232,7 +232,7 @@ class PoissonSVM(DecisionMixin, KernelMixin):
 
     def loss(self, t: Arr):
         et = np.exp(t)
-        return self._w * (et - self._y * t + np.log(factorial(self._y)))
+        return self._w * (et - self._y * t + gammaln(self._y+1))
 
     def dloss(self, t: Arr):
         et = np.exp(t)
