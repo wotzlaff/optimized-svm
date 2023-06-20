@@ -451,3 +451,23 @@ class OptimizedSVM(
         d = self.decision_function(x)
         normalize = self.params_hpo.get('normalize_labels', True)
         return self._denormalize_decisions(d) if normalize else d
+
+    @property
+    def scaling(self):
+        return self._optimized_params['scaling']
+
+    @property
+    def _b(self):
+        return self.__svm._b
+
+    @property
+    def _asv(self):
+        return self.__svm._asv
+
+    @property
+    def _xsv(self):
+        return self.__svm._xsv
+
+    @property
+    def _idx_sv(self):
+        return self.__svm._idx_sv

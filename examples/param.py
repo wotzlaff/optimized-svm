@@ -1,5 +1,6 @@
 import numpy as np
 from optimized_svm import OptimizedSVM, SimpleSVM, rbf_kernel
+from optimized_svm import estimate_sensitivity
 from sample import data
 
 
@@ -72,6 +73,11 @@ def main():
     )
     svm.fit(x[:n//2], y[:n//2])
     yest = svm.decision_function(x)
+
+
+    sens = estimate_sensitivity(svm, x).mean(axis=0)
+    print(sens)
+    return
 
     import matplotlib.pyplot as plt
     if kind == 'classification':
