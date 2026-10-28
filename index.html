@@ -804,9 +804,9 @@ followed by a semismooth Newton method on the smoothed primal problem.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>optimized-svm
 </code></pre></div>
-<p>During development (sibling checkout of <code>smo-solver</code>, Rust toolchain required):</p>
-<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/wotzlaff/smo-solver
-git<span class="w"> </span>clone<span class="w"> </span>https://github.com/wotzlaff/optimized-svm<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>optimized-svm
+<p>For development (the solver <a href="https://pypi.org/project/smo-solver/"><code>smo-solver</code></a> is installed
+from PyPI as a prebuilt wheel):</p>
+<div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/wotzlaff/optimized-svm<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>optimized-svm
 uv<span class="w"> </span>sync<span class="w"> </span>--group<span class="w"> </span>dev
 uv<span class="w"> </span>run<span class="w"> </span>pytest
 </code></pre></div>

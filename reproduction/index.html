@@ -501,6 +501,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Results (2026-10-28, 30 splits)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#diagnosis-of-the-mpghousing-deviation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnosis of the mpg/housing deviation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -599,6 +616,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Results (2026-10-28, 30 splits)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#diagnosis-of-the-mpghousing-deviation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnosis of the mpg/housing deviation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -721,13 +755,137 @@
 <td style="text-align: right;">7.51 (6.63)</td>
 <td style="text-align: right;">1.92 (1.82)</td>
 </tr>
+<tr>
+<td>housing</td>
+<td>ε = 0.1</td>
+<td style="text-align: right;">12.24 (10.8)</td>
+<td style="text-align: right;">2.19 (2.10)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.25</td>
+<td style="text-align: right;">12.32 (10.9)</td>
+<td style="text-align: right;">2.28 (2.17)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.5</td>
+<td style="text-align: right;">13.82 (11.9)</td>
+<td style="text-align: right;">2.55 (2.43)</td>
+</tr>
+<tr>
+<td></td>
+<td>LS-SVM</td>
+<td style="text-align: right;">10.85 (9.54)</td>
+<td style="text-align: right;">2.17 (2.07)</td>
+</tr>
+<tr>
+<td>space_ga</td>
+<td>ε = 0.1</td>
+<td style="text-align: right;">0.01344 (0.0133)</td>
+<td style="text-align: right;">0.0835 (0.0849)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.25</td>
+<td style="text-align: right;">0.01304 (0.0127)</td>
+<td style="text-align: right;">0.0829 (0.0845)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.5</td>
+<td style="text-align: right;">0.01342 (0.0128)</td>
+<td style="text-align: right;">0.0844 (0.0854)</td>
+</tr>
+<tr>
+<td></td>
+<td>LS-SVM</td>
+<td style="text-align: right;">0.01292 (0.0127)</td>
+<td style="text-align: right;">0.0829 (0.0845)</td>
+</tr>
+<tr>
+<td>abalone</td>
+<td>ε = 0.1</td>
+<td style="text-align: right;">4.59 (4.72)</td>
+<td style="text-align: right;">1.49 (1.50)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.25</td>
+<td style="text-align: right;">4.55 (4.61)</td>
+<td style="text-align: right;">1.49 (1.50)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.5</td>
+<td style="text-align: right;">4.49 (4.56)</td>
+<td style="text-align: right;">1.52 (1.52)</td>
+</tr>
+<tr>
+<td></td>
+<td>LS-SVM</td>
+<td style="text-align: right;">4.47 (4.53)</td>
+<td style="text-align: right;">1.52 (1.53)</td>
+</tr>
+<tr>
+<td>cpusmall</td>
+<td>ε = 0.1</td>
+<td style="text-align: right;">18.35 (19.1)</td>
+<td style="text-align: right;">2.71 (2.70)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.25</td>
+<td style="text-align: right;">17.9 (20.0)</td>
+<td style="text-align: right;">2.94 (2.96)</td>
+</tr>
+<tr>
+<td></td>
+<td>ε = 0.5</td>
+<td style="text-align: right;">22.63 (32.6)</td>
+<td style="text-align: right;">3.54 (3.66)</td>
+</tr>
+<tr>
+<td></td>
+<td>LS-SVM</td>
+<td style="text-align: right;">17.12 (18.7)</td>
+<td style="text-align: right;">2.68 (2.70)</td>
+</tr>
 </tbody>
 </table>
-<p>pyrim and triazines match or improve on the thesis values (the random splits differ). For mpg
-the errors are about 15 % (MSE) higher in all four models; the cause is still open (candidates:
-different splits, a different local minimum of the CV error, feature preprocessing). The larger
-datasets (housing, space_ga, abalone, cpusmall) are still to be run with 30 splits; a preliminary
-run with 5 splits gave values close to the thesis for housing.</p>
+<p>Five of the seven datasets match the thesis or are slightly better (the random splits differ).
+<strong>mpg and housing are about 13–15 % worse</strong> in the MSE, in all four models.</p>
+<h3 id="diagnosis-of-the-mpghousing-deviation">Diagnosis of the mpg/housing deviation<a class="headerlink" href="#diagnosis-of-the-mpghousing-deviation" title="Permanent link">&para;</a></h3>
+<ul>
+<li><em>Not the optimizer.</em> A dense <code>GridSearchCV</code> over (C, γ) (SVR) or <code>KernelRidge</code> (LS-SVM) with the
+  same standardization and CV reaches the same test error on the same 30 splits: mpg 7.84 ± 0.36
+  (SVR grid) and 7.51 (LS-SVM, identical to ours); housing 10.9 (LS-SVM grid, ours 10.85).
+  The gradient method therefore does not get stuck in a poor local minimum, and for the LS-SVM the
+  implementation agrees with an independent solver.</li>
+<li><em>Split noise contributes but does not explain it alone.</em> The per-split MSE of mpg has a
+  standard deviation of about 2; the mean over 30 splits varies by roughly ±0.4. For mpg the thesis
+  value lies about 2 standard errors below ours, but housing deviates in the same direction.</li>
+<li><em>Binarising nominal features does not help.</em> The OpenML versions of the data sets (autoMpg,
+  id 196; boston, id 531) have nominal columns (mpg: <code>cylinders</code>, <code>model</code>, <code>origin</code>; housing:
+  <code>CHAS</code>, <code>RAD</code>). One-hot encoding them (mpg: 7 → 25 columns, housing: 13 → 22) makes the results
+  <em>worse</em> (mpg LS-SVM 7.96, housing LS-SVM 11.54).</li>
+<li>
+<p><em>Different protocols are not comparable.</em> The 2018/19 runs of <code>hpo4svm</code> on OpenML use the
+  10-fold CV of the OpenML tasks (3/5/10 inner folds). A 10-fold CV of a <code>KernelRidge</code> grid on the
+  LIBSVM data gives MAE 1.87 (mpg) and 2.09 (housing), close to our values.</p>
+</li>
+<li>
+<p><em>The old code does not reproduce the splits.</em> The 2018/19 prototype <code>hpo4svm</code> draws its splits
+  with <code>np.random.seed(42)</code> and <code>np.random.permutation</code>; replaying that sequence on the LIBSVM
+  files (datasets in the order pyrim, triazines, mpg, housing) does not reproduce Table 10.4.1
+  (pyrim LS-SVM MSE 0.0100 instead of 0.0060, mpg 8.37 instead of 6.63). That script is a later
+  experiment (3-fold CV, different bounds); the script that produced the table and the input files
+  (<code>~/daten/regression/&lt;name&gt;/data.mat</code>) are not available.</p>
+</li>
+</ul>
+<p>The cause of the deviation remains open. Remaining candidates are the exact data set versions
+and preprocessing used in the thesis (not documented there; the protocol is adopted from
+Fischer et al., <em>Optim. Methods Softw.</em> 30(6), 2015) and the specific random splits.</p>
 
 
 
