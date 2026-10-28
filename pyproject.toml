@@ -28,7 +28,7 @@ Repository = "https://github.com/wotzlaff/optimized-svm"
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "cvxpy>=1.5", "mypy>=1.10"]
-docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.26", "matplotlib>=3.8"]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.26", "matplotlib>=3.8", "mkdocs-jupyter>=0.25", "ipykernel>=6"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/optimized_svm"]

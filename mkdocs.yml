@@ -27,6 +27,10 @@ nav:
   - Background:
       - Training problem: theory/training.md
       - Hyperparameter gradients: theory/hypergradient.md
+  - Examples:
+      - Quickstart: examples/quickstart.py
+      - Feature relevance (ARD): examples/ard_feature_relevance.py
+      - Low-level API: examples/low_level_api.py
   - Reproducing the thesis: reproduction.md
   - API reference: api.md
   - Changelog: changelog.md
@@ -48,6 +52,10 @@ extra_css:
 
 plugins:
   - search
+  - mkdocs-jupyter:
+      execute: true
+      include: ["*.py"]
+      ignore: ["__pycache__/*"]
   - mkdocstrings:
       handlers:
         python:

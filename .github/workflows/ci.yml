@@ -35,7 +35,7 @@ jobs:
       - name: Build documentation
         run: |
           uv venv
-          uv pip install -e . mkdocs-material "mkdocstrings[python]"
+          uv pip install -e . mkdocs-material "mkdocstrings[python]" mkdocs-jupyter ipykernel matplotlib
           uv run --no-sync mkdocs build --strict
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main'

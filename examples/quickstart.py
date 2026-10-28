@@ -1,5 +1,11 @@
-"""Gradient-based hyperparameter optimisation vs. grid search on a classification task."""
+# %% [markdown]
+# # Quickstart: gradient-based tuning vs. grid search
+#
+# `OptimizedSVC` tunes the regularisation `lam` and the kernel scaling by minimising the
+# cross-validation error with exact gradients. We compare it with `GridSearchCV` on a noisy
+# classification task.
 
+# %%
 import time
 
 import numpy as np
@@ -14,6 +20,7 @@ x, y = make_classification(1000, 8, n_informative=4, flip_y=0.05, random_state=0
 x = StandardScaler().fit_transform(x)
 x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=0)
 
+# %%
 t0 = time.perf_counter()
 opt = OptimizedSVC(cv=5).fit(x_train, y_train)
 t_opt = time.perf_counter() - t0
@@ -23,6 +30,10 @@ print(
     f"{len(opt.history_)} CV evaluations, {t_opt:.1f} s, test accuracy {acc:.3f}"
 )
 
+# %% [markdown]
+# The grid search needs far more cross-validation evaluations for a comparable result.
+
+# %%
 grid = {"C": np.logspace(-2, 4, 13), "gamma": np.logspace(-4, 1, 11)}
 t0 = time.perf_counter()
 search = GridSearchCV(SVC(), grid, cv=5, n_jobs=1).fit(x_train, y_train)
