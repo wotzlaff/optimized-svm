@@ -17,9 +17,10 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=0)
 t0 = time.perf_counter()
 opt = OptimizedSVC(cv=5).fit(x_train, y_train)
 t_opt = time.perf_counter() - t0
+acc = opt.score(x_test, y_test)
 print(
     f"OptimizedSVC: lam = {opt.lam_:.3g}, gamma = {opt.scaling_opt_[0] ** 2:.3g}, "
-    f"{len(opt.history_)} CV evaluations, {t_opt:.1f} s, test accuracy {opt.score(x_test, y_test):.3f}"
+    f"{len(opt.history_)} CV evaluations, {t_opt:.1f} s, test accuracy {acc:.3f}"
 )
 
 grid = {"C": np.logspace(-2, 4, 13), "gamma": np.logspace(-4, 1, 11)}
