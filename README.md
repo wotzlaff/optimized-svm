@@ -12,7 +12,8 @@ relevance determination), where grid search is hopeless.
 The methods are developed in
 
 > N. Strasdat, *Duality, Derivative-Based Training Methods and Hyperparameter Optimization for
-> Support Vector Machines*, Dissertation, TU Dresden.
+> Support Vector Machines*, Dissertation, Technische Universität Dresden, 2023.
+> [urn:nbn:de:bsz:14-qucosa2-874731](https://nbn-resolving.org/urn:nbn:de:bsz:14-qucosa2-874731)
 
 Training uses the Rust SMO solver [`svm-smo`](https://github.com/wotzlaff/svm-smo) as a warm start
 followed by a semismooth Newton method on the smoothed primal problem.
@@ -84,6 +85,23 @@ python benchmarks/thesis_regression.py --datasets pyrim triazines mpg housing --
 
 Full documentation including the mathematical background: <https://wotzlaff.github.io/optimized-svm/>.
 Build locally with `uv run --group docs mkdocs serve`.
+
+## Citation
+
+If you use this software, please cite the dissertation:
+
+```bibtex
+@phdthesis{strasdat2023,
+  author = {Nico Strasdat},
+  title  = {Duality, Derivative-Based Training Methods and
+            Hyperparameter Optimization for Support Vector Machines},
+  school = {Technische Universit{\"a}t Dresden},
+  type   = {Dissertation},
+  year   = {2023},
+  url    = {https://nbn-resolving.org/urn:nbn:de:bsz:14-qucosa2-874731},
+  note   = {urn:nbn:de:bsz:14-qucosa2-874731}
+}
+```
 
 ## License
 
