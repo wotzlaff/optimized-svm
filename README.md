@@ -1,5 +1,8 @@
 # optimized-svm
 
+[![PyPI](https://img.shields.io/pypi/v/optimized-svm)](https://pypi.org/project/optimized-svm/)
+[![CI](https://github.com/wotzlaff/optimized-svm/actions/workflows/ci.yml/badge.svg)](https://github.com/wotzlaff/optimized-svm/actions/workflows/ci.yml)
+
 **Support vector machines whose hyperparameters are tuned by exact gradients instead of grid search.**
 
 `optimized-svm` treats hyperparameter selection as a bilevel optimization problem: the upper level
@@ -35,10 +38,10 @@ followed by a semismooth Newton method on the smoothed primal problem.
 pip install optimized-svm
 ```
 
-During development (sibling checkout of `smo-solver`, Rust toolchain required):
+For development (the solver [`smo-solver`](https://pypi.org/project/smo-solver/) is installed
+from PyPI as a prebuilt wheel):
 
 ```bash
-git clone https://github.com/wotzlaff/smo-solver
 git clone https://github.com/wotzlaff/optimized-svm && cd optimized-svm
 uv sync --group dev
 uv run pytest

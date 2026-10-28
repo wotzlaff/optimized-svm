@@ -35,10 +35,10 @@ followed by a semismooth Newton method on the smoothed primal problem.
 pip install optimized-svm
 ```
 
-During development (sibling checkout of `smo-solver`, Rust toolchain required):
+For development (the solver [`smo-solver`](https://pypi.org/project/smo-solver/) is installed
+from PyPI as a prebuilt wheel):
 
 ```bash
-git clone https://github.com/wotzlaff/smo-solver
 git clone https://github.com/wotzlaff/optimized-svm && cd optimized-svm
 uv sync --group dev
 uv run pytest
