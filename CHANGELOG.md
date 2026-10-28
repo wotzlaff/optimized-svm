@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 – unreleased
+## 0.1.0 – 2026-10-28
 
 Complete overhaul of the 2022 code (tag `legacy-2022`).
 

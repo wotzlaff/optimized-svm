@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "optimized-svm"
-version = "0.2.0.dev0"
+version = "0.1.0"
 description = "Support vector machines with hyperparameters optimized by exact gradients (implicit function theorem)"
 readme = "README.md"
 license = "BSD-3-Clause"

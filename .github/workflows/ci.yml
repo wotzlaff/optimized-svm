@@ -14,20 +14,13 @@ jobs:
         python: ["3.10", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      # smo-solver is built from source until it is published on PyPI
-      - uses: actions/checkout@v4
-        with:
-          repository: wotzlaff/smo-solver
-          path: smo-solver
-      - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: ${{ matrix.python }}
       - name: Install
         run: |
           uv venv
-          uv pip install ./smo-solver
-          uv pip install --no-sources -e . pytest cvxpy ruff
+          uv pip install -e . pytest cvxpy ruff
       - run: uv run --no-sync ruff check src tests examples benchmarks
       - run: uv run --no-sync pytest -q
 
@@ -37,17 +30,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: wotzlaff/smo-solver
-          path: smo-solver
-      - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v6
       - name: Build documentation
         run: |
           uv venv
-          uv pip install ./smo-solver
-          uv pip install --no-sources -e . mkdocs-material "mkdocstrings[python]"
+          uv pip install -e . mkdocs-material "mkdocstrings[python]"
           uv run --no-sync mkdocs build --strict
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main'
