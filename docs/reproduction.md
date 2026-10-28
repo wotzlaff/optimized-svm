@@ -34,21 +34,44 @@ Test MSE / MAE in original units; thesis values in parentheses.
 | | ε = 0.25 | 7.61 (6.58) | 1.96 (1.84) |
 | | ε = 0.5 | 8.55 (7.37) | 2.14 (1.98) |
 | | LS-SVM | 7.51 (6.63) | 1.92 (1.82) |
+| housing | ε = 0.1 | 12.24 (10.8) | 2.19 (2.10) |
+| | ε = 0.25 | 12.32 (10.9) | 2.28 (2.17) |
+| | ε = 0.5 | 13.82 (11.9) | 2.55 (2.43) |
+| | LS-SVM | 10.85 (9.54) | 2.17 (2.07) |
+| space_ga | ε = 0.1 | 0.01344 (0.0133) | 0.0835 (0.0849) |
+| | ε = 0.25 | 0.01304 (0.0127) | 0.0829 (0.0845) |
+| | ε = 0.5 | 0.01342 (0.0128) | 0.0844 (0.0854) |
+| | LS-SVM | 0.01292 (0.0127) | 0.0829 (0.0845) |
+| abalone | ε = 0.1 | 4.59 (4.72) | 1.49 (1.50) |
+| | ε = 0.25 | 4.55 (4.61) | 1.49 (1.50) |
+| | ε = 0.5 | 4.49 (4.56) | 1.52 (1.52) |
+| | LS-SVM | 4.47 (4.53) | 1.52 (1.53) |
+| cpusmall | ε = 0.1 | 18.35 (19.1) | 2.71 (2.70) |
+| | ε = 0.25 | 17.9 (20.0) | 2.94 (2.96) |
+| | ε = 0.5 | 22.63 (32.6) | 3.54 (3.66) |
+| | LS-SVM | 17.12 (18.7) | 2.68 (2.70) |
 
-pyrim and triazines match or improve on the thesis values (the random splits differ). For mpg
-the errors are about 15 % (MSE) higher in all four models. Diagnosis (ε = 0.1, 392 samples):
+Five of the seven datasets match the thesis or are slightly better (the random splits differ).
+**mpg and housing are about 13–15 % worse** in the MSE, in all four models.
 
-- *Not the optimizer.* A dense `GridSearchCV` over (C, γ) with the same standardization and
-  absolute-error CV reaches the same test error on the same 30 splits (MSE 7.84 ± 0.36 vs.
-  7.76 ± 0.40, paired difference −0.09 ± 0.18), so the gradient method does not get stuck in a
-  poor local minimum.
-- *Split noise is large.* The per-split MSE has a standard deviation of about 2; the mean over
-  30 splits therefore varies by roughly ±0.4 (two disjoint sets of 30 splits gave 7.24 and 8.07).
-  On 60 further splits the optimizer yields 7.65 ± 0.35, a fixed-parameter SVR on 1000 splits 7.07.
-  The thesis value 6.50 lies about 2 standard errors below our estimate.
+### Diagnosis of the mpg/housing deviation
 
-Hence the gap is mostly attributable to the random splits (the thesis splits are not
-reproducible); a remaining systematic difference (dataset version, preprocessing details) cannot
-be excluded but there is no evidence for a defect. The larger
-datasets (housing, space_ga, abalone, cpusmall) are still to be run with 30 splits; a preliminary
-run with 5 splits gave values close to the thesis for housing.
+- *Not the optimizer.* A dense `GridSearchCV` over (C, γ) (SVR) or `KernelRidge` (LS-SVM) with the
+  same standardization and CV reaches the same test error on the same 30 splits: mpg 7.84 ± 0.36
+  (SVR grid) and 7.51 (LS-SVM, identical to ours); housing 10.9 (LS-SVM grid, ours 10.85).
+  The gradient method therefore does not get stuck in a poor local minimum, and for the LS-SVM the
+  implementation agrees with an independent solver.
+- *Split noise contributes but does not explain it alone.* The per-split MSE of mpg has a
+  standard deviation of about 2; the mean over 30 splits varies by roughly ±0.4. For mpg the thesis
+  value lies about 2 standard errors below ours, but housing deviates in the same direction.
+- *Binarising nominal features does not help.* The OpenML versions of the data sets (autoMpg,
+  id 196; boston, id 531) have nominal columns (mpg: `cylinders`, `model`, `origin`; housing:
+  `CHAS`, `RAD`). One-hot encoding them (mpg: 7 → 25 columns, housing: 13 → 22) makes the results
+  *worse* (mpg LS-SVM 7.96, housing LS-SVM 11.54).
+- *Different protocols are not comparable.* The 2018/19 runs of `hpo4svm` on OpenML use the
+  10-fold CV of the OpenML tasks (3/5/10 inner folds). A 10-fold CV of a `KernelRidge` grid on the
+  LIBSVM data gives MAE 1.87 (mpg) and 2.09 (housing), close to our values.
+
+The cause of the deviation remains open. Remaining candidates are the exact data set versions
+and preprocessing used in the thesis (not documented there; the protocol is adopted from
+Fischer et al., *Optim. Methods Softw.* 30(6), 2015) and the specific random splits.
