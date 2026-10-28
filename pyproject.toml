@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "optimized-svm"
+version = "0.2.0.dev0"
+description = "Support vector machines with hyperparameters optimized by exact gradients (implicit function theorem)"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+authors = [{ name = "Nico Strasdat", email = "nstrasdat@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.23", "scipy>=1.10", "scikit-learn>=1.6", "svm-smo>=0.1"]
+keywords = ["svm", "hyperparameter optimization", "bilevel optimization", "kernel methods"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[project.urls]
+Homepage = "https://wotzlaff.github.io/svm-site/"
+Documentation = "https://wotzlaff.github.io/optimized-svm/"
+Repository = "https://github.com/wotzlaff/optimized-svm"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-cov>=5", "ruff>=0.6", "cvxpy>=1.5", "mypy>=1.10"]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.26", "matplotlib>=3.8"]
+
+[tool.uv.sources]
+# use the sibling checkout during development; remove once svm-smo is on PyPI
+svm-smo = { path = "../svm-smo", editable = false }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/optimized_svm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "NPY"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["optimized_svm"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
