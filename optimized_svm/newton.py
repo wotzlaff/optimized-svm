@@ -1,7 +1,7 @@
 import time
 import numpy as np
 import numpy.typing as npt
-import nimsmo
+import svm_smo
 
 from .rendered import solve as solve_rendered
 from .problem import LSSVR, Classification, Regression, PoissonSVM, ApproxPoissonSVM
@@ -237,32 +237,39 @@ def solve(
     return dict(a=a, b=b, c=c, ka=ka)
 
 
+def _smo_options(params_smo):
+    """Translate the legacy camelCase SMO options to svm_smo keyword arguments."""
+    names = dict(tol='tol', maxSteps='max_steps', timeLimit='time_limit',
+                 shrinkingPeriod='shrinking_period', cacheSize=None, verbose=None,
+                 logObjective=None)
+    return {names[k]: v for k, v in params_smo.items() if names.get(k)}
+
+
 def solve_twostep(prob, params_smo, params_newton, verbose=0):
-    args = dict(
-        x=prob._x.tolist(),
-        y=prob._y.tolist(),
-        w=prob._w.tolist(),
-        gamma=1.0,
-        lmbda=prob.lmbda,
-        **params_smo,
-    )
-    if hasattr(prob, 'smoothingParam'):
-        args['smoothingParam'] = prob.smoothingParam
-    if hasattr(prob, 'maxAsum'):
-        args['maxAsum'] = prob.maxAsum
+    opts = _smo_options(params_smo)
+    gamma = prob.kernel_param.get('gamma', 1.0)
+    w = np.ascontiguousarray(prob._w, dtype=float)
+    max_asum = prob.maxAsum if np.isfinite(prob.maxAsum) else None
 
     t0 = time.time()
     if params_smo.get('maxSteps') == 0:
         result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
+    elif isinstance(prob, Classification):
+        x = np.ascontiguousarray(prob._x, dtype=float)
+        res = svm_smo.solve_classification(
+            x, np.ascontiguousarray(prob._y, dtype=float), prob.lmbda, gamma=gamma, weights=w,
+            shift=prob.shift, smoothing=prob.smoothingParam, max_asum=max_asum, **opts)
+        result = dict(a=res.alpha, b=res.b, c=res.c)
+    elif isinstance(prob, Regression):
+        x = np.ascontiguousarray(prob._x[:prob.n], dtype=float)
+        res = svm_smo.solve_regression(
+            x, np.ascontiguousarray(prob._y, dtype=float), prob.lmbda, gamma=gamma, weights=w,
+            epsilon=prob.epsilon, smoothing=prob.smoothingParam, max_asum=max_asum, **opts)
+        result = dict(a=res.alpha, b=res.b, c=res.c)
+    elif isinstance(prob, (LSSVR, PoissonSVM, ApproxPoissonSVM)):
+        result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
     else:
-        if isinstance(prob, Classification):
-            result = nimsmo.solveClassification(**args, shrinkingPeriod=len(args['y']), shift=prob.shift)
-        elif isinstance(prob, Regression):
-            result = nimsmo.solveRegression(**args, shrinkingPeriod=len(args['y']), epsilon=prob.epsilon)
-        elif isinstance(prob, LSSVR) or isinstance(prob, PoissonSVM) or isinstance(prob, ApproxPoissonSVM):
-            result = dict(a=np.zeros(prob.size), b=0.0, c=0.0)
-        else:
-            raise ValueError('unknown problem')
+        raise ValueError('unknown problem')
     dt_smo = time.time() - t0
     if verbose > 0:
         print(f't(SMO) = {dt_smo:10.1f}s')
