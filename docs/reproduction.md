@@ -36,7 +36,19 @@ Test MSE / MAE in original units; thesis values in parentheses.
 | | LS-SVM | 7.51 (6.63) | 1.92 (1.82) |
 
 pyrim and triazines match or improve on the thesis values (the random splits differ). For mpg
-the errors are about 15 % (MSE) higher in all four models; the cause is still open (candidates:
-different splits, a different local minimum of the CV error, feature preprocessing). The larger
+the errors are about 15 % (MSE) higher in all four models. Diagnosis (ε = 0.1, 392 samples):
+
+- *Not the optimizer.* A dense `GridSearchCV` over (C, γ) with the same standardization and
+  absolute-error CV reaches the same test error on the same 30 splits (MSE 7.84 ± 0.36 vs.
+  7.76 ± 0.40, paired difference −0.09 ± 0.18), so the gradient method does not get stuck in a
+  poor local minimum.
+- *Split noise is large.* The per-split MSE has a standard deviation of about 2; the mean over
+  30 splits therefore varies by roughly ±0.4 (two disjoint sets of 30 splits gave 7.24 and 8.07).
+  On 60 further splits the optimizer yields 7.65 ± 0.35, a fixed-parameter SVR on 1000 splits 7.07.
+  The thesis value 6.50 lies about 2 standard errors below our estimate.
+
+Hence the gap is mostly attributable to the random splits (the thesis splits are not
+reproducible); a remaining systematic difference (dataset version, preprocessing details) cannot
+be excluded but there is no evidence for a defect. The larger
 datasets (housing, space_ga, abalone, cpusmall) are still to be run with 30 splits; a preliminary
 run with 5 splits gave values close to the thesis for housing.
