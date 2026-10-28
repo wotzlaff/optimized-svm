@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      # svm-smo is built from source until it is published on PyPI
+      - uses: actions/checkout@v4
+        with:
+          repository: wotzlaff/svm-smo
+          path: svm-smo
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: |
+          uv venv
+          uv pip install ./svm-smo
+          uv pip install --no-sources -e . pytest cvxpy ruff
+      - run: uv run --no-sync ruff check src tests examples benchmarks
+      - run: uv run --no-sync pytest -q
+
+  docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: wotzlaff/svm-smo
+          path: svm-smo
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v6
+      - name: Build documentation
+        run: |
+          uv venv
+          uv pip install ./svm-smo
+          uv pip install --no-sources -e . mkdocs-material "mkdocstrings[python]"
+          uv run --no-sync mkdocs build --strict
+      - name: Deploy to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
