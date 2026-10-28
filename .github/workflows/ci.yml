@@ -20,8 +20,9 @@ jobs:
       - name: Install
         run: |
           uv venv
-          uv pip install -e . pytest cvxpy ruff
+          uv pip install -e . pytest cvxpy ruff mypy
       - run: uv run --no-sync ruff check src tests examples benchmarks
+      - run: uv run --no-sync mypy src
       - run: uv run --no-sync pytest -q
 
   docs:

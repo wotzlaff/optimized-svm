@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from numbers import Integral, Real
 from typing import Any
@@ -33,6 +34,7 @@ from .losses import (
     SquaredLoss,
 )
 from .problem import TrainingProblem
+from .smooth_max import Degree
 from .training import train
 from .validation import (
     PoissonValidation,
@@ -216,7 +218,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         scaling: float | ArrayLike | str = "auto",
         blocks: Any = None,
         smoothing: float = 0.5,
-        degree: str = "2",
+        degree: Degree = "2",
         shift: float = 1.0,
         max_asum: float | None = None,
         class_weight: Any = None,
@@ -240,6 +242,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
     def fit(self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None) -> SmoothSVC:
         self._check_params()
         x, y = validate_data(self, X, y, dtype=np.float64)
+        y = np.asarray(y)
         if _fit_one_vs_rest(self, x, y, sample_weight):
             return self
         labels, w = _binary_labels(self, y, x, sample_weight)
@@ -347,7 +350,7 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
         scaling: float | ArrayLike | str = "auto",
         blocks: Any = None,
         smoothing: float = 0.5,
-        degree: str = "2",
+        degree: Degree = "2",
         max_asum: float | None = None,
         normalize_y: bool = True,
         smo_options: dict[str, Any] | None = None,
@@ -384,6 +387,7 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
     def fit(self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None) -> SmoothSVR:
         self._check_params()
         x, y = validate_data(self, X, y, dtype=np.float64, y_numeric=True)
+        y = np.asarray(y, dtype=np.float64)
         w = _weights(sample_weight, x)
         self._loss()  # validates `loss`
         if self.loss in ("poisson", "approx_poisson") and np.any(y < 0):
@@ -409,6 +413,25 @@ class _Timeout(Exception):
 class _OptimizedMixin:
     """L-BFGS-B on the cross-validation error w.r.t. ``(log lam, log scalings)``."""
 
+    # hyperparameters, set by the concrete estimators
+    lam_init: float
+    scaling_init: float | str
+    blocks: Any
+    two_stage: bool
+    cv: Any
+    lam_bounds: tuple[float, float]
+    scaling_bounds: tuple[float, float]
+    time_limit: float | None
+    max_iter: int
+    tol: float
+    random_state: int | None
+    verbose: int
+    warm_start: bool
+    max_asum: float | None
+    smo_options: dict[str, Any] | None
+    newton_options: dict[str, Any] | None
+    _loss: Callable[[], Loss]
+
     def _validation(self) -> ValidationLoss:
         raise NotImplementedError
 
@@ -427,7 +450,7 @@ class _OptimizedMixin:
         lam_bounds = np.log(self.lam_bounds)
         s_bounds = np.log(self.scaling_bounds)
         smo_options = dict(self.smo_options or {})
-        warm: list[Array | None] = [None] * len(folds) if self.warm_start else None
+        warm: list[Array | None] | None = [None] * len(folds) if self.warm_start else None
 
         def run_stage(blocks: Blocks, theta0: Array) -> Array:
             def fun(theta: Array) -> tuple[float, Array]:
@@ -572,7 +595,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         verbose: int = 0,
         warm_start: bool = True,
         smoothing: float = 0.5,
-        degree: str = "2",
+        degree: Degree = "2",
         shift: float = 1.0,
         max_asum: float | None = None,
         class_weight: Any = None,
@@ -603,11 +626,11 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         self.newton_options = newton_options
 
     @property
-    def lam(self) -> float:  # used by the fixed-parameter base class
+    def lam(self) -> float:  # type: ignore[override]  # used by the fixed-parameter base class
         return getattr(self, "lam_", self.lam_init)
 
     @property
-    def scaling(self) -> Any:
+    def scaling(self) -> Any:  # type: ignore[override]
         return getattr(self, "scaling_opt_", self.scaling_init)
 
     def _validation(self) -> ValidationLoss:
@@ -621,6 +644,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         for name in ("lam_", "scaling_opt_"):
             self.__dict__.pop(name, None)
         x, y = validate_data(self, X, y, dtype=np.float64)
+        y = np.asarray(y)
         if _fit_one_vs_rest(self, x, y, sample_weight):
             return self
         labels, w = _binary_labels(self, y, x, sample_weight)
@@ -666,7 +690,7 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         verbose: int = 0,
         warm_start: bool = True,
         smoothing: float = 0.5,
-        degree: str = "2",
+        degree: Degree = "2",
         max_asum: float | None = None,
         normalize_y: bool = True,
         validation: str | None = None,
@@ -699,11 +723,11 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         self.newton_options = newton_options
 
     @property
-    def lam(self) -> float:
+    def lam(self) -> float:  # type: ignore[override]
         return getattr(self, "lam_", self.lam_init)
 
     @property
-    def scaling(self) -> Any:
+    def scaling(self) -> Any:  # type: ignore[override]
         return getattr(self, "scaling_opt_", self.scaling_init)
 
     def _validation(self) -> ValidationLoss:
@@ -726,6 +750,7 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         for name in ("lam_", "scaling_opt_"):
             self.__dict__.pop(name, None)
         x, y = validate_data(self, X, y, dtype=np.float64, y_numeric=True)
+        y = np.asarray(y, dtype=np.float64)
         w = _weights(sample_weight, x)
         self._loss()
         self.label_scaler_ = _LabelScaler(self._label_mode()).fit(y)

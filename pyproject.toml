@@ -50,3 +50,7 @@ known-first-party = ["optimized_svm"]
 [tool.mypy]
 python_version = "3.10"
 ignore_missing_imports = true
+strict = true
+# numpy/scipy/scikit-learn are only partially typed: Any results and Any base classes are expected
+warn_return_any = false
+disallow_subclassing_any = false

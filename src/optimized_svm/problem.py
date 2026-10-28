@@ -76,7 +76,9 @@ class TrainingProblem:
 
     def sample_coefficients(self, a: Array) -> Array:
         """Coefficients per sample ``beta_k = sum_{l: k(l) = k} a_l``."""
-        return np.bincount(self.terms.kernel_index, weights=a, minlength=self.n_samples)
+        return np.bincount(self.terms.kernel_index, weights=a, minlength=self.n_samples).astype(
+            np.float64
+        )
 
     def ka(self, a: Array) -> Array:
         """``K a / lam`` per loss term (computed via the sample coefficients)."""

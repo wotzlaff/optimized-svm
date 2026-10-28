@@ -42,7 +42,7 @@ def residual(prob: TrainingProblem, a: Array, b: float, c: float, ka: Array, use
     g = prob.loss.d1(prob.decision(b, c, ka), prob.terms)
     res = float(np.mean((a + g) ** 2) + g.sum() ** 2)
     if use_c:
-        res += float(g @ prob.sign + prob.max_asum) ** 2
+        res += float(g @ prob.sign + (prob.max_asum or 0.0)) ** 2
     return res
 
 
@@ -63,7 +63,7 @@ def _newton_direction(
     if use_c:
         s = prob.sign
         cols.append(s[p])
-        rhs0.append(a @ s - prob.max_asum - s[z] @ da[z])
+        rhs0.append(a @ s - (prob.max_asum or 0.0) - s[z] @ da[z])
     d_p, v = solve_bordered(q, np.stack(cols, axis=1), rhs, np.array(rhs0))
     da[p] = d_p
     return da, float(v[0]), float(v[1]) if use_c else 0.0
@@ -98,7 +98,7 @@ def newton(
         g = prob.loss.d1(dec, prob.terms)
         r = a + g
         res = float(np.mean(r**2) + g.sum() ** 2)
-        grad_c = float(g @ prob.sign + prob.max_asum) if use_c else 0.0
+        grad_c = float(g @ prob.sign + (prob.max_asum or 0.0)) if use_c else 0.0
         res += grad_c**2
         if verbose:
             print(f"[newton {step:3d}] f = {obj:.10g}, residual = {res:.3e}")
@@ -168,7 +168,7 @@ def smo_warm_start(
     unknown = set(options) - _SMO_OPTIONS
     if unknown:
         raise ValueError(f"unknown SMO options: {sorted(unknown)}")
-    loss = prob.loss
+    loss: Any = prob.loss  # `smoothing`, `shift`, `epsilon` depend on the loss class
     if loss.smo_kind is None:
         return np.zeros(prob.size), 0.0, 0.0, 0
     common = dict(gamma=1.0, weights=prob.w, smoothing=loss.smoothing, max_asum=prob.max_asum)
