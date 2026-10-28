@@ -72,6 +72,13 @@ Five of the seven datasets match the thesis or are slightly better (the random s
   10-fold CV of the OpenML tasks (3/5/10 inner folds). A 10-fold CV of a `KernelRidge` grid on the
   LIBSVM data gives MAE 1.87 (mpg) and 2.09 (housing), close to our values.
 
+- *The old code does not reproduce the splits.* The 2018/19 prototype `hpo4svm` draws its splits
+  with `np.random.seed(42)` and `np.random.permutation`; replaying that sequence on the LIBSVM
+  files (datasets in the order pyrim, triazines, mpg, housing) does not reproduce Table 10.4.1
+  (pyrim LS-SVM MSE 0.0100 instead of 0.0060, mpg 8.37 instead of 6.63). That script is a later
+  experiment (3-fold CV, different bounds); the script that produced the table and the input files
+  (`~/daten/regression/<name>/data.mat`) are not available.
+
 The cause of the deviation remains open. Remaining candidates are the exact data set versions
 and preprocessing used in the thesis (not documented there; the protocol is adopted from
 Fischer et al., *Optim. Methods Softw.* 30(6), 2015) and the specific random splits.
