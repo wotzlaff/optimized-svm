@@ -137,15 +137,34 @@ def newton(
             raise ConvergenceError(f"no descent step found (residual {res:.3e})")
     # recompute ka from scratch to remove accumulated rounding errors
     ka = prob.ka(a)
-    return Solution(a, float(b), float(c), ka, residual(prob, a, b, c, ka, use_c), newton_steps=step)
+    return Solution(
+        a, float(b), float(c), ka, residual(prob, a, b, c, ka, use_c), newton_steps=step
+    )
 
 
-_SMO_OPTIONS = {"tol", "max_steps", "time_limit", "working_set", "two_sided", "shrinking",
-                "shrinking_period", "cache_size_mb"}
+#: SMO tolerance used before a Newton refinement
+ROUGH_SMO_TOL = 0.1
+
+_SMO_OPTIONS = {
+    "tol",
+    "max_steps",
+    "time_limit",
+    "working_set",
+    "two_sided",
+    "shrinking",
+    "shrinking_period",
+    "cache_size_mb",
+}
 
 
-def smo_warm_start(prob: TrainingProblem, **options: Any) -> tuple[Array, float, float, int]:
-    """Solves the dual with quadratic smoothing by SMO (``svm_smo``); zeros if not applicable."""
+def smo_warm_start(
+    prob: TrainingProblem, alpha0: Array | None = None, **options: Any
+) -> tuple[Array, float, float, int]:
+    """Solves the dual with quadratic smoothing by SMO (``svm_smo``); zeros if not applicable.
+
+    ``alpha0`` (e.g. the solution for neighbouring hyperparameters) is used as starting point
+    if it is feasible.
+    """
     unknown = set(options) - _SMO_OPTIONS
     if unknown:
         raise ValueError(f"unknown SMO options: {sorted(unknown)}")
@@ -153,39 +172,86 @@ def smo_warm_start(prob: TrainingProblem, **options: Any) -> tuple[Array, float,
     if loss.smo_kind is None:
         return np.zeros(prob.size), 0.0, 0.0, 0
     common = dict(gamma=1.0, weights=prob.w, smoothing=loss.smoothing, max_asum=prob.max_asum)
-    if loss.smo_kind == "classification":
-        res = svm_smo.solve_classification(prob.x, prob.y, prob.lam, shift=loss.shift,
-                                           **common, **options)
-    else:
-        res = svm_smo.solve_regression(prob.x, prob.y, prob.lam, epsilon=loss.epsilon,
-                                       **common, **options)
+
+    def run(start: Array | None) -> Any:
+        if loss.smo_kind == "classification":
+            return svm_smo.solve_classification(
+                prob.x, prob.y, prob.lam, shift=loss.shift, alpha0=start, **common, **options
+            )
+        return svm_smo.solve_regression(
+            prob.x, prob.y, prob.lam, epsilon=loss.epsilon, alpha0=start, **common, **options
+        )
+
+    res = None
+    if alpha0 is not None:
+        start = _feasible_start(prob, alpha0)
+        if start is not None:
+            try:
+                res = run(start)
+            except ValueError:
+                res = None
+    if res is None:
+        res = run(None)
     return np.asarray(res.alpha), res.b, res.c, res.steps
+
+
+def _feasible_start(prob: TrainingProblem, alpha0: Array) -> Array | None:
+    """Projects a previous solution onto the box and repairs ``sum(a) = 0``; ``None`` if this
+    fails (e.g. different problem size)."""
+    if alpha0.shape != (prob.size,):
+        return None
+    t = prob.terms
+    lo = np.where(t.sign > 0, 0.0, -t.w) if prob.loss.signed else np.full(prob.size, -np.inf)
+    hi = np.where(t.sign > 0, t.w, 0.0) if prob.loss.signed else np.full(prob.size, np.inf)
+    a = np.clip(alpha0, lo, hi)
+    if prob.max_asum is not None and (t.sign * a).sum() > prob.max_asum:
+        a = a * (prob.max_asum / (t.sign * a).sum()) * (1 - 1e-12)
+    # distribute the violation of sum(a) = 0 over variables with room in that direction
+    excess = a.sum()
+    room = (a - lo) if excess > 0 else (hi - a)
+    total = room.sum()
+    if not total > abs(excess):
+        return None
+    a = a - excess * room / total
+    if prob.max_asum is not None and (t.sign * a).sum() > prob.max_asum:
+        return None
+    return np.ascontiguousarray(a)
 
 
 def train(
     prob: TrainingProblem,
     smo_options: dict[str, Any] | None = None,
     newton_options: dict[str, Any] | None = None,
+    alpha0: Array | None = None,
 ) -> Solution:
     """Two-step training: SMO warm start followed by Newton refinement.
 
     For non-smooth losses (``smoothing = 0``) the SMO solution is already exact; for losses
     without SMO formulation (squared, Poisson) Newton starts at zero.
     """
+    smo_options = dict(smo_options or {})
+    smooth = getattr(prob.loss, "smoothing", 1.0) > 0.0
+    if smooth:
+        # Newton refines the solution, so a rough SMO solution suffices as starting point
+        smo_options.setdefault("tol", ROUGH_SMO_TOL)
     t0 = time.perf_counter()
-    a, b, c, smo_steps = smo_warm_start(prob, **(smo_options or {}))
+    a, b, c, smo_steps = smo_warm_start(prob, alpha0, **smo_options)
     t_smo = time.perf_counter() - t0
     t0 = time.perf_counter()
-    if getattr(prob.loss, "smoothing", 1.0) == 0.0:
+    if not smooth:
         sol = Solution(a, b, c, prob.ka(a))
     else:
         try:
             sol = newton(prob, a, b, c, **(newton_options or {}))
+            if prob.max_asum is not None and sol.c < 0.0:
+                # the constraint is inactive at the solution: solve without it
+                sol = newton(prob, sol.a, sol.b, 0.0, **(newton_options or {}))
         except ConvergenceError:
+            # fall back to an accurate SMO solution (exact for quadratic smoothing)
+            smo_options["tol"] = 1e-6
+            a, b, c, more = smo_warm_start(prob, a, **smo_options)
+            smo_steps += more
             sol = Solution(a, b, c, prob.ka(a), info={"newton": "failed"})
-        if prob.max_asum is not None and sol.c < 0.0:
-            # the constraint is inactive at the solution: solve without it
-            sol = newton(prob, sol.a, sol.b, 0.0, **(newton_options or {}))
     sol.smo_steps = smo_steps
     sol.time_smo = t_smo
     sol.time_newton = time.perf_counter() - t0

@@ -162,7 +162,9 @@ class ApproxPoissonLoss(Loss):
     def value(self, t: Array, terms: Terms) -> Array:
         pos = t > 0.0
         with np.errstate(over="ignore"):
-            r = np.where(pos, np.exp(np.where(pos, t, 0.0)) - (terms.y + 1.0) * t - 1.0, -terms.y * t)
+            r = np.where(
+                pos, np.exp(np.where(pos, t, 0.0)) - (terms.y + 1.0) * t - 1.0, -terms.y * t
+            )
         return terms.w * (r + gammaln(terms.y + 1))
 
     def d1(self, t: Array, terms: Terms) -> Array:

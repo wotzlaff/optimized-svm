@@ -7,7 +7,8 @@ conditions ``a_l + phi_l'(ka_l + b + s_l c) = 0``, ``sum(a) = 0`` (and ``s^T a =
 terms with positive curvature ``h_l = phi_l''`` react to parameter changes. Instead of the
 ``K`` forward sensitivities, a single *adjoint* system is solved per fold:
 
-``[[K_PP / lam + diag(1 / h_P), 1, s_P], [1^T, 0, 0], [s_P^T, 0, 0]] [u; .] = [K_VP^T dE / lam; sum dE; 0]``
+``[[K_PP / lam + diag(1 / h_P), 1, s_P], [1^T, 0, 0], [s_P^T, 0, 0]] [u; .]``
+``= [K_VP^T dE / lam; sum dE; 0]``
 
 after which ``dE/dtheta = -u^T (d ka_P / dtheta) + dE^T (d f_V / dtheta)`` with ``a`` fixed.
 """
@@ -54,13 +55,14 @@ def fold_error_and_gradient(
     max_asum: float | None = None,
     smo_options: dict[str, Any] | None = None,
     newton_options: dict[str, Any] | None = None,
+    alpha0: Array | None = None,
 ) -> FoldResult:
     """Validation error of one fold and its gradient w.r.t. ``(log lam, log s_k)``.
 
     ``x_train``/``x_val`` must already be scaled.
     """
     prob = TrainingProblem(x_train, y_train, loss, lam, w_train, max_asum)
-    sol = train(prob, smo_options, newton_options)
+    sol = train(prob, smo_options, newton_options, alpha0)
     a = sol.a
     sv = np.flatnonzero(a)
     a_sv = a[sv] / lam
@@ -114,17 +116,36 @@ def cv_error_and_gradient(
     max_asum: float | None = None,
     smo_options: dict[str, Any] | None = None,
     newton_options: dict[str, Any] | None = None,
+    warm_start: list[Array | None] | None = None,
 ) -> CVResult:
-    """Mean validation error over all folds and its gradient w.r.t. ``theta``."""
+    """Mean validation error over all folds and its gradient w.r.t. ``theta``.
+
+    ``warm_start`` is a list with one (possibly ``None``) start vector per fold; it is updated
+    in place with the new solutions.
+    """
     lam = float(np.exp(theta[0]))
     xs = scale_features(x, np.exp(theta[1:]), blocks)
     total, grad, results = 0.0, np.zeros_like(theta, dtype=np.float64), []
     n_val = 0
-    for train_idx, val_idx in folds:
+    for i, (train_idx, val_idx) in enumerate(folds):
+        start = warm_start[i] if warm_start is not None else None
         res = fold_error_and_gradient(
-            xs[train_idx], y[train_idx], w[train_idx], xs[val_idx], y[val_idx],
-            loss, validation, lam, blocks, max_asum, smo_options, newton_options,
+            xs[train_idx],
+            y[train_idx],
+            w[train_idx],
+            xs[val_idx],
+            y[val_idx],
+            loss,
+            validation,
+            lam,
+            blocks,
+            max_asum,
+            smo_options,
+            newton_options,
+            start,
         )
+        if warm_start is not None:
+            warm_start[i] = res.solution.a
         total += res.error
         grad += res.gradient
         n_val += len(val_idx)
