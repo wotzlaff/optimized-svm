@@ -22,7 +22,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from .kernels import Blocks, n_blocks, rbf, rbf_with_gradient, scale_features
+from .kernels import Blocks, contract_gradient, rbf, rbf_parts, scale_features
 from .linalg import solve_bordered
 from .losses import Loss
 from .problem import TrainingProblem
@@ -69,20 +69,20 @@ def fold_error_and_gradient(
     x_terms = prob.x[prob.terms.kernel_index]
 
     # validation predictions and explicit derivatives (a fixed)
-    k_val_sv, dk_val_sv = rbf_with_gradient(x_val, x_terms[sv], blocks)
+    k_val_sv, d_val_sv = rbf_parts(x_val, x_terms[sv], blocks)
     ka_val = k_val_sv @ a_sv
     f_val = ka_val + sol.b
     err, d_err = validation(f_val, y_val)
-    grad = np.zeros(1 + n_blocks(blocks))
+    grad = np.zeros(1 + len(d_val_sv))
     grad[0] = -d_err @ ka_val
-    grad[1:] = a_sv @ np.tensordot(d_err, dk_val_sv, axes=(0, 0))
+    grad[1:] = contract_gradient(k_val_sv, d_val_sv, d_err, a_sv)
 
     # implicit part: adjoint system on terms with positive curvature
     dec = prob.decision(sol.b, sol.c, sol.ka)
     h = prob.loss.d2(dec, prob.terms)
     p = np.flatnonzero(h > 0.0)
     if p.size > 0:
-        _, dk_p_sv = rbf_with_gradient(x_terms[p], x_terms[sv], blocks)
+        k_p_sv, d_p_sv = rbf_parts(x_terms[p], x_terms[sv], blocks)
         q = prob.kernel(p, p) / lam + np.diag(1.0 / h[p])
         cols = [np.ones(p.size)]
         rhs0 = [d_err.sum()]
@@ -93,7 +93,7 @@ def fold_error_and_gradient(
         u, _ = solve_bordered(q, np.stack(cols, axis=1), k_val_p.T @ d_err / lam, np.array(rhs0))
         # d ka_P / d log lam = -ka_P,  d ka_P / d log s_k = dK_{P,SV} a_SV / lam
         grad[0] += u @ sol.ka[p]
-        grad[1:] -= a_sv @ np.tensordot(u, dk_p_sv, axes=(0, 0))
+        grad[1:] -= contract_gradient(k_p_sv, d_p_sv, u, a_sv)
     return FoldResult(err, grad, sol, int(sv.size), sol.time_smo + sol.time_newton)
 
 

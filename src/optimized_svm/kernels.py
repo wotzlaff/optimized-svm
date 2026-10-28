@@ -43,6 +43,25 @@ def rbf_with_gradient(x: Array, z: Array, blocks: Blocks = None) -> tuple[Array,
     return k, -2.0 * k[:, :, None] * np.stack(parts, axis=-1)
 
 
+def rbf_parts(x: Array, z: Array, blocks: Blocks = None) -> tuple[Array, list[Array]]:
+    """Kernel matrix and the squared distances of each block (features already scaled)."""
+    if blocks is None:
+        d = squared_distances(x, z)
+        return np.exp(-d), [d]
+    parts = [squared_distances(x[:, list(b)], z[:, list(b)]) for b in blocks]
+    return np.exp(-sum(parts)), parts
+
+
+def contract_gradient(k: Array, parts: list[Array], left: Array, right: Array) -> Array:
+    """Bilinear forms ``left^T (dK / d log s_k) right`` with ``dK_k = -2 K * |x_Bk - z_Bk|^2``.
+
+    Same as contracting the output of :func:`rbf_with_gradient`, but without forming the
+    ``(n, m, n_blocks)`` tensor.
+    """
+    w = k * left[:, None] * right[None, :]
+    return np.array([-2.0 * float(np.vdot(w, part)) for part in parts])
+
+
 def n_blocks(blocks: Blocks) -> int:
     return 1 if blocks is None else len(blocks)
 
