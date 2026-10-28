@@ -15,7 +15,7 @@ The methods are developed in
 > Support Vector Machines*, Dissertation, Technische Universität Dresden, 2023.
 > [urn:nbn:de:bsz:14-qucosa2-874731](https://nbn-resolving.org/urn:nbn:de:bsz:14-qucosa2-874731)
 
-Training uses the Rust SMO solver [`svm-smo`](https://github.com/wotzlaff/svm-smo) as a warm start
+Training uses the Rust SMO solver [`smo-solver`](https://github.com/wotzlaff/smo-solver) as a warm start
 followed by a semismooth Newton method on the smoothed primal problem.
 
 ## Features
@@ -35,10 +35,10 @@ followed by a semismooth Newton method on the smoothed primal problem.
 pip install optimized-svm
 ```
 
-During development (sibling checkout of `svm-smo`, Rust toolchain required):
+During development (sibling checkout of `smo-solver`, Rust toolchain required):
 
 ```bash
-git clone https://github.com/wotzlaff/svm-smo
+git clone https://github.com/wotzlaff/smo-solver
 git clone https://github.com/wotzlaff/optimized-svm && cd optimized-svm
 uv sync --group dev
 uv run pytest
@@ -67,7 +67,7 @@ with comparable test accuracy (0.844 vs. 0.856).
 
 | step | method | thesis |
 |---|---|---|
-| training, warm start | SMO on the dual with quadratic smoothing (`svm-smo`) | Ch. 7 |
+| training, warm start | SMO on the dual with quadratic smoothing (`smo-solver`) | Ch. 7 |
 | training, refinement | semismooth Newton on `a + φ'(Ka/λ + b + sc) = 0` | Ch. 8.4 |
 | CV error gradient | implicit function theorem, adjoint system per fold | Ch. 9.2 |
 | hyperparameter search | L-BFGS-B over `(log λ, log s₁, …, log s_K)` | Ch. 9.1, 10.4 |

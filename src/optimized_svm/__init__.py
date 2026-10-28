@@ -1,6 +1,6 @@
 """Support vector machines with hyperparameters optimized by exact gradients.
 
-The training problem is solved by SMO (``svm_smo``) followed by a semismooth Newton method;
+The training problem is solved by SMO (``smo_solver``) followed by a semismooth Newton method;
 regularization and kernel scalings are tuned by minimising a cross-validation error whose
 gradient is obtained from the implicit function theorem (Strasdat, Ch. 8 and 9).
 """

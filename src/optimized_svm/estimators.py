@@ -189,7 +189,7 @@ _SMOOTH_DOC = """
     max_asum : float, optional
         Bound on ``sum |alpha|`` (generalised nu-SVM).
     smo_options, newton_options : dict, optional
-        Options of :func:`svm_smo.solve_classification` / :func:`optimized_svm.training.newton`.
+        Options of :func:`smo_solver.solve_classification` / :func:`optimized_svm.training.newton`.
 """
 
 

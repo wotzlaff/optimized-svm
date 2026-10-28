@@ -5,7 +5,7 @@
 Complete overhaul of the 2022 code (tag `legacy-2022`).
 
 ### Changed
-- training backend: Rust solver `svm-smo` instead of the Nim package `nimsmo`
+- training backend: Rust solver `smo-solver` instead of the Nim package `nimsmo`
 - new package layout (`src/`), `pyproject.toml`, snake_case API, scikit-learn compatible
   estimators `SmoothSVC`, `SmoothSVR`, `OptimizedSVC`, `OptimizedSVR`
 - adjoint formulation of the hypergradient (one linear system per fold)

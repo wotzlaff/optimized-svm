@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import svm_smo
+import smo_solver
 
 from optimized_svm import (
     ApproxPoissonLoss,
@@ -44,7 +44,7 @@ def test_newton_matches_exact_smo_for_quadratic_smoothing(data):
     x, y, _, _ = data
     loss = HingeLoss(smoothing=0.4)
     prob = TrainingProblem(0.6 * x, y, loss, 0.02)
-    ref = svm_smo.solve_classification(prob.x, y, 0.02, gamma=1.0, smoothing=0.4, tol=1e-10)
+    ref = smo_solver.solve_classification(prob.x, y, 0.02, gamma=1.0, smoothing=0.4, tol=1e-10)
     # Newton from zero (no SMO warm start)
     sol = newton(prob, np.zeros(prob.size), 0.0, 0.0)
     np.testing.assert_allclose(sol.a, ref.alpha, atol=1e-7)

@@ -37,7 +37,7 @@ class Terms:
 class Loss:
     """Base class: per-term loss ``phi_l(t)`` and its derivatives."""
 
-    #: whether the dual of this loss can be solved by ``svm_smo`` (as warm start)
+    #: whether the dual of this loss can be solved by ``smo_solver`` (as warm start)
     smo_kind: str | None = None
     #: whether the 1-norm constraint is meaningful (non-zero signs)
     signed: bool = False

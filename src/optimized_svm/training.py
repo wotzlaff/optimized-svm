@@ -1,4 +1,4 @@
-"""Two-step training: SMO warm start (``svm_smo``) and Newton refinement (Strasdat, Ch. 8.4)."""
+"""Two-step training: SMO warm start (``smo_solver``) and Newton refinement (Strasdat, Ch. 8.4)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-import svm_smo
+import smo_solver
 from numpy.typing import NDArray
 
 from .linalg import solve_bordered
@@ -160,7 +160,7 @@ _SMO_OPTIONS = {
 def smo_warm_start(
     prob: TrainingProblem, alpha0: Array | None = None, **options: Any
 ) -> tuple[Array, float, float, int]:
-    """Solves the dual with quadratic smoothing by SMO (``svm_smo``); zeros if not applicable.
+    """Solves the dual with quadratic smoothing by SMO (``smo_solver``); zeros if not applicable.
 
     ``alpha0`` (e.g. the solution for neighbouring hyperparameters) is used as starting point
     if it is feasible.
@@ -175,10 +175,10 @@ def smo_warm_start(
 
     def run(start: Array | None) -> Any:
         if loss.smo_kind == "classification":
-            return svm_smo.solve_classification(
+            return smo_solver.solve_classification(
                 prob.x, prob.y, prob.lam, shift=loss.shift, alpha0=start, **common, **options
             )
-        return svm_smo.solve_regression(
+        return smo_solver.solve_regression(
             prob.x, prob.y, prob.lam, epsilon=loss.epsilon, alpha0=start, **common, **options
         )
 

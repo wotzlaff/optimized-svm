@@ -34,7 +34,7 @@ solves exactly. The higher degree variants ("3", "6") are $C^2$.
 
 ## Two-step training
 
-1. **SMO** (`svm-smo`) solves the dual with quadratic smoothing to a rough tolerance
+1. **SMO** (`smo-solver`) solves the dual with quadratic smoothing to a rough tolerance
    (Ch. 7). Working set selection uses second-order information and shrinking removes
    variables fixed at their bounds.
 2. **Semismooth Newton** (Ch. 8.4) solves the optimality system of the actual (possibly
