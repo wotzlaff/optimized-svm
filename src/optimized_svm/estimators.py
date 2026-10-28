@@ -17,7 +17,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import minimize
-from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
+from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import _check_sample_weight, check_is_fitted, validate_data
@@ -240,16 +240,54 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
     def fit(self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None) -> SmoothSVC:
         self._check_params()
         x, y = validate_data(self, X, y, dtype=np.float64)
+        if _fit_one_vs_rest(self, x, y, sample_weight):
+            return self
         labels, w = _binary_labels(self, y, x, sample_weight)
         self._fit_model(x, labels, w)
         return self
 
     def decision_function(self, X: ArrayLike) -> Array:
-        """Signed decision values; positive values predict ``classes_[1]``."""
-        return self._decision(X)
+        """Signed decision values: shape ``(n,)`` for two classes (positive values predict
+        ``classes_[1]``), otherwise ``(n, n_classes)`` (one-vs-rest)."""
+        return _ovr_decision(self, X)
 
     def predict(self, X: ArrayLike) -> NDArray[Any]:
-        return self.classes_[(self.decision_function(X) > 0).astype(int)]
+        return _ovr_predict(self, X)
+
+
+def _fit_one_vs_rest(est: Any, x: Array, y: Array, sample_weight: ArrayLike | None) -> bool:
+    """Fits one binary clone per class if there are more than two classes."""
+    check_classification_targets(y)
+    classes = np.unique(y)
+    est.estimators_ = None
+    if classes.size <= 2:
+        return False
+    est.classes_ = classes
+    w = _weights(sample_weight, x)
+    if isinstance(est.class_weight, dict):
+        w = w * np.array([est.class_weight.get(c, 1.0) for c in y])
+    params = {"class_weight": None} if isinstance(est.class_weight, dict) else {}
+    est.estimators_ = [
+        clone(est).set_params(**params).fit(x, (y == c).astype(int), sample_weight=w)
+        for c in classes
+    ]
+    if hasattr(est.estimators_[0], "n_iter_"):
+        est.n_iter_ = max(e.n_iter_ for e in est.estimators_)
+    return True
+
+
+def _ovr_decision(est: Any, X: ArrayLike) -> Array:
+    check_is_fitted(est)
+    if est.estimators_ is None:
+        return est._decision(X)
+    x = validate_data(est, X, reset=False, dtype=np.float64)
+    return np.stack([e.decision_function(x) for e in est.estimators_], axis=1)
+
+
+def _ovr_predict(est: Any, X: ArrayLike) -> NDArray[Any]:
+    dec = _ovr_decision(est, X)
+    idx = (dec > 0).astype(int) if dec.ndim == 1 else dec.argmax(axis=1)
+    return est.classes_[idx]
 
 
 def _binary_labels(
@@ -259,8 +297,7 @@ def _binary_labels(
     est.classes_, yi = np.unique(y, return_inverse=True)
     if est.classes_.size != 2:
         raise ValueError(
-            f"{type(est).__name__} supports binary classification only, got "
-            f"{est.classes_.size} classes; wrap it in sklearn.multiclass.OneVsRestClassifier"
+            f"The number of classes has to be greater than one; got {est.classes_.size} class"
         )
     w = _weights(sample_weight, x)
     if est.class_weight == "balanced":
@@ -356,6 +393,7 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
         return self
 
     def predict(self, X: ArrayLike) -> Array:
+        check_is_fitted(self)
         f = self.label_scaler_.inverse(self._decision(X))
         return np.exp(f) if self.loss in ("poisson", "approx_poisson") else f
 
@@ -442,6 +480,7 @@ class _OptimizedMixin:
                     options={"maxiter": self.max_iter, "ftol": self.tol, "gtol": self.tol},
                 )
                 self.optimize_result_ = result
+                self.n_iter_ = getattr(self, "n_iter_", 0) + int(result.nit)
             except _Timeout:
                 self.optimize_result_ = None
             stage = history[best_before:]
@@ -450,6 +489,7 @@ class _OptimizedMixin:
             best = min(stage, key=lambda h: h["error"])
             return np.log(np.concatenate(([best["lam"]], best["scaling"])))
 
+        self.n_iter_ = 0
         blocks = resolve_blocks(self.blocks, x.shape[1])
         s0 = auto_scaling(x) if self.scaling_init == "auto" else float(self.scaling_init)
         theta = np.log([self.lam_init, s0])
@@ -581,6 +621,8 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         for name in ("lam_", "scaling_opt_"):
             self.__dict__.pop(name, None)
         x, y = validate_data(self, X, y, dtype=np.float64)
+        if _fit_one_vs_rest(self, x, y, sample_weight):
+            return self
         labels, w = _binary_labels(self, y, x, sample_weight)
         self._optimize(x, labels, w)
         self._fit_model(x, labels, w)
