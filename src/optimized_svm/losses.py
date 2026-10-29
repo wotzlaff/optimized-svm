@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.special import gammaln
+from scipy.special import expit, gammaln
 
 from .smooth_max import Degree, smooth_max
 
@@ -80,6 +80,29 @@ class HingeLoss(Loss):
     def d2(self, t: Array, terms: Terms) -> Array:
         ddm = smooth_max(self.smoothing, self.degree)[2]
         return terms.w * ddm(self.shift - terms.y * t)
+
+
+@dataclass(frozen=True)
+class LogisticLoss(Loss):
+    """Logistic loss ``w * log(1 + exp(-y t))`` for ``y`` in ``{-1, +1}`` (Strasdat, Sec. 4.1.3).
+
+    Smooth without a smoothing parameter and strictly convex, but with positive curvature
+    everywhere: the dual solution is dense and the dual is not a separable quadratic, so there is
+    no SMO warm start and every Newton system has the full size ``n``.
+    """
+
+    def terms(self, y: Array, w: Array) -> Terms:
+        return Terms(np.arange(y.size), y, w, np.zeros(y.size))
+
+    def value(self, t: Array, terms: Terms) -> Array:
+        return terms.w * np.logaddexp(0.0, -terms.y * t)
+
+    def d1(self, t: Array, terms: Terms) -> Array:
+        return -terms.w * terms.y * expit(-terms.y * t)
+
+    def d2(self, t: Array, terms: Terms) -> Array:
+        s = expit(-terms.y * t)
+        return terms.w * s * (1.0 - s)
 
 
 @dataclass(frozen=True)

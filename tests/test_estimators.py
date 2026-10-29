@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from sklearn.base import clone
 from sklearn.datasets import make_classification, make_friedman1
+from sklearn.metrics import log_loss
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.pipeline import make_pipeline
@@ -29,8 +30,10 @@ def _expected_failures(est):
         SmoothSVR(),
         SmoothSVR(loss="squared"),
         SmoothSVC(),
+        SmoothSVC(loss="logistic"),
         OptimizedSVR(cv=2, max_iter=2),
         OptimizedSVC(cv=2, max_iter=2),
+        OptimizedSVC(loss="logistic", cv=2, max_iter=2),
     ],
     expected_failed_checks=_expected_failures,
 )
@@ -130,3 +133,49 @@ def test_sklearn_tools(classification):
     again = pickle.loads(pickle.dumps(est))
     np.testing.assert_array_equal(again.decision_function(xb), est.decision_function(xb))
     assert clone(est).get_params()["max_iter"] == 3
+
+
+class TestLogisticClassifier:
+    def test_probabilities_binary(self, classification):
+        xtr, xte, ytr, yte = classification
+        est = SmoothSVC(lam=0.05, loss="logistic").fit(xtr, ytr)
+        proba = est.predict_proba(xte)
+        assert proba.shape == (len(xte), 2)
+        np.testing.assert_allclose(proba.sum(axis=1), 1.0)
+        np.testing.assert_array_equal(est.classes_[proba.argmax(axis=1)], est.predict(xte))
+        np.testing.assert_allclose(proba[:, 1], 1 / (1 + np.exp(-est.decision_function(xte))))
+        assert log_loss(yte, proba) < 0.45
+        assert est.score(xte, yte) > 0.8
+
+    def test_probabilities_multiclass(self):
+        x, y = make_classification(
+            240, 6, n_informative=4, n_classes=3, n_clusters_per_class=1, random_state=0
+        )
+        est = SmoothSVC(lam=0.05, loss="logistic").fit(x, y)
+        proba = est.predict_proba(x)
+        assert proba.shape == (240, 3)
+        np.testing.assert_allclose(proba.sum(axis=1), 1.0)
+        np.testing.assert_array_equal(est.classes_[proba.argmax(axis=1)], est.predict(x))
+
+    def test_predict_proba_only_for_logistic(self, classification):
+        assert not hasattr(SmoothSVC(), "predict_proba")
+        assert not hasattr(OptimizedSVC(), "predict_proba")
+        assert hasattr(OptimizedSVC(loss="logistic"), "predict_proba")
+
+    def test_parameter_validation(self, classification):
+        xtr, _, ytr, _ = classification
+        with pytest.raises(ValueError, match="loss"):
+            SmoothSVC(loss="nope").fit(xtr, ytr)
+        with pytest.raises(ValueError, match="max_asum"):
+            SmoothSVC(loss="logistic", max_asum=5.0).fit(xtr, ytr)
+
+    def test_hyperparameter_optimization(self, classification):
+        xtr, xte, ytr, yte = classification
+        est = OptimizedSVC(loss="logistic", cv=3, max_iter=8).fit(xtr, ytr)
+        errors = [h["error"] for h in est.history_]
+        assert min(errors) < errors[0]
+        proba = est.predict_proba(xte)
+        assert log_loss(yte, proba) < 0.45
+        # more confident than a badly regularised model, i.e. the optimisation did something
+        bad = SmoothSVC(lam=10.0, loss="logistic").fit(xtr, ytr)
+        assert log_loss(yte, proba) < log_loss(yte, bad.predict_proba(xte))

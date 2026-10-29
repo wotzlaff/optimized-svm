@@ -7,12 +7,14 @@ from sklearn.model_selection import KFold
 from optimized_svm import (
     EpsilonInsensitiveLoss,
     HingeLoss,
+    LogisticLoss,
     PoissonLoss,
     SquaredLoss,
     cv_error_and_gradient,
 )
 from optimized_svm.training import Factorization
 from optimized_svm.validation import (
+    LogisticValidation,
     PoissonValidation,
     SmoothAbsoluteValidation,
     SmoothHingeValidation,
@@ -50,6 +52,15 @@ def case(name, data):
             [[0, 1], [2]],
         ),
         "eps-nu": (EpsilonInsensitiveLoss(0.05, 0.3), SmoothAbsoluteValidation(), t, 5.0, None),
+        "logistic": (LogisticLoss(), SmoothHingeValidation(), y, None, None),
+        "logistic-logloss": (LogisticLoss(), LogisticValidation(), y, None, None),
+        "logistic-ard": (
+            LogisticLoss(),
+            SmoothHingeValidation(),
+            y,
+            None,
+            [[0], [1], [2]],
+        ),
         "squared": (SquaredLoss(), SquaredValidation(), t, None, None),
         "poisson": (PoissonLoss(), PoissonValidation(), counts, None, None),
     }[name]
@@ -64,6 +75,9 @@ def case(name, data):
         "hinge-nu",
         "eps3-blocks",
         "eps-nu",
+        "logistic",
+        "logistic-logloss",
+        "logistic-ard",
         "squared",
         "poisson",
     ],

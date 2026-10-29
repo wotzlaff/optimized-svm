@@ -22,8 +22,8 @@ followed by a semismooth Newton method on the smoothed primal problem.
 
 - scikit-learn estimators: `OptimizedSVC`, `OptimizedSVR` (tuned) and `SmoothSVC`, `SmoothSVR`
   (fixed hyperparameters); binary and one-vs-rest classification
-- losses: smoothed hinge, smoothed ε-insensitive, squared (LS-SVM), Poisson; smoothing of degree
-  2, 3 or 6; sample/class weights; optional bound on `Σ|α|` (generalized ν-SVM)
+- losses: smoothed hinge, logistic (with `predict_proba`), smoothed ε-insensitive, squared (LS-SVM),
+  Poisson; smoothing of degree 2, 3 or 6; sample/class weights; optional bound on `Σ|α|` (generalized ν-SVM)
 - exact hypergradients via one adjoint linear system per fold (verified against finite differences)
 - ARD kernels (`blocks="features"`) with two-stage optimization, warm starts, time limits,
   full optimization history
