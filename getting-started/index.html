@@ -643,6 +643,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/logistic_probabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Class probabilities with the logistic loss
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../examples/low_level_api/" class="md-nav__link">
         
   
@@ -896,9 +924,14 @@ search the model is refitted on all data with the best parameters.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>SmoothSVC</code> / <code>OptimizedSVC</code></td>
+<td><code>SmoothSVC</code> / <code>OptimizedSVC</code> (<code>loss="hinge"</code>)</td>
 <td>smoothed hinge <span class="arithmatex">\(w_i\, m_\delta(\text{shift} - y_i f(x_i))\)</span></td>
 <td><code>smoothing</code>, <code>degree</code>, <code>shift</code>, <code>class_weight</code>, <code>max_asum</code></td>
+</tr>
+<tr>
+<td><code>loss="logistic"</code></td>
+<td><span class="arithmatex">\(w_i \log(1 + e^{-y_i f(x_i)})\)</span>, enables <code>predict_proba</code></td>
+<td><code>class_weight</code></td>
 </tr>
 <tr>
 <td><code>SmoothSVR</code> / <code>OptimizedSVR</code> (<code>loss="epsilon_insensitive"</code>)</td>
@@ -917,6 +950,9 @@ search the model is refitted on all data with the best parameters.</p>
 </tr>
 </tbody>
 </table>
+<p>The logistic loss needs no smoothing, but it yields a dense solution and is trained by Newton's method
+only, so every training step solves a system of size <span class="arithmatex">\(n\)</span>: prefer the hinge loss for large <span class="arithmatex">\(n\)</span> unless you need
+probabilities. It does not support <code>max_asum</code>.</p>
 <p><code>smoothing</code> (<span class="arithmatex">\(\delta\)</span>) controls how strongly the kinks of the loss are rounded; <code>degree</code> selects
 the smoothing polynomial ("2": <span class="arithmatex">\(C^1\)</span>, exactly solvable by SMO; "3" and "6": <span class="arithmatex">\(C^2\)</span>).</p>
 <h2 id="useful-attributes">Useful attributes<a class="headerlink" href="#useful-attributes" title="Permanent link">&para;</a></h2>

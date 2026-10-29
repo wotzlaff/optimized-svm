@@ -674,6 +674,34 @@
   
   
     <li class="md-nav__item">
+      <a href="examples/logistic_probabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Class probabilities with the logistic loss
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="examples/low_level_api/" class="md-nav__link">
         
   
@@ -937,8 +965,8 @@ followed by a semismooth Newton method on the smoothed primal problem.</p>
 <ul>
 <li>scikit-learn estimators: <code>OptimizedSVC</code>, <code>OptimizedSVR</code> (tuned) and <code>SmoothSVC</code>, <code>SmoothSVR</code>
   (fixed hyperparameters); binary and one-vs-rest classification</li>
-<li>losses: smoothed hinge, smoothed ε-insensitive, squared (LS-SVM), Poisson; smoothing of degree
-  2, 3 or 6; sample/class weights; optional bound on <code>Σ|α|</code> (generalized ν-SVM)</li>
+<li>losses: smoothed hinge, logistic (with <code>predict_proba</code>), smoothed ε-insensitive, squared (LS-SVM),
+  Poisson; smoothing of degree 2, 3 or 6; sample/class weights; optional bound on <code>Σ|α|</code> (generalized ν-SVM)</li>
 <li>exact hypergradients via one adjoint linear system per fold (verified against finite differences)</li>
 <li>ARD kernels (<code>blocks="features"</code>) with two-stage optimization, warm starts, time limits,
   full optimization history</li>

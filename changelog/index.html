@@ -539,6 +539,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/logistic_probabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Class probabilities with the logistic loss
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../examples/low_level_api/" class="md-nav__link">
         
   
@@ -688,6 +716,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#020-2026-10-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.0 – 2026-10-29
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.0 – 2026-10-29">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#011-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -750,7 +806,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added" class="md-nav__link">
+  <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -811,6 +867,34 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#020-2026-10-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.0 – 2026-10-29
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.0 – 2026-10-29">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#011-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -873,7 +957,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added" class="md-nav__link">
+  <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -920,6 +1004,14 @@
 
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<h2 id="020-2026-10-29">0.2.0 – 2026-10-29<a class="headerlink" href="#020-2026-10-29" title="Permanent link">&para;</a></h2>
+<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Logistic loss (thesis Sec. 4.1.3): <code>LogisticLoss</code>, <code>LogisticValidation</code> and <code>loss="logistic"</code> for
+  <code>SmoothSVC</code>/<code>OptimizedSVC</code>, including <code>predict_proba</code> (sigmoid of the decision values, normalised
+  one-vs-rest probabilities for more than two classes). Trained by Newton's method only, the solution is
+  dense; <code>max_asum</code> is not supported. Hypergradients are covered by the finite-difference tests.</li>
+</ul>
 <h2 id="011-2026-10-29">0.1.1 – 2026-10-29<a class="headerlink" href="#011-2026-10-29" title="Permanent link">&para;</a></h2>
 <h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
 <ul>
@@ -950,7 +1042,7 @@
   estimators <code>SmoothSVC</code>, <code>SmoothSVR</code>, <code>OptimizedSVC</code>, <code>OptimizedSVR</code></li>
 <li>adjoint formulation of the hypergradient (one linear system per fold)</li>
 </ul>
-<h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>one-vs-rest multi-class classification, class and sample weights</li>
 <li>warm starts across hyperparameter evaluations, rough SMO tolerance before Newton</li>

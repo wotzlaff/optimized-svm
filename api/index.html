@@ -541,6 +541,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../examples/logistic_probabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Class probabilities with the logistic loss
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../examples/low_level_api/" class="md-nav__link">
         
   
@@ -712,6 +740,17 @@
     <span class="md-ellipsis">
       
         decision_function
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimized_svm.SmoothSVC.predict_proba" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predict_proba
       
     </span>
   </a>
@@ -918,6 +957,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#optimized_svm.losses.LogisticLoss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogisticLoss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#optimized_svm.losses.EpsilonInsensitiveLoss" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1038,6 +1088,17 @@
     <span class="md-ellipsis">
       
         SmoothHingeValidation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimized_svm.validation.LogisticValidation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogisticValidation
       
     </span>
   </a>
@@ -1310,6 +1371,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#optimized_svm.SmoothSVC.predict_proba" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        predict_proba
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1510,6 +1582,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#optimized_svm.losses.LogisticLoss" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogisticLoss
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#optimized_svm.losses.EpsilonInsensitiveLoss" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1630,6 +1713,17 @@
     <span class="md-ellipsis">
       
         SmoothHingeValidation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimized_svm.validation.LogisticValidation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LogisticValidation
       
     </span>
   </a>
@@ -1952,6 +2046,25 @@
 
         <p>Signed decision values: shape <code>(n,)</code> for two classes (positive values predict
 <code>classes_[1]</code>), otherwise <code>(n, n_classes)</code> (one-vs-rest).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="optimized_svm.SmoothSVC.predict_proba" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">predict_proba</span><span class="p">(</span><span class="n">X</span><span class="p">)</span></code>
+
+<a href="#optimized_svm.SmoothSVC.predict_proba" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+
+        <p>Class probabilities <code>sigmoid(f(x))</code> (only for <code>loss="logistic"</code>); for more than
+two classes the one-vs-rest probabilities are normalised to sum to one.</p>
 
 
     </div>
@@ -2452,6 +2565,61 @@ the epsilon-insensitive loss (one for each side of the tube). Term <code>l</code
 
 
 
+<h3 id="optimized_svm.losses.LogisticLoss" class="doc doc-heading">
+            <code>LogisticLoss</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#optimized_svm.losses.LogisticLoss" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="Loss (optimized_svm.losses.Loss)" href="#optimized_svm.losses.Loss">Loss</a></code></p>
+
+
+
+        <p>Logistic loss <code>w * log(1 + exp(-y t))</code> for <code>y</code> in <code>{-1, +1}</code> (Strasdat, Sec. 4.1.3).</p>
+<p>Smooth without a smoothing parameter and strictly convex, but with positive curvature
+everywhere: the dual solution is dense and the dual is not a separable quadratic, so there is
+no SMO warm start and every Newton system has the full size <code>n</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
 <h3 id="optimized_svm.losses.EpsilonInsensitiveLoss" class="doc doc-heading">
             <code>EpsilonInsensitiveLoss</code>
 
@@ -2811,6 +2979,58 @@ in place with the new solutions.</p>
 
 
         <p><code>sum_v w_v m_delta(shift - y_v f_v)</code>; <code>balanced</code> weights both classes equally.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h3 id="optimized_svm.validation.LogisticValidation" class="doc doc-heading">
+            <code>LogisticValidation</code>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#optimized_svm.validation.LogisticValidation" class="headerlink" title="Permanent link">&para;</a></h3>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="ValidationLoss (optimized_svm.validation.ValidationLoss)" href="#optimized_svm.validation.ValidationLoss">ValidationLoss</a></code></p>
+
+
+
+        <p><code>sum_v w_v log(1 + exp(-y_v f_v))</code>; <code>balanced</code> weights both classes equally.</p>
 
 
 
