@@ -396,6 +396,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../theory/switching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Switching from SMO to Newton
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../theory/hypergradient/" class="md-nav__link">
         
   
@@ -716,6 +744,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#021-2026-10-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.1 – 2026-10-29
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.1 – 2026-10-29">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#020-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -728,7 +795,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added" class="md-nav__link">
+  <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -756,7 +823,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -795,7 +862,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -806,7 +873,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_1" class="md-nav__link">
+  <a href="#added_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -867,6 +934,45 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#021-2026-10-29" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        0.2.1 – 2026-10-29
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="0.2.1 – 2026-10-29">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#added" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#020-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -879,7 +985,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#added" class="md-nav__link">
+  <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -907,7 +1013,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -946,7 +1052,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -957,7 +1063,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#added_1" class="md-nav__link">
+  <a href="#added_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Added
@@ -1004,8 +1110,22 @@
 
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
-<h2 id="020-2026-10-29">0.2.0 – 2026-10-29<a class="headerlink" href="#020-2026-10-29" title="Permanent link">&para;</a></h2>
+<h2 id="021-2026-10-29">0.2.1 – 2026-10-29<a class="headerlink" href="#021-2026-10-29" title="Permanent link">&para;</a></h2>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Switch from SMO to Newton: the rough SMO stage now stops at tolerance 0.3 (was 0.1) or after five
+  steps per loss term. Same results; ε-SVR hyperparameter optimization up to 2.5 times faster, and
+  1–2 orders of magnitude faster with an active 1-norm bound, where SMO converges very slowly.
+  Explicit <code>tol</code>/<code>max_steps</code> in <code>smo_options</code> replace the defaults. Study:
+  <code>benchmarks/smo_newton_switch.py</code>.</li>
+</ul>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>smo_options</code> accepts the bound-aware stopping criterion of <code>smo-solver</code> (<code>stopping="bound_aware"</code>,
+  <code>rho</code>); requires <code>smo-solver&gt;=0.1.2</code>.</li>
+</ul>
+<h2 id="020-2026-10-29">0.2.0 – 2026-10-29<a class="headerlink" href="#020-2026-10-29" title="Permanent link">&para;</a></h2>
+<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Logistic loss (thesis Sec. 4.1.3): <code>LogisticLoss</code>, <code>LogisticValidation</code> and <code>loss="logistic"</code> for
   <code>SmoothSVC</code>/<code>OptimizedSVC</code>, including <code>predict_proba</code> (sigmoid of the decision values, normalised
@@ -1013,7 +1133,7 @@
   dense; <code>max_asum</code> is not supported. Hypergradients are covered by the finite-difference tests.</li>
 </ul>
 <h2 id="011-2026-10-29">0.1.1 – 2026-10-29<a class="headerlink" href="#011-2026-10-29" title="Permanent link">&para;</a></h2>
-<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Faster hypergradient: kernel matrices are handled per sample (ε-SVR uses <code>n</code> instead of <code>2n</code>
   columns), the validation kernel columns are reused for the adjoint system, and the kernel
@@ -1035,14 +1155,14 @@
 </ul>
 <h2 id="010-2026-10-28">0.1.0 – 2026-10-28<a class="headerlink" href="#010-2026-10-28" title="Permanent link">&para;</a></h2>
 <p>Complete overhaul of the 2022 code (tag <code>legacy-2022</code>).</p>
-<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li>training backend: Rust solver <code>smo-solver</code> instead of the Nim package <code>nimsmo</code></li>
 <li>new package layout (<code>src/</code>), <code>pyproject.toml</code>, snake_case API, scikit-learn compatible
   estimators <code>SmoothSVC</code>, <code>SmoothSVR</code>, <code>OptimizedSVC</code>, <code>OptimizedSVR</code></li>
 <li>adjoint formulation of the hypergradient (one linear system per fold)</li>
 </ul>
-<h3 id="added_1">Added<a class="headerlink" href="#added_1" title="Permanent link">&para;</a></h3>
+<h3 id="added_2">Added<a class="headerlink" href="#added_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li>one-vs-rest multi-class classification, class and sample weights</li>
 <li>warm starts across hyperparameter evaluations, rough SMO tolerance before Newton</li>

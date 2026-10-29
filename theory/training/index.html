@@ -16,7 +16,7 @@
         <link rel="prev" href="../../getting-started/">
       
       
-        <link rel="next" href="../hypergradient/">
+        <link rel="next" href="../switching/">
       
       
         
@@ -502,6 +502,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../switching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Switching from SMO to Newton
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../hypergradient/" class="md-nav__link">
         
   
@@ -919,6 +947,10 @@ solves exactly. The higher degree variants ("3", "6") are <span class="arithmate
    $$</p>
 <p>Terms with vanishing curvature (<span class="arithmatex">\(\ell'' = 0\)</span>) are fixed explicitly, so only a linear system on
    the terms with <span class="arithmatex">\(\ell'' &gt; 0\)</span> has to be solved. Usually one to a few steps suffice.</p>
+<p>The SMO stage can be tuned with <code>smo_options</code> (all options of <code>smo-solver</code>), for instance the
+bound-aware stopping criterion of Sec. 7.6, <code>smo_options={"stopping": "bound_aware"}</code>. By default
+SMO runs to the rough tolerance <code>tol = 0.3</code> or for at most five steps per loss term; see
+<a href="../switching/">Switching from SMO to Newton</a> for the reasons.</p>
 <p>For non-smooth losses (<span class="arithmatex">\(\delta = 0\)</span>) only SMO is used; for losses without an SMO formulation
 (squared, logistic, Poisson) Newton starts at zero.</p>
 <h2 id="logistic-loss">Logistic loss<a class="headerlink" href="#logistic-loss" title="Permanent link">&para;</a></h2>

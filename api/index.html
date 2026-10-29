@@ -398,6 +398,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../theory/switching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Switching from SMO to Newton
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../theory/hypergradient/" class="md-nav__link">
         
   
@@ -2297,7 +2325,10 @@ two classes the one-vs-rest probabilities are normalised to sum to one.</p>
 
         <p>Two-step training: SMO warm start followed by Newton refinement.</p>
 <p>For non-smooth losses (<code>smoothing = 0</code>) the SMO solution is already exact; for losses
-without SMO formulation (squared, Poisson) Newton starts at zero.</p>
+without SMO formulation (squared, logistic, Poisson) Newton starts at zero.</p>
+<p>By default the SMO stage stops at the tolerance :data:<code>ROUGH_SMO_TOL</code> or after
+<code>ROUGH_SMO_STEPS</code> steps per loss term, whichever comes first. Passing <code>tol</code> or
+<code>max_steps</code> in <code>smo_options</code> replaces these defaults (no step budget then).</p>
 
 
     </div>
