@@ -14,6 +14,7 @@ from optimized_svm import (
 )
 from optimized_svm.training import Factorization
 from optimized_svm.validation import (
+    LogisticValidation,
     PoissonValidation,
     SmoothAbsoluteValidation,
     SmoothHingeValidation,
@@ -52,6 +53,7 @@ def case(name, data):
         ),
         "eps-nu": (EpsilonInsensitiveLoss(0.05, 0.3), SmoothAbsoluteValidation(), t, 5.0, None),
         "logistic": (LogisticLoss(), SmoothHingeValidation(), y, None, None),
+        "logistic-logloss": (LogisticLoss(), LogisticValidation(), y, None, None),
         "logistic-ard": (
             LogisticLoss(),
             SmoothHingeValidation(),
@@ -74,6 +76,7 @@ def case(name, data):
         "eps3-blocks",
         "eps-nu",
         "logistic",
+        "logistic-logloss",
         "logistic-ard",
         "squared",
         "poisson",

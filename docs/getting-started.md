@@ -42,10 +42,15 @@ With `blocks="features"` the kernel is $k(x, z) = \exp(-\sum_j s_j^2 (x_j - z_j)
 
 | estimator | loss | parameters |
 |---|---|---|
-| `SmoothSVC` / `OptimizedSVC` | smoothed hinge $w_i\, m_\delta(\text{shift} - y_i f(x_i))$ | `smoothing`, `degree`, `shift`, `class_weight`, `max_asum` |
+| `SmoothSVC` / `OptimizedSVC` (`loss="hinge"`) | smoothed hinge $w_i\, m_\delta(\text{shift} - y_i f(x_i))$ | `smoothing`, `degree`, `shift`, `class_weight`, `max_asum` |
+| `loss="logistic"` | $w_i \log(1 + e^{-y_i f(x_i)})$, enables `predict_proba` | `class_weight` |
 | `SmoothSVR` / `OptimizedSVR` (`loss="epsilon_insensitive"`) | $w_i (m_\delta(f_i - y_i - \varepsilon) + m_\delta(y_i - f_i - \varepsilon))$ | `epsilon`, `smoothing`, `degree` |
 | `loss="squared"` | $\tfrac{w_i}{2} (f_i - y_i)^2$ (LS-SVM) | – |
 | `loss="poisson"` | $w_i (e^{f_i} - y_i f_i)$, prediction $e^{f}$ | – |
+
+The logistic loss needs no smoothing, but it yields a dense solution and is trained by Newton's method
+only, so every training step solves a system of size $n$: prefer the hinge loss for large $n$ unless you need
+probabilities. It does not support `max_asum`.
 
 `smoothing` ($\delta$) controls how strongly the kinks of the loss are rounded; `degree` selects
 the smoothing polynomial ("2": $C^1$, exactly solvable by SMO; "3" and "6": $C^2$).

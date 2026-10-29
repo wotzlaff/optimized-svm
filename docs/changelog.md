@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Logistic loss (thesis Sec. 4.1.3): `LogisticLoss`, `LogisticValidation` and `loss="logistic"` for
+  `SmoothSVC`/`OptimizedSVC`, including `predict_proba` (sigmoid of the decision values, normalised
+  one-vs-rest probabilities for more than two classes). Trained by Newton's method only, the solution is
+  dense; `max_asum` is not supported. Hypergradients are covered by the finite-difference tests.
+
 ## 0.1.1 – 2026-10-29
 
 ### Changed

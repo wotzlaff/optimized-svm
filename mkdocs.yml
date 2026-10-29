@@ -30,6 +30,7 @@ nav:
   - Examples:
       - Quickstart: examples/quickstart.py
       - Feature relevance (ARD): examples/ard_feature_relevance.py
+      - Class probabilities (logistic loss): examples/logistic_probabilities.py
       - Low-level API: examples/low_level_api.py
   - Reproducing the thesis: reproduction.md
   - API reference: api.md

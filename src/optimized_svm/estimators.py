@@ -18,8 +18,10 @@ from typing import Any
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import minimize
+from scipy.special import expit
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
 from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.utils.metaestimators import available_if
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import _check_sample_weight, check_is_fitted, validate_data
 
@@ -29,6 +31,7 @@ from .losses import (
     ApproxPoissonLoss,
     EpsilonInsensitiveLoss,
     HingeLoss,
+    LogisticLoss,
     Loss,
     PoissonLoss,
     SquaredLoss,
@@ -37,6 +40,7 @@ from .problem import TrainingProblem
 from .smooth_max import Degree
 from .training import train
 from .validation import (
+    LogisticValidation,
     PoissonValidation,
     SmoothAbsoluteValidation,
     SmoothHingeValidation,
@@ -197,14 +201,22 @@ _SMOOTH_DOC = """
 
 class SmoothSVC(ClassifierMixin, _SmoothBase):
     __doc__ = (
-        """Binary SVM classifier with a smoothed hinge loss and fixed hyperparameters.
+        """SVM classifier with a smoothed hinge or a logistic loss and fixed hyperparameters.
 
-    Solves ``min lam/2 |w|^2 + sum_i c_i m_delta(shift - y_i f(x_i))``.
+    Solves ``min lam/2 |w|^2 + sum_i c_i m_delta(shift - y_i f(x_i))`` (``loss="hinge"``) or
+    ``min lam/2 |w|^2 + sum_i c_i log(1 + exp(-y_i f(x_i)))`` (``loss="logistic"``).
 
     Parameters
     ----------"""
         + _SMOOTH_DOC
-        + """    shift : float
+        + """    loss : {"hinge", "logistic"}
+        ``hinge``: smoothed hinge loss, trained by SMO + Newton, sparse solution. ``logistic``:
+        logistic loss (Strasdat, Sec. 4.1.3), trained by Newton's method only; the solution is
+        dense and every Newton system has the full size ``n``. It enables
+        :meth:`predict_proba` (``sigmoid`` of the decision values, normalised for more than two
+        classes) and does not support ``max_asum``; ``smoothing``, ``degree`` and ``shift`` are
+        ignored.
+    shift : float
         Margin of the hinge loss.
     class_weight : "balanced", dict or None
         Per-class weights multiplied with ``sample_weight``.
@@ -215,6 +227,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         self,
         lam: float = 1.0,
         *,
+        loss: str = "hinge",
         scaling: float | ArrayLike | str = "auto",
         blocks: Any = None,
         smoothing: float = 0.5,
@@ -226,6 +239,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         newton_options: dict[str, Any] | None = None,
     ) -> None:
         self.lam = lam
+        self.loss = loss
         self.scaling = scaling
         self.blocks = blocks
         self.smoothing = smoothing
@@ -237,10 +251,17 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         self.newton_options = newton_options
 
     def _loss(self) -> Loss:
-        return HingeLoss(self.shift, self.smoothing, self.degree)
+        if self.loss == "hinge":
+            return HingeLoss(self.shift, self.smoothing, self.degree)
+        if self.loss == "logistic":
+            if self.max_asum is not None:
+                raise ValueError("max_asum is not supported for the logistic loss")
+            return LogisticLoss()
+        raise ValueError(f"loss must be one of {_CLASSIFICATION_LOSSES}, got {self.loss!r}")
 
     def fit(self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None) -> SmoothSVC:
         self._check_params()
+        self._loss()  # validates `loss`
         x, y = validate_data(self, X, y, dtype=np.float64)
         y = np.asarray(y)
         if _fit_one_vs_rest(self, x, y, sample_weight):
@@ -256,6 +277,15 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
 
     def predict(self, X: ArrayLike) -> NDArray[Any]:
         return _ovr_predict(self, X)
+
+    @available_if(lambda est: est.loss == "logistic")  # type: ignore[untyped-decorator]
+    def predict_proba(self, X: ArrayLike) -> Array:
+        """Class probabilities ``sigmoid(f(x))`` (only for ``loss="logistic"``); for more than
+        two classes the one-vs-rest probabilities are normalised to sum to one."""
+        return _ovr_proba(self, X)
+
+
+_CLASSIFICATION_LOSSES = ("hinge", "logistic")
 
 
 def _fit_one_vs_rest(est: Any, x: Array, y: Array, sample_weight: ArrayLike | None) -> bool:
@@ -285,6 +315,13 @@ def _ovr_decision(est: Any, X: ArrayLike) -> Array:
         return est._decision(X)
     x = validate_data(est, X, reset=False, dtype=np.float64)
     return np.stack([e.decision_function(x) for e in est.estimators_], axis=1)
+
+
+def _ovr_proba(est: Any, X: ArrayLike) -> Array:
+    p = expit(_ovr_decision(est, X))
+    if p.ndim == 1:
+        return np.stack([1.0 - p, p], axis=1)
+    return np.asarray(p / p.sum(axis=1, keepdims=True), dtype=np.float64)
 
 
 def _ovr_predict(est: Any, X: ArrayLike) -> NDArray[Any]:
@@ -570,7 +607,8 @@ _OPT_DOC = """
 class OptimizedSVC(_OptimizedMixin, SmoothSVC):
     __doc__ = (
         """:class:`SmoothSVC` whose ``lam`` and kernel scalings are optimised by minimising a
-    smoothed cross-validation hinge error with exact gradients.
+    smoothed cross-validation hinge error (``loss="hinge"``) or the cross-validation logistic
+    loss (``loss="logistic"``) with exact gradients.
 
     Parameters
     ----------"""
@@ -594,6 +632,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         random_state: int | None = 0,
         verbose: int = 0,
         warm_start: bool = True,
+        loss: str = "hinge",
         smoothing: float = 0.5,
         degree: Degree = "2",
         shift: float = 1.0,
@@ -616,6 +655,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         self.random_state = random_state
         self.verbose = verbose
         self.warm_start = warm_start
+        self.loss = loss
         self.smoothing = smoothing
         self.degree = degree
         self.shift = shift
@@ -634,9 +674,10 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         return getattr(self, "scaling_opt_", self.scaling_init)
 
     def _validation(self) -> ValidationLoss:
-        return SmoothHingeValidation(
-            self.shift, self.validation_smoothing, "6", balanced=self.class_weight == "balanced"
-        )
+        balanced = self.class_weight == "balanced"
+        if self.loss == "logistic":
+            return LogisticValidation(balanced=balanced)
+        return SmoothHingeValidation(self.shift, self.validation_smoothing, "6", balanced=balanced)
 
     def fit(
         self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None

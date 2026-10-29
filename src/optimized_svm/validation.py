@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.special import gammaln
+from scipy.special import expit, gammaln
 
 from .smooth_max import Degree, smooth_max
 
@@ -42,6 +42,22 @@ class SmoothHingeValidation(ValidationLoss):
                 w = 0.5 / np.where(pos, frac, 1.0 - frac)
         arg = self.shift - y * f
         return float(w @ m(arg)), -w * y * dm(arg)
+
+
+@dataclass(frozen=True)
+class LogisticValidation(ValidationLoss):
+    """``sum_v w_v log(1 + exp(-y_v f_v))``; ``balanced`` weights both classes equally."""
+
+    balanced: bool = False
+
+    def __call__(self, f: Array, y: Array) -> tuple[float, Array]:
+        w = np.ones_like(y)
+        if self.balanced:
+            pos = y > 0
+            frac = pos.mean()
+            if 0 < frac < 1:
+                w = 0.5 / np.where(pos, frac, 1.0 - frac)
+        return float(w @ np.logaddexp(0.0, -y * f)), -w * y * expit(-y * f)
 
 
 @dataclass(frozen=True)
