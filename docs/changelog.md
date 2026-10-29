@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 – 2026-10-29
 
 ### Changed
 - Switch from SMO to Newton: the rough SMO stage now stops at tolerance 0.3 (was 0.1) or after five
