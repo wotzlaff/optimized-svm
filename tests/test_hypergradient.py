@@ -11,6 +11,7 @@ from optimized_svm import (
     SquaredLoss,
     cv_error_and_gradient,
 )
+from optimized_svm.training import Factorization
 from optimized_svm.validation import (
     PoissonValidation,
     SmoothAbsoluteValidation,
@@ -91,3 +92,25 @@ def test_gradient_matches_finite_differences(name, data):
         ]
     )
     np.testing.assert_allclose(res.gradient, fd, rtol=1e-5, atol=1e-7)
+
+
+@pytest.mark.parametrize("name", ["hinge", "eps3-blocks"])
+def test_reused_factorization_gives_same_gradient(name, data, monkeypatch):
+    loss, validation, target, max_asum, blocks = case(name, data)
+    x = data[0]
+    folds = list(KFold(3, shuffle=True, random_state=0).split(x))
+    w = np.ones(len(target))
+    n_blocks = 1 if blocks is None else len(blocks)
+    theta = np.r_[np.log(0.05), np.full(n_blocks, np.log(0.6))]
+
+    def run():
+        return cv_error_and_gradient(
+            theta, x, target, w, folds, loss, validation, blocks, max_asum, TIGHT_SMO, TIGHT_NEWTON
+        )
+
+    reused = run()
+    monkeypatch.setattr(Factorization, "matches", lambda self, p, h: False)
+    fresh = run()
+    assert any(f.solution.factor is not None for f in reused.folds)
+    np.testing.assert_allclose(reused.gradient, fresh.gradient, rtol=1e-10, atol=1e-12)
+    assert reused.error == pytest.approx(fresh.error, rel=1e-12)

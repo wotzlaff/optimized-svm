@@ -100,7 +100,12 @@ def fold_error_and_gradient(
     p = np.flatnonzero(h > 0.0)
     if p.size > 0:
         p_samples, p_inv = np.unique(prob.terms.kernel_index[p], return_inverse=True)
-        q = prob.kernel(p, p) * lam_inv + np.diag(1.0 / h[p])
+        factor = sol.factor
+        if factor is not None and factor.matches(p, h[p]):
+            # same curvature pattern as in the last Newton system: reuse its factorisation
+            q, cho = None, factor.cho
+        else:
+            q, cho = prob.kernel(p, p) * lam_inv + np.diag(1.0 / h[p]), None
         cols = [np.ones(p.size)]
         rhs0 = [d_err.sum()]
         if max_asum is not None and sol.c > 0.0:
@@ -108,7 +113,7 @@ def fold_error_and_gradient(
             rhs0.append(0.0)
         k_val_p = _kernel_columns(x_val, prob.x, k_val_sv, sv, p_samples)
         rhs = (k_val_p.T @ d_err)[p_inv] * lam_inv
-        u, _ = solve_bordered(q, np.stack(cols, axis=1), rhs, np.array(rhs0))
+        u, _ = solve_bordered(q, np.stack(cols, axis=1), rhs, np.array(rhs0), cho)
         # d ka_P / d log lam = -ka_P,  d ka_P / d log s_k = dK_{P,SV} a_SV / lam
         grad[0] += u @ sol.ka[p]
         u_samples = np.bincount(p_inv, weights=u, minlength=p_samples.size).astype(np.float64)

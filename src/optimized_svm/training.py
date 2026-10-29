@@ -10,7 +10,7 @@ import numpy as np
 import smo_solver
 from numpy.typing import NDArray
 
-from .linalg import solve_bordered
+from .linalg import factorize, solve_bordered
 from .problem import TrainingProblem
 
 Array = NDArray[np.float64]
@@ -18,6 +18,22 @@ Array = NDArray[np.float64]
 
 class ConvergenceError(RuntimeError):
     """The Newton method could not find a descent step."""
+
+
+@dataclass
+class Factorization:
+    """Cholesky factor of ``K_PP / lam + diag(1 / h_P)`` for the terms ``P`` with ``h > 0``.
+
+    It stays valid for a later point with the same ``P`` and ``h_P`` (e.g. for the piecewise
+    quadratic smoothing, where ``h`` is constant on the smoothing zone).
+    """
+
+    p: NDArray[np.intp]
+    h: Array
+    cho: Any
+
+    def matches(self, p: NDArray[np.intp], h: Array) -> bool:
+        return np.array_equal(self.p, p) and np.array_equal(self.h, h)
 
 
 @dataclass
@@ -34,6 +50,8 @@ class Solution:
     time_smo: float = 0.0
     time_newton: float = 0.0
     info: dict[str, Any] = field(default_factory=dict)
+    #: factorisation of the last Newton system (reusable if the curvature pattern is unchanged)
+    factor: Factorization | None = field(default=None, repr=False)
 
 
 def residual(prob: TrainingProblem, a: Array, b: float, c: float, ka: Array, use_c: bool) -> float:
@@ -48,7 +66,7 @@ def residual(prob: TrainingProblem, a: Array, b: float, c: float, ka: Array, use
 
 def _newton_direction(
     prob: TrainingProblem, a: Array, g: Array, h: Array, use_c: bool
-) -> tuple[Array, float, float]:
+) -> tuple[Array, float, float, Factorization]:
     """Semismooth Newton direction for ``a + phi'(K a / lam + b + s c) = 0`` and constraints."""
     lam = prob.lam
     p = h > 0.0
@@ -64,9 +82,10 @@ def _newton_direction(
         s = prob.sign
         cols.append(s[p])
         rhs0.append(a @ s - (prob.max_asum or 0.0) - s[z] @ da[z])
-    d_p, v = solve_bordered(q, np.stack(cols, axis=1), rhs, np.array(rhs0))
+    factor = Factorization(np.flatnonzero(p), h[p].copy(), factorize(q))
+    d_p, v = solve_bordered(None, np.stack(cols, axis=1), rhs, np.array(rhs0), factor.cho)
     da[p] = d_p
-    return da, float(v[0]), float(v[1]) if use_c else 0.0
+    return da, float(v[0]), float(v[1]) if use_c else 0.0, factor
 
 
 def newton(
@@ -93,6 +112,7 @@ def newton(
     a = np.array(a, dtype=np.float64)
     ka = prob.ka(a)
     obj = prob.objective(a, b, c, ka)
+    last_factor: Factorization | None = None
     for step in range(max_steps + 1):
         dec = prob.decision(b, c, ka)
         g = prob.loss.d1(dec, prob.terms)
@@ -109,9 +129,10 @@ def newton(
         h = prob.loss.d2(dec, prob.terms)
         directions = []
         try:
-            directions.append(_newton_direction(prob, a, g, h, use_c))
+            da, db, dc, last_factor = _newton_direction(prob, a, g, h, use_c)
+            directions.append((da, db, dc))
         except np.linalg.LinAlgError:
-            pass
+            last_factor = None
         # preconditioned gradient as fallback
         directions.append((r, prob.lam * grad_b, prob.lam * grad_c))
         for da, db, dc in directions:
@@ -138,7 +159,13 @@ def newton(
     # recompute ka from scratch to remove accumulated rounding errors
     ka = prob.ka(a)
     return Solution(
-        a, float(b), float(c), ka, residual(prob, a, b, c, ka, use_c), newton_steps=step
+        a,
+        float(b),
+        float(c),
+        ka,
+        residual(prob, a, b, c, ka, use_c),
+        newton_steps=step,
+        factor=last_factor,
     )
 
 
