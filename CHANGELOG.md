@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Added
+- Benchmark scripts `benchmarks/hpo_vs_search.py` (gradient method against grid, random and
+  successive-halving search) and `benchmarks/hpo_timing.py` (wall-clock time of complete
+  optimizations, for comparing releases). Results: https://wotzlaff.github.io/svm-site/benchmarks/
+
+## Unreleased
+
+### Added
 - Hypergradient with respect to the loss parameters `epsilon` and `smoothing`: `loss_params` of
   `cv_error_and_gradient`/`fold_error_and_gradient` and `Loss.param_ratio`. Exact (checked against finite
   differences), but not used by the estimators: tuning these parameters rarely pays off (`epsilon` is not
