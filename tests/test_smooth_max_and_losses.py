@@ -5,6 +5,7 @@ from optimized_svm.losses import (
     ApproxPoissonLoss,
     EpsilonInsensitiveLoss,
     HingeLoss,
+    LogisticLoss,
     PoissonLoss,
     SquaredLoss,
 )
@@ -47,6 +48,7 @@ LOSSES = [
     (HingeLoss(1.0, 0.3, "2"), "labels"),
     (HingeLoss(0.5, 0.4, "6"), "labels"),
     (EpsilonInsensitiveLoss(0.2, 0.3, "3"), "real"),
+    (LogisticLoss(), "labels"),
     (SquaredLoss(), "real"),
     (PoissonLoss(), "counts"),
     (ApproxPoissonLoss(), "counts"),
@@ -84,3 +86,12 @@ def test_epsilon_terms_structure():
     terms = EpsilonInsensitiveLoss().terms(np.array([1.0, 2.0]), np.ones(2))
     np.testing.assert_array_equal(terms.kernel_index, [0, 1, 0, 1])
     np.testing.assert_array_equal(terms.sign, [1, 1, -1, -1])
+
+
+def test_logistic_loss_is_stable_for_large_margins():
+    terms = LogisticLoss().terms(np.array([1.0, -1.0, 1.0]), np.ones(3))
+    t = np.array([800.0, 800.0, -800.0])  # margins +800, -800, -800
+    loss = LogisticLoss()
+    np.testing.assert_allclose(loss.value(t, terms), [0.0, 800.0, 800.0], atol=1e-12)
+    np.testing.assert_allclose(loss.d1(t, terms), [0.0, 1.0, -1.0], atol=1e-12)
+    assert np.all(np.isfinite(loss.d2(t, terms)))

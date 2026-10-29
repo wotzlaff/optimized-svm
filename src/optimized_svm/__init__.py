@@ -11,6 +11,7 @@ from .losses import (
     ApproxPoissonLoss,
     EpsilonInsensitiveLoss,
     HingeLoss,
+    LogisticLoss,
     PoissonLoss,
     SquaredLoss,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "ApproxPoissonLoss",
     "EpsilonInsensitiveLoss",
     "HingeLoss",
+    "LogisticLoss",
     "OptimizedSVC",
     "OptimizedSVR",
     "PoissonLoss",
