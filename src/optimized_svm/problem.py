@@ -65,10 +65,13 @@ class TrainingProblem:
     def kernel(self, rows: Index = slice(None), cols: Index = slice(None)) -> Array:
         """Kernel matrix between loss terms ``rows`` and ``cols``."""
         ki = self.terms.kernel_index
-        r, c = ki[rows], ki[cols]
+        return self.sample_kernel(ki[rows], ki[cols])
+
+    def sample_kernel(self, rows: NDArray[np.intp], cols: NDArray[np.intp]) -> Array:
+        """Kernel matrix between the *samples* ``rows`` and ``cols``."""
         if self._k is not None:
-            return self._k[np.ix_(r, c)]
-        return rbf(self.x[r], self.x[c])
+            return self._k[np.ix_(rows, cols)]
+        return rbf(self.x[rows], self.x[cols])
 
     def kernel_to(self, z: Array, rows: Index = slice(None)) -> Array:
         """Kernel matrix between loss terms ``rows`` and new (scaled) points ``z``."""

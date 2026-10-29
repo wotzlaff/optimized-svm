@@ -43,23 +43,24 @@ def rbf_with_gradient(x: Array, z: Array, blocks: Blocks = None) -> tuple[Array,
     return k, -2.0 * k[:, :, None] * np.stack(parts, axis=-1)
 
 
-def rbf_parts(x: Array, z: Array, blocks: Blocks = None) -> tuple[Array, list[Array]]:
-    """Kernel matrix and the squared distances of each block (features already scaled)."""
-    if blocks is None:
-        d = squared_distances(x, z)
-        return np.exp(-d), [d]
-    parts = [squared_distances(x[:, list(b)], z[:, list(b)]) for b in blocks]
-    return np.exp(-sum(parts)), parts
-
-
-def contract_gradient(k: Array, parts: list[Array], left: Array, right: Array) -> Array:
+def contract_gradient(
+    x: Array, z: Array, k: Array, left: Array, right: Array, blocks: Blocks = None
+) -> Array:
     """Bilinear forms ``left^T (dK / d log s_k) right`` with ``dK_k = -2 K * |x_Bk - z_Bk|^2``.
 
-    Same as contracting the output of :func:`rbf_with_gradient`, but without forming the
-    ``(n, m, n_blocks)`` tensor.
+    ``k`` is the kernel matrix between the (already scaled) points ``x`` and ``z``. Same as
+    contracting the output of :func:`rbf_with_gradient`, but without forming the distance
+    matrices of the blocks: with ``W = K * left right^T`` one has
+    ``sum_ij W_ij |x_i - z_j|^2 = rowsum(W) . |x|^2 + colsum(W) . |z|^2 - 2 sum(x * (W z))``
+    per feature, so a single matrix product serves all blocks.
     """
     w = k * left[:, None] * right[None, :]
-    return np.array([-2.0 * float(np.vdot(w, part)) for part in parts])
+    per_feature = (
+        w.sum(axis=1) @ (x * x) + w.sum(axis=0) @ (z * z) - 2.0 * (x * (w @ z)).sum(axis=0)
+    )
+    if blocks is None:
+        return np.array([-2.0 * float(per_feature.sum())])
+    return np.array([-2.0 * float(per_feature[list(b)].sum()) for b in blocks])
 
 
 def n_blocks(blocks: Blocks) -> int:

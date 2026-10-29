@@ -22,7 +22,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from .kernels import Blocks, contract_gradient, rbf, rbf_parts, scale_features
+from .kernels import Blocks, contract_gradient, n_blocks, rbf, scale_features
 from .linalg import solve_bordered
 from .losses import Loss
 from .problem import TrainingProblem
@@ -31,6 +31,21 @@ from .validation import ValidationLoss
 
 Array = NDArray[np.float64]
 Fold = tuple[NDArray[np.intp], NDArray[np.intp]]
+
+
+def _kernel_columns(
+    x_val: Array, x: Array, k_val_sv: Array, sv: NDArray[np.intp], cols: NDArray[np.intp]
+) -> Array:
+    """Kernel matrix between ``x_val`` and the samples ``cols``, reusing the columns of
+    ``k_val_sv`` (kernel to the samples ``sv``, sorted) where they overlap."""
+    pos = np.minimum(np.searchsorted(sv, cols), sv.size - 1)
+    known = sv[pos] == cols if sv.size else np.zeros(cols.size, dtype=bool)
+    if known.all():
+        return k_val_sv[:, pos]
+    out = np.empty((x_val.shape[0], cols.size))
+    out[:, known] = k_val_sv[:, pos[known]]
+    out[:, ~known] = rbf(x_val, x[cols[~known]])
+    return out
 
 
 @dataclass
@@ -64,36 +79,41 @@ def fold_error_and_gradient(
     prob = TrainingProblem(x_train, y_train, loss, lam, w_train, max_asum)
     sol = train(prob, smo_options, newton_options, alpha0)
     a = sol.a
-    sv = np.flatnonzero(a)
-    a_sv = a[sv] / lam
-    x_terms = prob.x[prob.terms.kernel_index]
+    lam_inv = 1.0 / lam
+    # everything below works on samples (the two terms of a sample share their kernel row)
+    beta = prob.sample_coefficients(a) * lam_inv
+    sv = np.flatnonzero(beta)
+    x_sv = prob.x[sv]
 
     # validation predictions and explicit derivatives (a fixed)
-    k_val_sv, d_val_sv = rbf_parts(x_val, x_terms[sv], blocks)
-    ka_val = k_val_sv @ a_sv
+    k_val_sv = rbf(x_val, x_sv)
+    ka_val = k_val_sv @ beta[sv]
     f_val = ka_val + sol.b
     err, d_err = validation(f_val, y_val)
-    grad = np.zeros(1 + len(d_val_sv))
+    grad = np.zeros(1 + n_blocks(blocks))
     grad[0] = -d_err @ ka_val
-    grad[1:] = contract_gradient(k_val_sv, d_val_sv, d_err, a_sv)
+    grad[1:] = contract_gradient(x_val, x_sv, k_val_sv, d_err, beta[sv], blocks)
 
     # implicit part: adjoint system on terms with positive curvature
     dec = prob.decision(sol.b, sol.c, sol.ka)
     h = prob.loss.d2(dec, prob.terms)
     p = np.flatnonzero(h > 0.0)
     if p.size > 0:
-        k_p_sv, d_p_sv = rbf_parts(x_terms[p], x_terms[sv], blocks)
-        q = prob.kernel(p, p) / lam + np.diag(1.0 / h[p])
+        p_samples, p_inv = np.unique(prob.terms.kernel_index[p], return_inverse=True)
+        q = prob.kernel(p, p) * lam_inv + np.diag(1.0 / h[p])
         cols = [np.ones(p.size)]
         rhs0 = [d_err.sum()]
         if max_asum is not None and sol.c > 0.0:
             cols.append(prob.sign[p])
             rhs0.append(0.0)
-        k_val_p = rbf(x_val, x_terms[p])
-        u, _ = solve_bordered(q, np.stack(cols, axis=1), k_val_p.T @ d_err / lam, np.array(rhs0))
+        k_val_p = _kernel_columns(x_val, prob.x, k_val_sv, sv, p_samples)
+        rhs = (k_val_p.T @ d_err)[p_inv] * lam_inv
+        u, _ = solve_bordered(q, np.stack(cols, axis=1), rhs, np.array(rhs0))
         # d ka_P / d log lam = -ka_P,  d ka_P / d log s_k = dK_{P,SV} a_SV / lam
         grad[0] += u @ sol.ka[p]
-        grad[1:] -= contract_gradient(k_p_sv, d_p_sv, u, a_sv)
+        u_samples = np.bincount(p_inv, weights=u, minlength=p_samples.size).astype(np.float64)
+        k_p_sv = prob.sample_kernel(p_samples, sv)
+        grad[1:] -= contract_gradient(prob.x[p_samples], x_sv, k_p_sv, u_samples, beta[sv], blocks)
     return FoldResult(err, grad, sol, int(sv.size), sol.time_smo + sol.time_newton)
 
 
