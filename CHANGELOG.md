@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Faster hypergradient: kernel matrices are handled per sample (ε-SVR uses `n` instead of `2n`
+  columns), the validation kernel columns are reused for the adjoint system, and the kernel
+  derivatives are contracted per block with one matrix product instead of forming a distance
+  matrix per block.
+- The Cholesky factor of the last Newton system is reused for the adjoint system when the
+  curvature pattern is unchanged (always the case for smoothing of degree 2).
+- Linear systems of size up to 1000 are factorized with a single BLAS thread; multi-threaded
+  LAPACK was several times slower for them, notably on shared machines. New dependency:
+  `threadpoolctl`.
+- Typical effect (ε-SVR, `n = 450`, 5-fold, one BLAS thread): 3.2 s → 2.0 s; ARD 2.0 s → 0.9 s;
+  classification (`n = 600`) 1.3 s → 0.7 s. Results are unchanged.
+
+### Fixed
+- Warm starts were counterproductive for classification: repairing the rounding error of
+  `sum(alpha) = 0` moved a third of the variables off their bounds and made SMO take about four
+  times as many steps as a cold start. Now about four times fewer than a cold start.
+
 ## 0.1.0 – 2026-10-28
 
 Complete overhaul of the 2022 code (tag `legacy-2022`).

@@ -45,7 +45,12 @@ $$
 with $\partial_{\log\lambda}\mathrm{ka} = -\mathrm{ka}$ and
 $\partial_{\log s_k} K = -2 K \odot D_k$ ($D_k$: squared distances in block $k$ of the scaled
 features). The cost per fold is one factorization of a matrix of size $|P|$, independent of the
-number of hyperparameters — this is what makes ARD kernels affordable.
+number of hyperparameters — this is what makes ARD kernels affordable. For the quadratic
+smoothing $h$ is piecewise constant, so the Newton system of the last training step has the same
+matrix as the adjoint system and its Cholesky factor is reused; for other degrees the matrix is
+factorized again. Contractions with $\partial_{\log s_k} K$ do not form the matrices $D_k$:
+$\sum_{ij} W_{ij}\lVert x_{i,B_k} - z_{j,B_k}\rVert^2$ is evaluated from row and column sums of
+$W$ and one product $WZ$ for all blocks.
 
 The implementation is tested against central finite differences for all losses, smoothing
 degrees, ARD blocks and an active $\nu$-constraint (relative error about $10^{-8}$).
@@ -53,5 +58,5 @@ degrees, ARD blocks and an active $\nu$-constraint (relative error about $10^{-8
 ## Optimization
 
 L-BFGS-B runs on $\theta$ within box constraints. Each evaluation warm-starts SMO with the fold
-solutions of the previous evaluation. With `time_limit`, the best parameters found so far are
+solutions of the previous evaluation (about ten times fewer SMO steps for regression). With `time_limit`, the best parameters found so far are
 used.
