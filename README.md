@@ -27,7 +27,8 @@ followed by a semismooth Newton method on the smoothed primal problem.
   (fixed hyperparameters); binary and one-vs-rest classification
 - losses: smoothed hinge, logistic (with `predict_proba`), smoothed ε-insensitive, squared (LS-SVM),
   Poisson; smoothing of degree 2, 3 or 6; sample/class weights; optional bound on `Σ|α|` (generalized ν-SVM)
-- exact hypergradients via one adjoint linear system per fold (verified against finite differences)
+- exact hypergradients via one adjoint linear system per fold (verified against finite differences),
+  also with respect to the loss parameters ε and δ (low-level API)
 - ARD kernels (`blocks="features"`) with two-stage optimization, warm starts, time limits,
   full optimization history
 - `decision_gradient()` for local feature sensitivities

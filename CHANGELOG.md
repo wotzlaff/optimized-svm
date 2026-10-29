@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Hypergradient with respect to the loss parameters `epsilon` and `smoothing`: `loss_params` of
+  `cv_error_and_gradient`/`fold_error_and_gradient` and `Loss.param_ratio`. Exact (checked against finite
+  differences), but not used by the estimators: tuning these parameters rarely pays off (`epsilon` is not
+  identifiable below the smoothing width, the CV error is multimodal in `smoothing`). Study:
+  `benchmarks/hpo_loss_params.py`.
+
 ## 0.2.1 – 2026-10-29
 
 ### Changed

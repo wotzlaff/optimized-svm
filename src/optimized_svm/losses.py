@@ -55,6 +55,15 @@ class Loss:
     def d2(self, t: Array, terms: Terms) -> Array:
         raise NotImplementedError
 
+    def param_ratio(self, name: str, t: Array, terms: Terms) -> Array:
+        """``(d phi'_l / d p) / phi''_l`` at fixed ``t`` for the loss parameter ``p = name``.
+
+        Only meaningful for terms with positive curvature; it is the sensitivity of the optimality
+        condition ``a_l + phi'_l(t_l) = 0`` w.r.t. ``p`` in units of ``t`` and is used by the
+        hypergradient with respect to loss parameters.
+        """
+        raise ValueError(f"{type(self).__name__} has no tunable parameter {name!r}")
+
 
 @dataclass(frozen=True)
 class HingeLoss(Loss):
@@ -80,6 +89,13 @@ class HingeLoss(Loss):
     def d2(self, t: Array, terms: Terms) -> Array:
         ddm = smooth_max(self.smoothing, self.degree)[2]
         return terms.w * ddm(self.shift - terms.y * t)
+
+    def param_ratio(self, name: str, t: Array, terms: Terms) -> Array:
+        if name != "smoothing":
+            return super().param_ratio(name, t, terms)
+        # every smoothing is m_delta(x) = delta m_1(x / delta), hence
+        # d m_delta'(x) / d delta = -(x / delta) m_delta''(x)
+        return terms.y * (self.shift - terms.y * t) / self.smoothing
 
 
 @dataclass(frozen=True)
@@ -142,6 +158,13 @@ class EpsilonInsensitiveLoss(Loss):
     def d2(self, t: Array, terms: Terms) -> Array:
         ddm = smooth_max(self.smoothing, self.degree)[2]
         return terms.w * ddm(self._arg(t, terms))
+
+    def param_ratio(self, name: str, t: Array, terms: Terms) -> Array:
+        if name == "epsilon":
+            return terms.sign
+        if name == "smoothing":  # see HingeLoss.param_ratio
+            return terms.sign * self._arg(t, terms) / self.smoothing
+        return super().param_ratio(name, t, terms)
 
 
 @dataclass(frozen=True)

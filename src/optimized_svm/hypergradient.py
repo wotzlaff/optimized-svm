@@ -15,9 +15,10 @@ after which ``dE/dtheta = -u^T (d ka_P / dtheta) + dE^T (d f_V / dtheta)`` with 
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -71,10 +72,12 @@ def fold_error_and_gradient(
     smo_options: dict[str, Any] | None = None,
     newton_options: dict[str, Any] | None = None,
     alpha0: Array | None = None,
+    loss_params: Sequence[str] = (),
 ) -> FoldResult:
-    """Validation error of one fold and its gradient w.r.t. ``(log lam, log s_k)``.
+    """Validation error of one fold and its gradient w.r.t. ``(log lam, log s_k, log p_j)``.
 
-    ``x_train``/``x_val`` must already be scaled.
+    ``p_j`` are the loss parameters named in ``loss_params`` (e.g. ``"epsilon"``, ``"smoothing"``),
+    taken from ``loss``. ``x_train``/``x_val`` must already be scaled.
     """
     prob = TrainingProblem(x_train, y_train, loss, lam, w_train, max_asum)
     sol = train(prob, smo_options, newton_options, alpha0)
@@ -90,9 +93,11 @@ def fold_error_and_gradient(
     ka_val = k_val_sv @ beta[sv]
     f_val = ka_val + sol.b
     err, d_err = validation(f_val, y_val)
-    grad = np.zeros(1 + n_blocks(blocks))
+    grad = np.zeros(1 + n_blocks(blocks) + len(loss_params))
     grad[0] = -d_err @ ka_val
-    grad[1:] = contract_gradient(x_val, x_sv, k_val_sv, d_err, beta[sv], blocks)
+    grad[1 : 1 + n_blocks(blocks)] = contract_gradient(
+        x_val, x_sv, k_val_sv, d_err, beta[sv], blocks
+    )
 
     # implicit part: adjoint system on terms with positive curvature
     dec = prob.decision(sol.b, sol.c, sol.ka)
@@ -118,7 +123,15 @@ def fold_error_and_gradient(
         grad[0] += u @ sol.ka[p]
         u_samples = np.bincount(p_inv, weights=u, minlength=p_samples.size).astype(np.float64)
         k_p_sv = prob.sample_kernel(p_samples, sv)
-        grad[1:] -= contract_gradient(prob.x[p_samples], x_sv, k_p_sv, u_samples, beta[sv], blocks)
+        nb = n_blocks(blocks)
+        grad[1 : 1 + nb] -= contract_gradient(
+            prob.x[p_samples], x_sv, k_p_sv, u_samples, beta[sv], blocks
+        )
+        # loss parameters enter the optimality condition a + phi'(t; p) = 0 directly:
+        # dE/dp = -u^T (d phi'/dp / phi'') on the terms with positive curvature
+        for j, name in enumerate(loss_params):
+            ratio = loss.param_ratio(name, dec, prob.terms)[p]
+            grad[1 + nb + j] = -float(u @ ratio) * float(getattr(loss, name))
     return FoldResult(err, grad, sol, int(sv.size), sol.time_smo + sol.time_newton)
 
 
@@ -142,14 +155,28 @@ def cv_error_and_gradient(
     smo_options: dict[str, Any] | None = None,
     newton_options: dict[str, Any] | None = None,
     warm_start: list[Array | None] | None = None,
+    loss_params: Sequence[str] = (),
 ) -> CVResult:
     """Mean validation error over all folds and its gradient w.r.t. ``theta``.
+
+    ``theta = (log lam, log s_1, ..., log s_K, log p_1, ...)``: regularization, kernel scalings and
+    the values of the loss parameters named in ``loss_params`` (fields of ``loss`` such as
+    ``"epsilon"`` or ``"smoothing"``; they replace the values stored in ``loss``).
 
     ``warm_start`` is a list with one (possibly ``None``) start vector per fold; it is updated
     in place with the new solutions.
     """
+    nb = 1 if blocks is None else len(blocks)
     lam = float(np.exp(theta[0]))
-    xs = scale_features(x, np.exp(theta[1:]), blocks)
+    xs = scale_features(x, np.exp(theta[1 : 1 + nb]), blocks)
+    if loss_params:
+        probe = loss.terms(np.ones(1), np.ones(1))
+        for name in loss_params:  # raises ValueError for parameters that cannot be tuned
+            loss.param_ratio(name, np.zeros(probe.size), probe)
+        loss = dataclasses.replace(
+            cast(Any, loss),
+            **{n: float(np.exp(v)) for n, v in zip(loss_params, theta[1 + nb :], strict=True)},
+        )
     total, grad, results = 0.0, np.zeros_like(theta, dtype=np.float64), []
     n_val = 0
     for i, (train_idx, val_idx) in enumerate(folds):
@@ -168,6 +195,7 @@ def cv_error_and_gradient(
             smo_options,
             newton_options,
             start,
+            loss_params,
         )
         if warm_start is not None:
             warm_start[i] = res.solution.a
