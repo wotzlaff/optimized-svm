@@ -70,7 +70,8 @@ class TrainingProblem:
     def sample_kernel(self, rows: NDArray[np.intp], cols: NDArray[np.intp]) -> Array:
         """Kernel matrix between the *samples* ``rows`` and ``cols``."""
         if self._k is not None:
-            return self._k[np.ix_(rows, cols)]
+            # row gather followed by column gather is about twice as fast as ``np.ix_``
+            return self._k[rows][:, cols]
         return rbf(self.x[rows], self.x[cols])
 
     def kernel_to(self, z: Array, rows: Index = slice(None)) -> Array:
