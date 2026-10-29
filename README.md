@@ -2,6 +2,9 @@
 
 [![PyPI](https://img.shields.io/pypi/v/optimized-svm)](https://pypi.org/project/optimized-svm/)
 [![CI](https://github.com/wotzlaff/optimized-svm/actions/workflows/ci.yml/badge.svg)](https://github.com/wotzlaff/optimized-svm/actions/workflows/ci.yml)
+[![Website](https://img.shields.io/badge/website-demos%20%26%20benchmarks-1d4ed8)](https://wotzlaff.github.io/svm-site/)
+
+**➜ [Interactive demos, benchmarks and a summary of the thesis on the project website](https://wotzlaff.github.io/svm-site/)** · [Documentation](https://wotzlaff.github.io/optimized-svm/)
 
 **Support vector machines whose hyperparameters are tuned by exact gradients instead of grid search.**
 
@@ -64,8 +67,10 @@ model.predict(x[:5])
 ```
 
 On a 1000-sample classification task (`examples/quickstart.py`) the optimizer needs 16 CV
-evaluations (≈10 s) versus 143 grid points (≈20 s) for `GridSearchCV` with `sklearn.svm.SVC`,
-with comparable test accuracy (0.844 vs. 0.856).
+evaluations (≈1 s) versus 143 grid points (≈13 s) for `GridSearchCV` with `sklearn.svm.SVC`,
+with comparable test accuracy (0.844 vs. 0.856). More comparisons (grid, random and successive-halving
+search on four data sets, speed-ups between releases): [Benchmarks](https://wotzlaff.github.io/svm-site/benchmarks/); the ideas
+to play with: [Explore](https://wotzlaff.github.io/svm-site/explore/).
 
 ## How it works
 

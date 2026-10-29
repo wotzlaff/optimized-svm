@@ -1,5 +1,9 @@
 # optimized-svm
 
+!!! tip "Project website"
+    Interactive explainers, benchmarks and a summary of the thesis:
+    [wotzlaff.github.io/svm-site](https://wotzlaff.github.io/svm-site/) — [Explore](https://wotzlaff.github.io/svm-site/explore/) · [Benchmarks](https://wotzlaff.github.io/svm-site/benchmarks/)
+
 **Support vector machines whose hyperparameters are tuned by exact gradients instead of grid search.**
 
 `optimized-svm` treats hyperparameter selection as a bilevel optimization problem: the upper level
@@ -61,8 +65,8 @@ model.predict(x[:5])
 ```
 
 On a 1000-sample classification task (`examples/quickstart.py`) the optimizer needs 16 CV
-evaluations (≈10 s) versus 143 grid points (≈20 s) for `GridSearchCV` with `sklearn.svm.SVC`,
-with comparable test accuracy (0.844 vs. 0.856).
+evaluations (≈1 s) versus 143 grid points (≈13 s) for `GridSearchCV` with `sklearn.svm.SVC`,
+with comparable test accuracy (0.844 vs. 0.856). More comparisons: [Benchmarks](https://wotzlaff.github.io/svm-site/benchmarks/).
 
 ## How it works
 

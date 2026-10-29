@@ -36,6 +36,7 @@ nav:
   - Reproducing the thesis: reproduction.md
   - API reference: api.md
   - Changelog: changelog.md
+  - Project website: https://wotzlaff.github.io/svm-site/
 
 markdown_extensions:
   - admonition

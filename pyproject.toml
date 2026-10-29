@@ -23,6 +23,8 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://wotzlaff.github.io/svm-site/"
+"Interactive demos" = "https://wotzlaff.github.io/svm-site/explore/"
+Benchmarks = "https://wotzlaff.github.io/svm-site/benchmarks/"
 Documentation = "https://wotzlaff.github.io/optimized-svm/"
 Repository = "https://github.com/wotzlaff/optimized-svm"
 
