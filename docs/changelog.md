@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 – 2026-10-29
 
 ### Added
 - Logistic loss (thesis Sec. 4.1.3): `LogisticLoss`, `LogisticValidation` and `loss="logistic"` for
