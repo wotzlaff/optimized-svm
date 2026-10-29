@@ -521,6 +521,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#loss-parameters-varepsilon-delta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loss parameters (\(\varepsilon\), \(\delta\))
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#optimization" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -859,6 +870,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#loss-parameters-varepsilon-delta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Loss parameters (\(\varepsilon\), \(\delta\))
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#optimization" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -931,6 +953,42 @@ factorized again. Contractions with <span class="arithmatex">\(\partial_{\log s_
 <span class="arithmatex">\(W\)</span> and one product <span class="arithmatex">\(WZ\)</span> for all blocks.</p>
 <p>The implementation is tested against central finite differences for all losses, smoothing
 degrees, ARD blocks and an active <span class="arithmatex">\(\nu\)</span>-constraint (relative error about <span class="arithmatex">\(10^{-8}\)</span>).</p>
+<h2 id="loss-parameters-varepsilon-delta">Loss parameters (<span class="arithmatex">\(\varepsilon\)</span>, <span class="arithmatex">\(\delta\)</span>)<a class="headerlink" href="#loss-parameters-varepsilon-delta" title="Permanent link">&para;</a></h2>
+<p>The parameters of the loss — the tube width <span class="arithmatex">\(\varepsilon\)</span> of the <span class="arithmatex">\(\varepsilon\)</span>-insensitive loss and the
+smoothing width <span class="arithmatex">\(\delta\)</span> — enter the optimality condition <span class="arithmatex">\(a_l + \phi_l'(t_l; p) = 0\)</span> directly, not
+through the kernel. The same adjoint vector <span class="arithmatex">\(u\)</span> therefore gives their derivatives at no extra cost:</p>
+<div class="arithmatex">\[
+\frac{\partial E}{\partial p} = -\sum_{l \in P} u_l\, \frac{\partial_p \phi_l'(t_l)}{\phi_l''(t_l)} .
+\]</div>
+<p>All smoothings are of the form <span class="arithmatex">\(m_\delta(x) = \delta\, m_1(x/\delta)\)</span>, hence
+<span class="arithmatex">\(\partial_\delta m_\delta'(x) = -(x/\delta)\, m_\delta''(x)\)</span> for every degree. The ratios are
+<span class="arithmatex">\(s_l\)</span> for <span class="arithmatex">\(\varepsilon\)</span> and <span class="arithmatex">\(s_l \cdot \mathrm{arg}_l/\delta\)</span> for <span class="arithmatex">\(\delta\)</span>, where <span class="arithmatex">\(\mathrm{arg}_l\)</span> is the
+argument of the smoothed maximum and <span class="arithmatex">\(s_l\)</span> the term sign (for the hinge loss <span class="arithmatex">\(y_l\)</span> replaces <span class="arithmatex">\(s_l\)</span>).
+They are implemented as <code>Loss.param_ratio</code>. The function <code>cv_error_and_gradient</code> takes
+<code>loss_params=("epsilon", "smoothing")</code>; <code>theta</code> is then extended by <span class="arithmatex">\(\log\varepsilon\)</span> and <span class="arithmatex">\(\log\delta\)</span>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">optimized_svm</span><span class="w"> </span><span class="kn">import</span> <span class="n">EpsilonInsensitiveLoss</span><span class="p">,</span> <span class="n">cv_error_and_gradient</span>
+
+<span class="n">theta</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">r_</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">lam</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">scaling</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mf">0.3</span><span class="p">)]</span>  <span class="c1"># lam, s, eps, delta</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">cv_error_and_gradient</span><span class="p">(</span>
+    <span class="n">theta</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">EpsilonInsensitiveLoss</span><span class="p">(</span><span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">),</span> <span class="n">validation</span><span class="p">,</span>
+    <span class="n">loss_params</span><span class="o">=</span><span class="p">(</span><span class="s2">"epsilon"</span><span class="p">,</span> <span class="s2">"smoothing"</span><span class="p">),</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The gradients are exact (checked against finite differences, also for <span class="arithmatex">\(\delta\)</span> down to 0.003), but the
+estimators do not tune these parameters, because it rarely pays off:</p>
+<ul>
+<li><strong><span class="arithmatex">\(\varepsilon\)</span> is not identifiable for <span class="arithmatex">\(\varepsilon &lt; \delta\)</span></strong> (quadratic smoothing): the two smoothed
+  sides overlap and <span class="arithmatex">\(\varepsilon\)</span> only shifts the loss by a constant, so the solution, the CV error and the
+  gradient do not depend on it.</li>
+<li>The CV error is <strong>multimodal in <span class="arithmatex">\(\delta\)</span></strong> (variations of about 1 %) and rough for very small <span class="arithmatex">\(\delta\)</span>;
+  starting with a large <span class="arithmatex">\(\varepsilon\)</span> (everything inside the tube, zero solution) can end in a poor basin.</li>
+<li>On data without outliers the tuned parameters do not improve the CV error. With 8 % gross outliers a
+  smaller <span class="arithmatex">\(\delta\)</span> helps (test MSE 0.226 → 0.216), but a fixed small <span class="arithmatex">\(\delta\)</span> does as well, at a fraction of
+  the cost (tuning needs two to four times as many CV evaluations).</li>
+</ul>
+<p>The study is <code>benchmarks/hpo_loss_params.py</code>.</p>
 <h2 id="optimization">Optimization<a class="headerlink" href="#optimization" title="Permanent link">&para;</a></h2>
 <p>L-BFGS-B runs on <span class="arithmatex">\(\theta\)</span> within box constraints. Each evaluation warm-starts SMO with the fold
 solutions of the previous evaluation (about ten times fewer SMO steps for regression). With <code>time_limit</code>, the best parameters found so far are

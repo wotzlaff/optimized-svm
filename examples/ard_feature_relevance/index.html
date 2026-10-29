@@ -975,7 +975,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </style>
 <div class="jupyter-wrapper">
 <div class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=429dd721">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=056909fe">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -989,7 +989,7 @@ five features shrink towards zero. Saves <code>ard_feature_relevance.png</code>.
 </div>
 </div>
 <div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=5b3a1d84">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=b97b6b73">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1032,7 +1032,7 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=0)</div>
 </div>
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=558baeea">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=39ce652f">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1072,98 +1072,15 @@ print(f"R^2 ARD:            {ard.score(x_test, y_test):.3f}")</div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>[  1] lam = 1.000e-02, mean scaling = 6.426e-01, cv error = 0.221028
 [  2] lam = 9.960e-03, mean scaling = 6.270e-01, cv error = 0.220521
+[  3] lam = 9.702e-03, mean scaling = 5.987e-01, cv error = 0.220036
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[  3] lam = 9.702e-03, mean scaling = 5.987e-01, cv error = 0.220036
-[  4] lam = 9.439e-03, mean scaling = 5.919e-01, cv error = 0.219869
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[  5] lam = 7.013e-03, mean scaling = 5.475e-01, cv error = 0.218458
-[  6] lam = 3.844e-03, mean scaling = 4.896e-01, cv error = 0.216091
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[  7] lam = 9.661e-04, mean scaling = 3.994e-01, cv error = 0.211474
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[  8] lam = 8.588e-05, mean scaling = 3.073e-01, cv error = 0.207186
-[  9] lam = 7.879e-05, mean scaling = 2.939e-01, cv error = 0.206660
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 10] lam = 3.416e-05, mean scaling = 2.500e-01, cv error = 0.206065
-[ 11] lam = 9.927e-06, mean scaling = 2.014e-01, cv error = 0.205638
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 12] lam = 2.895e-06, mean scaling = 1.643e-01, cv error = 0.205396
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 13] lam = 1.000e-06, mean scaling = 1.328e-01, cv error = 0.205662
-[ 14] lam = 2.612e-06, mean scaling = 1.610e-01, cv error = 0.205393
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 15] lam = 1.000e-06, mean scaling = 1.377e-01, cv error = 0.205285
-[ 16] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 17] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[  1] lam = 1.000e-02, mean scaling = 6.426e-01, cv error = 0.221028
-[  2] lam = 9.960e-03, mean scaling = 6.270e-01, cv error = 0.220521
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[  3] lam = 9.702e-03, mean scaling = 5.987e-01, cv error = 0.220036
-[  4] lam = 9.439e-03, mean scaling = 5.919e-01, cv error = 0.219869
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[  5] lam = 7.013e-03, mean scaling = 5.475e-01, cv error = 0.218458
+<pre>[  4] lam = 9.439e-03, mean scaling = 5.919e-01, cv error = 0.219869
+[  5] lam = 7.013e-03, mean scaling = 5.475e-01, cv error = 0.218458
 </pre>
 </div>
 </div>
@@ -1195,30 +1112,95 @@ print(f"R^2 ARD:            {ard.score(x_test, y_test):.3f}")</div>
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>[ 12] lam = 2.895e-06, mean scaling = 1.643e-01, cv error = 0.205396
+[ 13] lam = 1.000e-06, mean scaling = 1.328e-01, cv error = 0.205662
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 13] lam = 1.000e-06, mean scaling = 1.328e-01, cv error = 0.205662
-[ 14] lam = 2.612e-06, mean scaling = 1.610e-01, cv error = 0.205393
+<pre>[ 14] lam = 2.612e-06, mean scaling = 1.610e-01, cv error = 0.205393
+[ 15] lam = 1.000e-06, mean scaling = 1.377e-01, cv error = 0.205285
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 15] lam = 1.000e-06, mean scaling = 1.377e-01, cv error = 0.205285
-[ 16] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
+<pre>[ 16] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
+[ 17] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
 </pre>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 17] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
-[ 18] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
+<pre>[  1] lam = 1.000e-02, mean scaling = 6.426e-01, cv error = 0.221028
+[  2] lam = 9.960e-03, mean scaling = 6.270e-01, cv error = 0.220521
+[  3] lam = 9.702e-03, mean scaling = 5.987e-01, cv error = 0.220036
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[  4] lam = 9.439e-03, mean scaling = 5.919e-01, cv error = 0.219869
+[  5] lam = 7.013e-03, mean scaling = 5.475e-01, cv error = 0.218458
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[  6] lam = 3.844e-03, mean scaling = 4.896e-01, cv error = 0.216091
+[  7] lam = 9.661e-04, mean scaling = 3.994e-01, cv error = 0.211474
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[  8] lam = 8.588e-05, mean scaling = 3.073e-01, cv error = 0.207186
+[  9] lam = 7.879e-05, mean scaling = 2.939e-01, cv error = 0.206660
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[ 10] lam = 3.416e-05, mean scaling = 2.500e-01, cv error = 0.206065
+[ 11] lam = 9.927e-06, mean scaling = 2.014e-01, cv error = 0.205638
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[ 12] lam = 2.895e-06, mean scaling = 1.643e-01, cv error = 0.205396
+[ 13] lam = 1.000e-06, mean scaling = 1.328e-01, cv error = 0.205662
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[ 14] lam = 2.612e-06, mean scaling = 1.610e-01, cv error = 0.205393
+[ 15] lam = 1.000e-06, mean scaling = 1.377e-01, cv error = 0.205285
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[ 16] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
+[ 17] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
+</pre>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>[ 18] lam = 1.000e-06, mean scaling = 1.380e-01, cv error = 0.205283
 </pre>
 </div>
 </div>
@@ -1240,13 +1222,7 @@ print(f"R^2 ARD:            {ard.score(x_test, y_test):.3f}")</div>
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>[ 21] lam = 1.238e-06, mean scaling = 1.253e-01, cv error = 0.158082
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 22] lam = 1.571e-06, mean scaling = 1.136e-01, cv error = 0.146418
+[ 22] lam = 1.571e-06, mean scaling = 1.136e-01, cv error = 0.146418
 </pre>
 </div>
 </div>
@@ -1254,13 +1230,7 @@ print(f"R^2 ARD:            {ard.score(x_test, y_test):.3f}")</div>
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
 <pre>[ 23] lam = 1.885e-06, mean scaling = 1.088e-01, cv error = 0.141639
-</pre>
-</div>
-</div>
-<div class="jp-OutputArea-child">
-<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>[ 24] lam = 2.629e-06, mean scaling = 1.130e-01, cv error = 0.134340
+[ 24] lam = 2.629e-06, mean scaling = 1.130e-01, cv error = 0.134340
 </pre>
 </div>
 </div>
@@ -1449,7 +1419,7 @@ R^2 ARD:            0.987
 </div>
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=616e6a85">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ca0f0e91">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>

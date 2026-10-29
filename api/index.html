@@ -971,6 +971,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Loss">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimized_svm.losses.Loss.param_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        param_ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1595,6 +1612,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Loss">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimized_svm.losses.Loss.param_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        param_ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -2532,6 +2566,27 @@ the epsilon-insensitive loss (one for each side of the tube). Term <code>l</code
 
 
 
+<div class="doc doc-object doc-function">
+
+
+<h4 id="optimized_svm.losses.Loss.param_ratio" class="doc doc-heading">
+            <code class="highlight language-python"><span class="n">param_ratio</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">terms</span><span class="p">)</span></code>
+
+<a href="#optimized_svm.losses.Loss.param_ratio" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+
+        <p><code>(d phi'_l / d p) / phi''_l</code> at fixed <code>t</code> for the loss parameter <code>p = name</code>.</p>
+<p>Only meaningful for terms with positive curvature; it is the sensitivity of the optimality
+condition <code>a_l + phi'_l(t_l) = 0</code> w.r.t. <code>p</code> in units of <code>t</code> and is used by the
+hypergradient with respect to loss parameters.</p>
+
+
+    </div>
+
+</div>
+
 
 
   </div>
@@ -2872,7 +2927,7 @@ no SMO warm start and every Newton system has the full size <code>n</code>.</p>
 
 
 <h2 id="optimized_svm.cv_error_and_gradient" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">optimized_svm</span><span class="o">.</span><span class="n">cv_error_and_gradient</span><span class="p">(</span><span class="n">theta</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">validation</span><span class="p">,</span> <span class="n">blocks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_asum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">smo_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">newton_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">warm_start</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">optimized_svm</span><span class="o">.</span><span class="n">cv_error_and_gradient</span><span class="p">(</span><span class="n">theta</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">validation</span><span class="p">,</span> <span class="n">blocks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_asum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">smo_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">newton_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">warm_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_params</span><span class="o">=</span><span class="p">())</span></code>
 
 <a href="#optimized_svm.cv_error_and_gradient" class="headerlink" title="Permanent link">&para;</a></h2>
 
@@ -2880,6 +2935,9 @@ no SMO warm start and every Newton system has the full size <code>n</code>.</p>
     <div class="doc doc-contents first">
 
         <p>Mean validation error over all folds and its gradient w.r.t. <code>theta</code>.</p>
+<p><code>theta = (log lam, log s_1, ..., log s_K, log p_1, ...)</code>: regularization, kernel scalings and
+the values of the loss parameters named in <code>loss_params</code> (fields of <code>loss</code> such as
+<code>"epsilon"</code> or <code>"smoothing"</code>; they replace the values stored in <code>loss</code>).</p>
 <p><code>warm_start</code> is a list with one (possibly <code>None</code>) start vector per fold; it is updated
 in place with the new solutions.</p>
 
@@ -2892,15 +2950,16 @@ in place with the new solutions.</p>
 
 
 <h2 id="optimized_svm.fold_error_and_gradient" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">optimized_svm</span><span class="o">.</span><span class="n">fold_error_and_gradient</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">w_train</span><span class="p">,</span> <span class="n">x_val</span><span class="p">,</span> <span class="n">y_val</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">validation</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">max_asum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">smo_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">newton_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alpha0</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+            <code class="highlight language-python"><span class="n">optimized_svm</span><span class="o">.</span><span class="n">fold_error_and_gradient</span><span class="p">(</span><span class="n">x_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">w_train</span><span class="p">,</span> <span class="n">x_val</span><span class="p">,</span> <span class="n">y_val</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">validation</span><span class="p">,</span> <span class="n">lam</span><span class="p">,</span> <span class="n">blocks</span><span class="p">,</span> <span class="n">max_asum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">smo_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">newton_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">alpha0</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_params</span><span class="o">=</span><span class="p">())</span></code>
 
 <a href="#optimized_svm.fold_error_and_gradient" class="headerlink" title="Permanent link">&para;</a></h2>
 
 
     <div class="doc doc-contents first">
 
-        <p>Validation error of one fold and its gradient w.r.t. <code>(log lam, log s_k)</code>.</p>
-<p><code>x_train</code>/<code>x_val</code> must already be scaled.</p>
+        <p>Validation error of one fold and its gradient w.r.t. <code>(log lam, log s_k, log p_j)</code>.</p>
+<p><code>p_j</code> are the loss parameters named in <code>loss_params</code> (e.g. <code>"epsilon"</code>, <code>"smoothing"</code>),
+taken from <code>loss</code>. <code>x_train</code>/<code>x_val</code> must already be scaled.</p>
 
 
     </div>
