@@ -26,6 +26,7 @@ nav:
   - Getting started: getting-started.md
   - Background:
       - Training problem: theory/training.md
+      - Switching from SMO to Newton: theory/switching.md
       - Hyperparameter gradients: theory/hypergradient.md
   - Examples:
       - Quickstart: examples/quickstart.py

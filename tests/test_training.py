@@ -68,6 +68,42 @@ def test_bound_aware_stopping_is_passed_to_smo(data):
         train(prob, {"stopping": "nope"})
 
 
+def test_rough_smo_stage_has_a_step_budget(data, monkeypatch):
+    import optimized_svm.training as training
+
+    x, _, t, _ = data
+    # small lambda: SMO needs far more than 5 n steps to reach the rough tolerance
+    prob = TrainingProblem(0.6 * x, t, EpsilonInsensitiveLoss(0.05, 0.2), 1e-4)
+    exact = train(prob, {"tol": 1e-8})
+    sol = train(prob)
+    assert sol.smo_steps == 5 * prob.size  # the budget binds
+    assert sol.residual < 1e-12
+    np.testing.assert_allclose(sol.a, exact.a, atol=1e-5)
+    # explicit options replace the defaults
+    assert train(prob, {"max_steps": 10}).smo_steps == 10
+    assert train(prob, {"tol": 0.3}).smo_steps > 5 * prob.size
+    # no budget: SMO runs to the rough tolerance
+    monkeypatch.setattr(training, "ROUGH_SMO_STEPS", None)
+    assert train(prob).smo_steps > 5 * prob.size
+
+
+def test_failed_newton_falls_back_to_unbudgeted_smo(data, monkeypatch):
+    import optimized_svm.training as training
+
+    x, _, t, _ = data
+    prob = TrainingProblem(0.6 * x, t, EpsilonInsensitiveLoss(0.05, 0.2), 1e-4)
+
+    def failing(*args, **kwargs):
+        raise training.ConvergenceError("forced")
+
+    monkeypatch.setattr(training, "newton", failing)
+    sol = train(prob)
+    exact = train(prob, {"tol": 1e-8})
+    assert sol.info["newton"] == "failed"
+    assert sol.smo_steps > 5 * prob.size  # the fallback is not capped by the budget
+    np.testing.assert_allclose(sol.a, exact.a, atol=1e-4)
+
+
 def test_non_smooth_loss_uses_smo_only(data):
     x, y, _, _ = data
     prob = TrainingProblem(x, y, HingeLoss(smoothing=0.0), 0.1)

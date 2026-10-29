@@ -169,8 +169,12 @@ def newton(
     )
 
 
-#: SMO tolerance used before a Newton refinement
-ROUGH_SMO_TOL = 0.1
+#: SMO tolerance used before a Newton refinement (switching point, see
+#: ``benchmarks/smo_newton_switch.py``)
+ROUGH_SMO_TOL = 0.3
+#: step budget of the rough SMO stage per loss term (``None``: unlimited). SMO converges slowly
+#: on some problems (small lambda, active 1-norm bound), where Newton's method is cheaper.
+ROUGH_SMO_STEPS: float | None = 5.0
 
 _SMO_OPTIONS = {
     "tol",
@@ -262,12 +266,22 @@ def train(
     """Two-step training: SMO warm start followed by Newton refinement.
 
     For non-smooth losses (``smoothing = 0``) the SMO solution is already exact; for losses
-    without SMO formulation (squared, Poisson) Newton starts at zero.
+    without SMO formulation (squared, logistic, Poisson) Newton starts at zero.
+
+    By default the SMO stage stops at the tolerance :data:`ROUGH_SMO_TOL` or after
+    ``ROUGH_SMO_STEPS`` steps per loss term, whichever comes first. Passing ``tol`` or
+    ``max_steps`` in ``smo_options`` replaces these defaults (no step budget then).
     """
     smo_options = dict(smo_options or {})
     smooth = getattr(prob.loss, "smoothing", 1.0) > 0.0
+    budgeted = False
     if smooth:
         # Newton refines the solution, so a rough SMO solution suffices as starting point
+        # the budget only guards the default rough stage; an explicit `tol` or `max_steps`
+        # asks for a specific SMO accuracy
+        if ROUGH_SMO_STEPS is not None and not {"tol", "max_steps"} & smo_options.keys():
+            smo_options["max_steps"] = max(1, int(ROUGH_SMO_STEPS * prob.size))
+            budgeted = True
         smo_options.setdefault("tol", ROUGH_SMO_TOL)
     t0 = time.perf_counter()
     a, b, c, smo_steps = smo_warm_start(prob, alpha0, **smo_options)
@@ -284,6 +298,8 @@ def train(
         except ConvergenceError:
             # fall back to an accurate SMO solution (exact for quadratic smoothing)
             smo_options["tol"] = 1e-6
+            if budgeted:
+                del smo_options["max_steps"]
             a, b, c, more = smo_warm_start(prob, a, **smo_options)
             smo_steps += more
             sol = Solution(a, b, c, prob.ka(a), info={"newton": "failed"})

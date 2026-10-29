@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+- Switch from SMO to Newton: the rough SMO stage now stops at tolerance 0.3 (was 0.1) or after five
+  steps per loss term. Same results; ε-SVR hyperparameter optimization up to 2.5 times faster, and
+  1–2 orders of magnitude faster with an active 1-norm bound, where SMO converges very slowly.
+  Explicit `tol`/`max_steps` in `smo_options` replace the defaults. Study:
+  `benchmarks/smo_newton_switch.py`.
+
 ### Added
 - `smo_options` accepts the bound-aware stopping criterion of `smo-solver` (`stopping="bound_aware"`,
   `rho`); requires `smo-solver>=0.1.2`.
