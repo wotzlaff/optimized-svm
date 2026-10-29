@@ -12,6 +12,7 @@ from optimized_svm import (
     newton,
     train,
 )
+from optimized_svm.training import _feasible_start
 
 
 def cases(data):
@@ -68,6 +69,21 @@ def test_warm_start_reduces_smo_steps(data):
     assert warm.smo_steps < cold.smo_steps
     # both are refined by Newton up to its residual tolerance
     np.testing.assert_allclose(warm.a, cold.a, atol=1e-5)
+
+
+def test_warm_start_keeps_variables_at_their_bounds(data):
+    x, y, _, _ = data
+    prob = TrainingProblem(x, y, HingeLoss(), 0.01)
+    a = train(prob).a
+    # a rounding-size violation of sum(a) = 0 must not move variables off their bounds
+    free = np.flatnonzero((a != 0.0) & (a != prob.terms.w * prob.terms.sign))
+    perturbed = a.copy()
+    perturbed[free[0]] += 1e-12
+    start = _feasible_start(prob, perturbed)
+    assert start is not None
+    bound = np.setdiff1d(np.arange(a.size), free)
+    assert bound.size > 0
+    np.testing.assert_array_equal(start[bound], a[bound])
 
 
 def test_invalid_problem():

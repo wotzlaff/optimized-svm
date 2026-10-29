@@ -206,13 +206,19 @@ def _feasible_start(prob: TrainingProblem, alpha0: Array) -> Array | None:
     a = np.clip(alpha0, lo, hi)
     if prob.max_asum is not None and (t.sign * a).sum() > prob.max_asum:
         a = a * (prob.max_asum / (t.sign * a).sum()) * (1 - 1e-12)
-    # distribute the violation of sum(a) = 0 over variables with room in that direction
+    # distribute the violation of sum(a) = 0, preferably over variables strictly inside their
+    # bounds: moving a variable off its bound makes it free for SMO, which then spends many
+    # steps on it. A violation of rounding size is left to the solver (it accepts 1e-9 relative).
     excess = a.sum()
-    room = (a - lo) if excess > 0 else (hi - a)
-    total = room.sum()
-    if not total > abs(excess):
-        return None
-    a = a - excess * room / total
+    if abs(excess) > 1e-10 * max(float(np.abs(a).sum()), 1.0):
+        room = (a - lo) if excess > 0 else (hi - a)
+        inner = np.where((a > lo) & (a < hi), room, 0.0)
+        if inner.sum() > abs(excess):
+            room = inner
+        total = room.sum()
+        if not total > abs(excess):
+            return None
+        a = a - excess * room / total
     if prob.max_asum is not None and (t.sign * a).sum() > prob.max_asum:
         return None
     return np.ascontiguousarray(a)
