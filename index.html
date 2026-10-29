@@ -839,6 +839,33 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://wotzlaff.github.io/svm-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project website
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -974,6 +1001,11 @@
 
 
 <h1 id="optimized-svm">optimized-svm<a class="headerlink" href="#optimized-svm" title="Permanent link">&para;</a></h1>
+<div class="admonition tip">
+<p class="admonition-title">Project website</p>
+<p>Interactive explainers, benchmarks and a summary of the thesis:
+<a href="https://wotzlaff.github.io/svm-site/">wotzlaff.github.io/svm-site</a> — <a href="https://wotzlaff.github.io/svm-site/explore/">Explore</a> · <a href="https://wotzlaff.github.io/svm-site/benchmarks/">Benchmarks</a></p>
+</div>
 <p><strong>Support vector machines whose hyperparameters are tuned by exact gradients instead of grid search.</strong></p>
 <p><code>optimized-svm</code> treats hyperparameter selection as a bilevel optimization problem: the upper level
 minimizes a (smoothed) cross-validation error, the lower level is the SVM training problem. Smoothing
@@ -1023,8 +1055,8 @@ uv<span class="w"> </span>run<span class="w"> </span>pytest
 <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">x</span><span class="p">[:</span><span class="mi">5</span><span class="p">])</span>
 </code></pre></div>
 <p>On a 1000-sample classification task (<code>examples/quickstart.py</code>) the optimizer needs 16 CV
-evaluations (≈10 s) versus 143 grid points (≈20 s) for <code>GridSearchCV</code> with <code>sklearn.svm.SVC</code>,
-with comparable test accuracy (0.844 vs. 0.856).</p>
+evaluations (≈1 s) versus 143 grid points (≈13 s) for <code>GridSearchCV</code> with <code>sklearn.svm.SVC</code>,
+with comparable test accuracy (0.844 vs. 0.856). More comparisons: <a href="https://wotzlaff.github.io/svm-site/benchmarks/">Benchmarks</a>.</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
