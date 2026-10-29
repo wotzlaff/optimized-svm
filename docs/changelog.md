@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 – 2026-10-29
 
 ### Changed
 - Faster hypergradient: kernel matrices are handled per sample (ε-SVR uses `n` instead of `2n`

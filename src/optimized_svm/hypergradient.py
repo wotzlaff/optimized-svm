@@ -106,7 +106,7 @@ def fold_error_and_gradient(
             q, cho = None, factor.cho
         else:
             q, cho = prob.kernel(p, p) * lam_inv + np.diag(1.0 / h[p]), None
-        cols = [np.ones(p.size)]
+        cols: list[Array] = [np.ones(p.size)]
         rhs0 = [d_err.sum()]
         if max_asum is not None and sol.c > 0.0:
             cols.append(prob.sign[p])
