@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `smo_options` accepts the bound-aware stopping criterion of `smo-solver` (`stopping="bound_aware"`,
+  `rho`); requires `smo-solver>=0.1.2`.
+
 ## 0.2.0 – 2026-10-29
 
 ### Added

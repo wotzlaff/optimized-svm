@@ -47,6 +47,10 @@ solves exactly. The higher degree variants ("3", "6") are $C^2$.
    Terms with vanishing curvature ($\ell'' = 0$) are fixed explicitly, so only a linear system on
    the terms with $\ell'' > 0$ has to be solved. Usually one to a few steps suffice.
 
+The SMO stage can be tuned with `smo_options` (all options of `smo-solver`), for instance the
+bound-aware stopping criterion of Sec. 7.6, `smo_options={"stopping": "bound_aware"}`. The default
+rough tolerance is `tol = 0.1`.
+
 For non-smooth losses ($\delta = 0$) only SMO is used; for losses without an SMO formulation
 (squared, logistic, Poisson) Newton starts at zero.
 

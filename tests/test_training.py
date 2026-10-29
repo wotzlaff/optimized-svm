@@ -54,6 +54,20 @@ def test_newton_matches_exact_smo_for_quadratic_smoothing(data):
     np.testing.assert_allclose(sol.b, ref.b, atol=1e-7)
 
 
+def test_bound_aware_stopping_is_passed_to_smo(data):
+    x, y, t, _ = data
+    for loss, target in [(HingeLoss(smoothing=0.4), y), (EpsilonInsensitiveLoss(0.05, 0.2), t)]:
+        prob = TrainingProblem(0.6 * x, target, loss, 0.02)
+        ref = train(prob)
+        # Newton polishes the rough SMO solution, so the final solution does not depend on how
+        # SMO was stopped
+        sol = train(prob, {"stopping": "bound_aware", "rho": 0.5})
+        assert sol.residual < 1e-12
+        np.testing.assert_allclose(sol.a, ref.a, atol=1e-7)
+    with pytest.raises(ValueError, match="stopping"):
+        train(prob, {"stopping": "nope"})
+
+
 def test_non_smooth_loss_uses_smo_only(data):
     x, y, _, _ = data
     prob = TrainingProblem(x, y, HingeLoss(smoothing=0.0), 0.1)

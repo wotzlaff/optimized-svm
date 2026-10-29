@@ -3018,7 +3018,7 @@ wheels = [
 
 [[package]]
 name = "optimized-svm"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -3060,7 +3060,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.23" },
     { name = "scikit-learn", specifier = ">=1.6" },
     { name = "scipy", specifier = ">=1.10" },
-    { name = "smo-solver", specifier = ">=0.1" },
+    { name = "smo-solver", specifier = ">=0.1.2" },
     { name = "threadpoolctl", specifier = ">=3.1" },
 ]
 
@@ -4507,19 +4507,19 @@ wheels = [
 
 [[package]]
 name = "smo-solver"
-version = "0.1.0"
+version = "0.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*'" },
     { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e2/c6/542b6f20cbcf2c6617d8377b3ada08a35b4e32595d0bda206cdeca2da950/smo_solver-0.1.0.tar.gz", hash = "sha256:cd1efa9a73aedfbe5c93e9576ceb5d1a65a2a39adbba1a48fb4bccbea4234df4", size = 47255, upload-time = "2026-10-28T12:25:52.478Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2a/01/c7a5c5c41dd8c762241a0a26f0afe3acf84d55d8e71f7f5fd57538594dc0/smo_solver-0.1.2.tar.gz", hash = "sha256:a187861b517cfba7f0abbb2c0a9cd8f2710ebdd0407ee42678485460d477457a", size = 54689, upload-time = "2026-10-29T09:56:14.667Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/35/8325ca1e7f0e27b403fe22daf71950464389bf9362328eaf90f1a1aac18c/smo_solver-0.1.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:ed8af89be6b38665ad9b5252c939c58cba8040efd82f65f9e1cd7479eec2a620", size = 361459, upload-time = "2026-10-28T12:25:45.985Z" },
-    { url = "https://files.pythonhosted.org/packages/ed/fa/72c3723049e46cace1a1b7e956815dc95e96a95175f0053ec0d395fbda29/smo_solver-0.1.0-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f0526587db886c4a1c6d8a5ed799cd1909e2f1ba841e6e4e86edbde7928bf9be", size = 400985, upload-time = "2026-10-28T12:25:47.852Z" },
-    { url = "https://files.pythonhosted.org/packages/93/a5/0c45081d6df1fad8a03271e96ad0e9011af2ddc28c89f9d3c203f5617a09/smo_solver-0.1.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4c5a0f19f5126b3f6b102b501ae756b481b3ef1f5d94a4470d7f7e3983d689ef", size = 405073, upload-time = "2026-10-28T12:25:49.48Z" },
-    { url = "https://files.pythonhosted.org/packages/cc/39/90e38097737b3f11bddb870a5b4973a7d92b2bb5dc8887a67537d152baa3/smo_solver-0.1.0-cp310-abi3-win_amd64.whl", hash = "sha256:9af8e2f1d5d1cc7047a94a9c5a0c26a84e853ece1d841635ab262c1cb4c939f3", size = 274727, upload-time = "2026-10-28T12:25:51.197Z" },
+    { url = "https://files.pythonhosted.org/packages/08/19/3d2dfbb657e1ad56103525876b35a55984b8ee13e233609881542a040757/smo_solver-0.1.2-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:fc48e4a5ebbf4f6f36a59ee649bbc2cbb57cbf2f05340bcba0a7a6c826d5bc08", size = 373407, upload-time = "2026-10-29T09:56:09.314Z" },
+    { url = "https://files.pythonhosted.org/packages/91/d3/a1cbf054f198dc4814ac939d9064a0948a3844919244ab0aa6bfedb819ee/smo_solver-0.1.2-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0631ca0f226373bc3fda892525d1b9b1f847015bb2924b68d4334086d26fd4f8", size = 411558, upload-time = "2026-10-29T09:56:10.898Z" },
+    { url = "https://files.pythonhosted.org/packages/10/fc/7da99989197dacbdc0ec5ef801edadd814f5146c93bf0d05c9f4b4939194/smo_solver-0.1.2-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bda008464a0823dc645698c2beb6831d9729aa0d5fbe2285784f4d0658a69ca1", size = 422119, upload-time = "2026-10-29T09:56:12.232Z" },
+    { url = "https://files.pythonhosted.org/packages/25/6c/46c6d9b135fd0934f7ee4a0214e9489c6a489a372a0d044606a9e8253d5a/smo_solver-0.1.2-cp310-abi3-win_amd64.whl", hash = "sha256:bb50dcfc27b4d56937662b63a9048476abbf11c37cb91ef06479e594fb129412", size = 291866, upload-time = "2026-10-29T09:56:13.402Z" },
 ]
 
 [[package]]

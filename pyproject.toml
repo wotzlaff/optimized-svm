@@ -11,7 +11,7 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE"]
 authors = [{ name = "Nico Strasdat", email = "nstrasdat@gmail.com" }]
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.23", "scipy>=1.10", "scikit-learn>=1.6", "threadpoolctl>=3.1", "smo-solver>=0.1"]
+dependencies = ["numpy>=1.23", "scipy>=1.10", "scikit-learn>=1.6", "threadpoolctl>=3.1", "smo-solver>=0.1.2"]
 keywords = ["svm", "hyperparameter optimization", "bilevel optimization", "kernel methods"]
 classifiers = [
     "Development Status :: 4 - Beta",

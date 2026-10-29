@@ -178,6 +178,8 @@ _SMO_OPTIONS = {
     "time_limit",
     "working_set",
     "two_sided",
+    "stopping",
+    "rho",
     "shrinking",
     "shrinking_period",
     "cache_size_mb",
