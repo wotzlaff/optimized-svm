@@ -78,8 +78,23 @@ full model.
   $\tau = 1$, 14× at $\tau = 10$ with +12 % error); for small $\lambda$ the basis grows and the gain
   disappears. With a narrower kernel (scale 0.15) the limit is hit and the full model is faster. For
   classification the full model (SMO) takes about 1 s here and the subspace model is not faster.
-  Not tested beyond $n = 2500$, where the gain should grow because the subspace cost is
-  $O(nm^2)$ against a full factorization that depends on the number of support vectors.
+- **Larger $n$** (`benchmarks/subspace_large.py`, ε-SVR on Friedman #1, 5 folds, one evaluation; time of the subspace model
+  includes `select_basis`; excess = CV error over the full model):
+
+  | $n$ | scale | $\lambda$ | $\tau$ | $m$ | excess | subspace (s) | full (s) | speed-up |
+  |---|---|---|---|---|---|---|---|---|
+  | 5000 | 0.05 | 0.1 | 1 | 139 | +0.7 % | 2.4 | 14.0 | 5.8× |
+  | 5000 | 0.05 | 0.01 | 1 | 282 | +0.3 % | 4.5 | 23.6 | 5.2× |
+  | 5000 | 0.1 | 0.1 | 1 | 685 | +0.1 % | 11.5 | 20.7 | 1.8× |
+  | 10000 | 0.05 | 0.1 | 1 | 189 | +0.4 % | 2.9 | 95.5 | 33× |
+  | 10000 | 0.05 | 0.01 | 1 | 348 | +0.2 % | 6.9 | 154.8 | 22× |
+  | 10000 | 0.1 | 0.1 | 1 | 939 | +0.1 % | 18.4 | 106.1 | 5.8× |
+  | 10000 | 0.05 | 0.1 | 10 | 70 | +7.7 % | 1.2 | 95.5 | 80× |
+  | 10000 | 0.05 | 0.01 | 10 | 189 | +2.3 % | 3.5 | 154.8 | 44× |
+  | 10000 | 0.1 | 0.1 | 10 | 429 | +1.5 % | 12.0 | 106.1 | 8.8× |
+
+  The gain grows with $n$: the basis size needed for a given $\tau$ grows slowly with $n$ while the full
+  model gets much more expensive. At $n = 10000$ the subspace model is 6 to 33 times faster at $\tau = 1$ with at most 0.4 % excess error.
 - The basis depends on the kernel scale and on $\lambda$; choose it for the starting values
   of a hyperparameter optimization and re-select it if they change a lot.
 
