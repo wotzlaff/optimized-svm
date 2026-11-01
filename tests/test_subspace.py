@@ -12,6 +12,7 @@ from optimized_svm.subspace import (
     choose_basis,
     fold_error_and_gradient_subspace,
     newton_subspace,
+    select_basis,
 )
 from optimized_svm.validation import SmoothAbsoluteValidation, SmoothHingeValidation
 
@@ -114,3 +115,22 @@ def test_subspace_hypergradient_matches_finite_differences(name):
     )
     np.testing.assert_allclose(grad, fd, rtol=1e-5, atol=1e-7)
     assert np.all(np.abs(grad) > 1e-6)
+
+
+def test_select_basis_reaches_the_tolerance():
+    x = make(200)[0] * 0.3
+    idx, ratio = select_basis(x, lam=0.05, tol=1.0, max_size=200)
+    assert ratio <= 1.0 and len(set(idx)) == len(idx) and np.all(np.diff(idx) > 0)
+    # the reported ratio is the Nystroem residual trace divided by lam
+    k = rbf(x, x)
+    resid = k - k[:, idx] @ np.linalg.solve(k[np.ix_(idx, idx)] + 1e-10 * np.eye(len(idx)), k[idx])
+    assert np.trace(resid) / 0.05 == pytest.approx(ratio, rel=1e-4, abs=1e-6)
+    assert len(select_basis(x, lam=0.05, tol=10.0, max_size=200)[0]) <= len(idx)
+
+
+def test_select_basis_respects_the_size_limit():
+    x = make(200)[0]
+    idx, ratio = select_basis(x, lam=1e-6, tol=1.0)
+    assert len(idx) == 20 and ratio > 1.0
+    with pytest.raises(ValueError):
+        select_basis(x, lam=-1.0)

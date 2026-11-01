@@ -49,6 +49,39 @@ def choose_basis(n: int, m: int, seed: int | None = 0) -> NDArray[np.intp]:
     return np.sort(rng.choice(n, size=m, replace=False))
 
 
+def select_basis(
+    x: Array, lam: float, tol: float = 1.0, max_size: int | None = None
+) -> tuple[NDArray[np.intp], float]:
+    """Greedy pivoted Cholesky of the RBF kernel on scaled features ``x``.
+
+    Adds the sample with the largest remaining kernel variance until the absolute trace of the
+    Nystroem residual ``tr(K - K_s)`` is at most ``tol * lam`` or ``max_size`` points are chosen
+    (default ``max(10, n // 10)``). Returns the sorted indices and the final ``tr(K - K_s) / lam``;
+    a value above ``tol`` means that the size limit was hit and the subspace model is not a close
+    approximation (the study in ``benchmarks/subspace_params.py`` found a cross-validation error
+    at most 1 % above the full model for ``tol = 1`` and at most 14 % for ``tol = 10``).
+    """
+    if lam <= 0 or tol <= 0:
+        raise ValueError("lam and tol must be positive")
+    x = np.ascontiguousarray(x, dtype=np.float64)
+    n = x.shape[0]
+    limit = min(n, max(10, n // 10)) if max_size is None else min(n, int(max_size))
+    if limit < 1:
+        raise ValueError("max_size must be at least 1")
+    diag = np.ones(n)
+    chol = np.zeros((limit, n))
+    pivots: list[int] = []
+    while diag.sum() > tol * lam and len(pivots) < limit:
+        j = len(pivots)
+        p = int(np.argmax(diag))
+        pivots.append(p)
+        col = rbf(x, x[p : p + 1])[:, 0] - chol[:j, p] @ chol[:j]
+        chol[j] = col / np.sqrt(max(diag[p], 1e-300))
+        diag = np.maximum(diag - chol[j] ** 2, 0.0)
+        diag[pivots] = 0.0
+    return np.sort(np.array(pivots, dtype=np.intp)), float(diag.sum() / lam)
+
+
 class SubspaceProblem:
     """Training problem on scaled features ``x`` restricted to the span of the basis points ``z``
     (``z`` are scaled, too)."""

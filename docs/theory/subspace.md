@@ -34,6 +34,55 @@ Low-level only: pass `basis` (one index array per fold, indices into `x`) to
 `cv_error_and_gradient`; `warm_start` then holds expansion coefficients. `choose_basis` draws a random
 subset. `loss_params` and `max_asum` are not supported with a basis.
 
+## Choosing the basis
+
+Study `benchmarks/subspace_params.py` (raw data `benchmarks/results/subspace_params.json`): ε-SVR and
+classification on Friedman-type data, $n = 1000$ and $2500$, three kernel scales, $\lambda = 10^{-3}$ and
+$10^{-1}$, 5 folds, basis sizes 25–800; the cross-validation error of one evaluation is compared with the
+full model.
+
+- **Selection rule: greedy pivoted Cholesky, not random.** At equal $m$ the two rules give about the same
+  error (median excess over the full model at $m = 400$: +0.4 % pivoted, +0.7 % random on
+  regression), so the choice does not matter for quality; pivoted Cholesky is used because it yields
+  the residual trace needed for the size rule.
+- **Size rule: stop when $\operatorname{tr}(K - K_s) \le 	au\lambda$.** The trace of the Nyström residual relative to $\lambda$
+  predicts the loss of accuracy, the trace alone does not (with small $\lambda$ a residual of $10^{-3}\,n$
+  already costs +55 % error). Excess CV error over the full model, all 24 settings × 6 sizes:
+
+  | $\operatorname{tr}(K-K_s)/\lambda$ | runs | median | maximum |
+  |---|---|---|---|
+  | < 1 | 24 | +0.01 % | +0.9 % |
+  | 1–10 | 10 | +0.6 % | +11 % |
+  | 10–100 | 15 | +2 % | +14 % |
+  | 100–1000 | 18 | +15 % | +82 % |
+  | > 1000 | 65 | +17 % to +28 % | +135 % |
+
+  `select_basis(x_scaled, lam, tol=1.0, max_size=None)` implements this with $\tau = 1$ (use `tol=10`
+  to accept up to ~14 %). The default size limit is $\max(10, n/10)$; if it is hit, the returned ratio is
+  above `tol` and the model is not a close approximation.
+- **Check of the rule** (`select_basis` with the size limit $n/4$, $n = 2500$, one evaluation incl. 5 folds;
+  excess = CV error over the full model):
+
+  | task | kernel scale | $\lambda$ | $\tau$ | $m$ | excess | subspace (s) | full (s) |
+  |---|---|---|---|---|---|---|---|
+  | ε-SVR | 0.05 | $10^{-3}$ | 1 | 376 | +0.2 % | 6.1 | 7.0 |
+  | ε-SVR | 0.05 | $10^{-3}$ | 10 | 230 | +2.9 % | 3.0 | 7.0 |
+  | ε-SVR | 0.05 | $10^{-1}$ | 1 | 93 | +1.1 % | 1.2 | 4.1 |
+  | ε-SVR | 0.05 | $10^{-1}$ | 10 | 47 | +12 % | 0.3 | 4.1 |
+  | ε-SVR | 0.15 | $10^{-1}$ | 1 | 625 (limit) | +0.9 % | 9.3 | 5.7 |
+  | classification | 0.05 | $10^{-3}$ | 1 | 238 | 0.0 % | 6.2 | 1.1 |
+  | classification | 0.05 | $10^{-1}$ | 1 | 74 | +0.2 % | 0.7 | 0.9 |
+
+  The rule keeps the error small whenever the ratio reaches $\tau$. Whether it also saves time depends on the
+  problem: only for ε-SVR with a wide kernel (scale 0.05) and not too small $\lambda$ (3.4× faster at
+  $\tau = 1$, 14× at $\tau = 10$ with +12 % error); for small $\lambda$ the basis grows and the gain
+  disappears. With a narrower kernel (scale 0.15) the limit is hit and the full model is faster. For
+  classification the full model (SMO) takes about 1 s here and the subspace model is not faster.
+  Not tested beyond $n = 2500$, where the gain should grow because the subspace cost is
+  $O(nm^2)$ against a full factorization that depends on the number of support vectors.
+- The basis depends on the kernel scale and on $\lambda$; choose it for the starting values
+  of a hyperparameter optimization and re-select it if they change a lot.
+
 ## Example
 
 ε-SVR on Friedman #1, $n = 3000$, 5 folds, $\lambda = 10^{-3}$, one kernel scale, one evaluation of
