@@ -27,6 +27,7 @@ from .kernels import Blocks, contract_gradient, n_blocks, rbf, scale_features
 from .linalg import solve_bordered
 from .losses import Loss
 from .problem import TrainingProblem
+from .subspace import SubspaceFoldResult, fold_error_and_gradient_subspace
 from .training import Solution, train
 from .validation import ValidationLoss
 
@@ -139,7 +140,7 @@ def fold_error_and_gradient(
 class CVResult:
     error: float
     gradient: Array
-    folds: list[FoldResult] = field(default_factory=list)
+    folds: list[FoldResult | SubspaceFoldResult] = field(default_factory=list)
 
 
 def cv_error_and_gradient(
@@ -156,6 +157,7 @@ def cv_error_and_gradient(
     newton_options: dict[str, Any] | None = None,
     warm_start: list[Array | None] | None = None,
     loss_params: Sequence[str] = (),
+    basis: Sequence[NDArray[np.intp]] | None = None,
 ) -> CVResult:
     """Mean validation error over all folds and its gradient w.r.t. ``theta``.
 
@@ -165,6 +167,11 @@ def cv_error_and_gradient(
 
     ``warm_start`` is a list with one (possibly ``None``) start vector per fold; it is updated
     in place with the new solutions.
+
+    With ``basis`` (one array of sample indices per fold, indices into ``x``) every fold trains a
+    *Subspace SVM* whose model is spanned by these basis points (:mod:`optimized_svm.subspace`);
+    ``warm_start`` then holds expansion coefficients instead of dual variables. Loss parameters and
+    the 1-norm constraint are not supported in that case.
     """
     nb = 1 if blocks is None else len(blocks)
     lam = float(np.exp(theta[0]))
@@ -177,10 +184,25 @@ def cv_error_and_gradient(
             cast(Any, loss),
             **{n: float(np.exp(v)) for n, v in zip(loss_params, theta[1 + nb :], strict=True)},
         )
-    total, grad, results = 0.0, np.zeros_like(theta, dtype=np.float64), []
+    total, grad = 0.0, np.zeros_like(theta, dtype=np.float64)
+    results: list[FoldResult | SubspaceFoldResult] = []
     n_val = 0
     for i, (train_idx, val_idx) in enumerate(folds):
         start = warm_start[i] if warm_start is not None else None
+        if basis is not None:
+            if loss_params or max_asum is not None:
+                raise ValueError("loss_params and max_asum are not supported with a subspace basis")
+            sub = fold_error_and_gradient_subspace(
+                xs[train_idx], y[train_idx], w[train_idx], xs[basis[i]], xs[val_idx], y[val_idx],
+                loss, validation, lam, blocks, newton_options, start,
+            )  # fmt: skip
+            if warm_start is not None:
+                warm_start[i] = sub.solution.beta
+            total += sub.error
+            grad += sub.gradient
+            n_val += len(val_idx)
+            results.append(sub)
+            continue
         res = fold_error_and_gradient(
             xs[train_idx],
             y[train_idx],

@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- Subspace SVM (thesis Sec. 5.3), low-level: `optimized_svm.subspace` (Newton training in the span of $m$ basis
+  points, systems of size $m+1$) and the `basis` argument of `cv_error_and_gradient` with an exact
+  hypergradient (checked against finite differences). Not offered by the estimators. See `theory/subspace.md`.
 - Benchmark scripts `benchmarks/hpo_vs_search.py` (gradient method against grid, random and
   successive-halving search) and `benchmarks/hpo_timing.py` (wall-clock time of complete
   optimizations, for comparing releases). Results: https://wotzlaff.github.io/svm-site/benchmarks/
