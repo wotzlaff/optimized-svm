@@ -134,3 +134,66 @@ def test_select_basis_respects_the_size_limit():
     assert len(idx) == 20 and ratio > 1.0
     with pytest.raises(ValueError):
         select_basis(x, lam=-1.0)
+
+
+# --- estimators -------------------------------------------------------------------------------
+
+from optimized_svm import OptimizedSVC, OptimizedSVR, SmoothSVC, SmoothSVR  # noqa: E402
+
+
+def _reg_data(n=300, seed=0):
+    rng = np.random.default_rng(seed)
+    x = rng.uniform(-1, 1, (n, 3))
+    return x, np.sin(2 * x[:, 0]) + 0.5 * x[:, 1] ** 2 + 0.05 * rng.normal(size=n)
+
+
+def test_smooth_svr_subspace_matches_the_full_model():
+    x, y = _reg_data()
+    full = SmoothSVR(lam=1e-3, scaling=0.3).fit(x, y)
+    sub = SmoothSVR(lam=1e-3, scaling=0.3, n_basis="auto", basis_tol=10.0).fit(x, y)
+    assert len(sub.basis_) < len(x) and sub.n_support_ == len(sub.basis_)
+    assert np.max(np.abs(sub.predict(x) - full.predict(x))) < 0.1
+    fixed = SmoothSVR(lam=1e-3, scaling=0.3, n_basis=40).fit(x, y)
+    assert len(fixed.basis_) == 40
+    assert fixed.score(x, y) > 0.9
+
+
+def test_smooth_svc_subspace_and_validation():
+    x, y = _reg_data()
+    labels = (y > np.median(y)).astype(int)
+    clf = SmoothSVC(lam=1e-2, scaling=0.5, n_basis=30).fit(x, labels)
+    assert clf.score(x, labels) > 0.9
+    with pytest.raises(ValueError, match="smooth"):
+        SmoothSVC(smoothing=0.0, n_basis=10).fit(x, labels)
+    with pytest.raises(ValueError, match="max_asum"):
+        SmoothSVR(max_asum=1.0, n_basis=10).fit(x, y)
+    with pytest.raises(ValueError, match="n_basis"):
+        SmoothSVR(n_basis=0).fit(x, y)
+    with pytest.raises(ValueError, match="n_basis"):
+        SmoothSVR(n_basis="many").fit(x, y)
+
+
+def test_auto_basis_falls_back_to_the_full_model_with_a_warning():
+    x, y = _reg_data(100)
+    with pytest.warns(UserWarning, match="full model"):
+        est = SmoothSVR(lam=1e-8, scaling=3.0, n_basis="auto").fit(x, y)
+    assert not hasattr(est, "basis_")
+
+
+def test_optimized_svr_with_a_basis():
+    x, y = _reg_data(400)
+    full = OptimizedSVR(max_iter=15, cv=3).fit(x, y)
+    sub = OptimizedSVR(max_iter=15, cv=3, n_basis=60).fit(x, y)
+    assert sub.history_[0]["n_basis"] == 60 and len(sub.basis_) == 60
+    assert sub.cv_error_ < 1.5 * full.cv_error_ + 0.02
+    assert sub.score(x, y) > 0.9
+    # ARD blocks: two stages with a basis re-selected for each
+    ard = OptimizedSVR(max_iter=8, cv=3, n_basis=60, blocks="features").fit(x, y)
+    assert len(ard.scaling_opt_) == 3
+
+
+def test_optimized_svc_with_a_basis_and_one_vs_rest():
+    x, y = _reg_data(300)
+    labels = np.digitize(y, np.quantile(y, [1 / 3, 2 / 3]))
+    clf = OptimizedSVC(max_iter=8, cv=3, n_basis=50).fit(x, labels)
+    assert clf.score(x, labels) > 0.8

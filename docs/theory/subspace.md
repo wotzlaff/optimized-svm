@@ -30,9 +30,35 @@ smoothed hinge, ε-insensitive (degrees 2/3/6), logistic and squared loss.
 
 ## Usage
 
-Low-level only: pass `basis` (one index array per fold, indices into `x`) to
-`cv_error_and_gradient`; `warm_start` then holds expansion coefficients. `choose_basis` draws a random
-subset. `loss_params` and `max_asum` are not supported with a basis.
+All four estimators take `n_basis` and `basis_tol`:
+
+```python
+from optimized_svm import OptimizedSVR
+
+est = OptimizedSVR(n_basis="auto", basis_tol=1.0).fit(X, y)   # basis size from the residual rule
+est = OptimizedSVR(n_basis=200).fit(X, y)                      # fixed size
+```
+
+- `n_basis=None` (default): full model. An integer: that many basis points. `"auto"`: `select_basis`
+  with tolerance `basis_tol` (see below); if the limit $n/10$ is hit, a warning is issued and the full model is used.
+- Needs a smooth loss (`smoothing > 0`, or squared/logistic/Poisson) and no `max_asum`. Models are
+  trained by Newton's method only (`newton_options`; `smo_options` is ignored).
+- The optimizers (`OptimizedSVC/SVR`) choose the basis of every fold at the starting values of each stage
+  (global scaling, then ARD scalings) and keep it fixed within the stage, so the objective stays smooth. The final
+  model is trained on all data with a basis chosen at the optimized hyperparameters. After fitting,
+  `basis_` holds its indices, `support_`/`dual_coef_` the basis points and expansion coefficients, and
+  `history_` records `n_basis` per evaluation.
+- Low-level: pass `basis` (one index array per fold, indices into `x`) to `cv_error_and_gradient`;
+  `warm_start` then holds expansion coefficients. `loss_params` and `max_asum` are not supported with a basis.
+
+!!! warning "`n_basis=\"auto\"` often falls back to the full model with the default starting values"
+    The basis is chosen at the starting values of each stage. With the defaults (`lam_init=1e-2`,
+    `scaling_init="auto"`) the residual rule did not hold within $n/10$ points for ε-SVR on Friedman #1 with
+    $n = 5000$, so all three variants (`tol` 1, `tol` 10, full) ran the full model and gave identical
+    results (17 evaluations, about 520 s each; `benchmarks/results/subspace_hpo_n5000_fallback.json`). A warning is issued, but
+    no speed-up results. The gain shown below was measured at wide kernels (scale 0.05–0.1) and $\lambda \ge 10^{-2}$; start the
+    optimization there (`scaling_init`, `lam_init`) if you want the subspace model to be used. An end-to-end comparison of
+    the optimization with such starting values is still open.
 
 ## Choosing the basis
 

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from numbers import Integral, Real
@@ -38,6 +39,7 @@ from .losses import (
 )
 from .problem import TrainingProblem
 from .smooth_max import Degree
+from .subspace import SubspaceProblem, newton_subspace, select_basis
 from .training import train
 from .validation import (
     LogisticValidation,
@@ -138,10 +140,66 @@ class _SmoothBase(BaseEstimator):
             raise ValueError(f"scaling must be positive with {n} entries")
         return s
 
+    def _basis(self, xs: Array, lam: float) -> NDArray[np.intp] | None:
+        """Basis indices of the Subspace SVM for scaled features ``xs`` (``None``: full model)."""
+        mode = self.n_basis
+        if mode is None:
+            return None
+        if self.max_asum is not None:
+            raise ValueError("n_basis is not supported together with max_asum")
+        if getattr(self._loss(), "smoothing", 1.0) <= 0.0:
+            raise ValueError("n_basis needs a smooth loss (smoothing > 0)")
+        n = xs.shape[0]
+        if isinstance(mode, str):
+            if mode != "auto":
+                raise ValueError(
+                    f"n_basis must be None, a positive integer or 'auto', got {mode!r}"
+                )
+            if not isinstance(self.basis_tol, Real) or self.basis_tol <= 0:
+                raise ValueError(f"basis_tol must be positive, got {self.basis_tol!r}")
+            idx, ratio = select_basis(xs, lam, float(self.basis_tol))
+            if ratio > self.basis_tol:
+                warnings.warn(
+                    f"n_basis='auto': {idx.size} basis points (n // 10) do not reach "
+                    f"basis_tol={self.basis_tol:g} (residual / lam = {ratio:.3g}); "
+                    "using the full model",
+                    stacklevel=3,
+                )
+                return None
+            return idx
+        if not isinstance(mode, Integral) or isinstance(mode, bool) or not 1 <= int(mode) <= n:
+            raise ValueError(
+                f"n_basis must be None, 'auto' or an integer in [1, {n}], got {mode!r}"
+            )
+        return select_basis(xs, lam, 1e-12, max_size=int(mode))[0]
+
+    def _fit_subspace(self, xs: Array, y: Array, w: Array, idx: NDArray[np.intp]) -> None:
+        prob = SubspaceProblem(xs, xs[idx], y, self._loss(), self.lam, w)
+        sol = newton_subspace(prob, **(self.newton_options or {}))
+        self.basis_ = idx
+        self.support_ = idx
+        self.dual_coef_ = sol.beta
+        self.intercept_ = sol.b
+        self.n_support_ = idx.size
+        self.training_info_ = {
+            "residual": sol.residual,
+            "smo_steps": 0,
+            "newton_steps": sol.newton_steps,
+            "time_smo": 0.0,
+            "time_newton": sol.time_newton,
+            "c": 0.0,
+        }
+        self._model = _Model(xs[idx], sol.beta, sol.b)
+
     def _fit_model(self, x: Array, y: Array, w: Array) -> None:
         self.blocks_ = resolve_blocks(self.blocks, x.shape[1])
         self.scaling_ = self._scaling(x)
         xs = scale_features(x, self.scaling_, self.blocks_)
+        self.__dict__.pop("basis_", None)
+        idx = self._basis(xs, float(self.lam))
+        if idx is not None:
+            self._fit_subspace(xs, y, w, idx)
+            return
         prob = TrainingProblem(xs, y, self._loss(), self.lam, w, self.max_asum)
         sol = train(prob, self.smo_options, self.newton_options)
         beta = prob.sample_coefficients(sol.a)
@@ -194,6 +252,17 @@ _SMOOTH_DOC = """
         Degree of the smoothed maximum function (``"2"`` is solved exactly by SMO).
     max_asum : float, optional
         Bound on ``sum |alpha|`` (generalised nu-SVM).
+    n_basis : None, int or "auto"
+        Subspace SVM (Strasdat, Sec. 5.3): restrict the model to the span of this many basis
+        points, chosen by greedy pivoted Cholesky, and train by Newton's method with systems of
+        that size. Needs a smooth loss (``smoothing > 0``) and no ``max_asum``. ``"auto"`` adds
+        points until the Nystroem residual ``tr(K - K_s)`` is at most ``basis_tol * lam`` (at most
+        ``n // 10`` points; otherwise a warning is issued and the full model is used). Pays off
+        for large regression problems with wide kernels (see the theory page on the subspace
+        SVM). The optimisers choose the basis at the starting values of each stage.
+    basis_tol : float
+        Tolerance of ``n_basis="auto"`` (1: CV error within about 1 % of the full model, 10: about
+        10 %).
     smo_options, newton_options : dict, optional
         Options of :func:`smo_solver.solve_classification` / :func:`optimized_svm.training.newton`.
 """
@@ -234,6 +303,8 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         degree: Degree = "2",
         shift: float = 1.0,
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         class_weight: Any = None,
         smo_options: dict[str, Any] | None = None,
         newton_options: dict[str, Any] | None = None,
@@ -246,6 +317,8 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         self.degree = degree
         self.shift = shift
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.class_weight = class_weight
         self.smo_options = smo_options
         self.newton_options = newton_options
@@ -389,6 +462,8 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
         smoothing: float = 0.5,
         degree: Degree = "2",
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         normalize_y: bool = True,
         smo_options: dict[str, Any] | None = None,
         newton_options: dict[str, Any] | None = None,
@@ -401,6 +476,8 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
         self.smoothing = smoothing
         self.degree = degree
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.normalize_y = normalize_y
         self.smo_options = smo_options
         self.newton_options = newton_options
@@ -465,9 +542,12 @@ class _OptimizedMixin:
     verbose: int
     warm_start: bool
     max_asum: float | None
+    n_basis: int | str | None
+    basis_tol: float
     smo_options: dict[str, Any] | None
     newton_options: dict[str, Any] | None
     _loss: Callable[[], Loss]
+    _basis: Callable[[Array, float], NDArray[np.intp] | None]
 
     def _validation(self) -> ValidationLoss:
         raise NotImplementedError
@@ -489,7 +569,26 @@ class _OptimizedMixin:
         smo_options = dict(self.smo_options or {})
         warm: list[Array | None] | None = [None] * len(folds) if self.warm_start else None
 
+        def select_bases(blocks: Blocks, theta: Array) -> list[NDArray[np.intp]] | None:
+            """Subspace bases of all folds for the kernel and lambda at ``theta`` (fixed during a
+            stage, so that the objective of L-BFGS-B stays smooth)."""
+            if self.n_basis is None:
+                return None
+            xs = scale_features(x, np.exp(theta[1:]), blocks)
+            lam = float(np.exp(theta[0]))
+            bases = []
+            for tr, _ in folds:
+                idx = self._basis(xs[tr], lam)
+                if idx is None:
+                    return None
+                bases.append(np.asarray(tr)[idx])
+            return bases
+
         def run_stage(blocks: Blocks, theta0: Array) -> Array:
+            bases = select_bases(blocks, theta0)
+            if bases is not None and warm is not None:
+                warm[:] = [None] * len(folds)  # coefficients of an earlier basis do not fit
+
             def fun(theta: Array) -> tuple[float, Array]:
                 if self.time_limit is not None and time.perf_counter() - start > self.time_limit:
                     raise _Timeout
@@ -506,6 +605,7 @@ class _OptimizedMixin:
                     smo_options,
                     self.newton_options,
                     warm,
+                    basis=bases,
                 )
                 history.append(
                     {
@@ -514,6 +614,9 @@ class _OptimizedMixin:
                         "error": res.error,
                         "gradient_norm": float(np.linalg.norm(res.gradient)),
                         "n_support": float(np.mean([f.n_support for f in res.folds])),
+                        "n_basis": None
+                        if bases is None
+                        else float(np.mean([len(b) for b in bases])),
                         "time": time.perf_counter() - start,
                         "stage": "features"
                         if blocks is not None and self.blocks is not None
@@ -637,6 +740,8 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         degree: Degree = "2",
         shift: float = 1.0,
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         class_weight: Any = None,
         validation_smoothing: float = 0.5,
         smo_options: dict[str, Any] | None = None,
@@ -660,6 +765,8 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         self.degree = degree
         self.shift = shift
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.class_weight = class_weight
         self.validation_smoothing = validation_smoothing
         self.smo_options = smo_options
@@ -733,6 +840,8 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         smoothing: float = 0.5,
         degree: Degree = "2",
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         normalize_y: bool = True,
         validation: str | None = None,
         validation_smoothing: float = 0.1,
@@ -757,6 +866,8 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         self.smoothing = smoothing
         self.degree = degree
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.normalize_y = normalize_y
         self.validation = validation
         self.validation_smoothing = validation_smoothing
