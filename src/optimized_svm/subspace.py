@@ -22,6 +22,7 @@ adjoint system of size ``m + 1`` is solved per fold (derivation in ``docs/theory
 
 from __future__ import annotations
 
+import dataclasses
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -99,7 +100,14 @@ class SubspaceProblem:
     (``z`` are scaled, too)."""
 
     def __init__(
-        self, x: Array, z: Array, y: Array, loss: Loss, lam: float, w: Array | None = None
+        self,
+        x: Array,
+        z: Array,
+        y: Array,
+        loss: Loss,
+        lam: float,
+        w: Array | None = None,
+        offset: Array | None = None,
     ):
         if lam <= 0:
             raise ValueError(f"lam must be positive, got {lam}")
@@ -112,6 +120,13 @@ class SubspaceProblem:
         self.loss = loss
         self.lam = float(lam)
         self.terms = loss.terms(self.y, self.w)
+        if offset is not None:
+            if loss.smo_kind is not None:
+                raise ValueError(f"offset is not supported for {type(loss).__name__} (SMO dual)")
+            off = np.asarray(offset, dtype=np.float64)
+            if off.shape != self.y.shape:
+                raise ValueError(f"offset must have shape {self.y.shape}, got {off.shape}")
+            self.terms = dataclasses.replace(self.terms, offset=off[self.terms.kernel_index])
         self.k_xz = rbf(self.x, self.z)
         self.k_zz = rbf(self.z, self.z)
         m = self.z.shape[0]
@@ -132,6 +147,8 @@ class SubspaceProblem:
         sample) and the loss value."""
         t = self.terms
         dec = f[t.kernel_index]
+        if t.offset is not None:
+            dec = dec + t.offset
         g = np.bincount(t.kernel_index, weights=self.loss.d1(dec, t), minlength=self.n)
         h = np.bincount(t.kernel_index, weights=self.loss.d2(dec, t), minlength=self.n)
         return g.astype(np.float64), h.astype(np.float64), float(self.loss.value(dec, t).sum())
@@ -162,22 +179,23 @@ class SubspaceSolution:
 def newton_subspace(
     prob: SubspaceProblem,
     beta0: Array | None = None,
-    b0: float = 0.0,
+    b0: float | None = None,
     **options: Any,
 ) -> SubspaceSolution:
     """Damped Newton method for the subspace problem (``m + 1`` unknowns).
 
     A warm start ``(beta0, b0)`` may lie in a region where the loss is linear in all samples (tiny
     ``lam`` gives huge coefficients), so the Hessian is just ``lam I`` and no step is accepted. The
-    solve is then repeated from the cold start ``u = 0, b = 0``, which is always well-posed; a
-    :class:`ConvergenceError` of the cold start is raised.
+    solve is then repeated from the cold start ``u = 0, b = loss.initial_bias``, which is always
+    well-posed; a :class:`ConvergenceError` of the cold start is raised.
     """
+    cold = prob.loss.initial_bias(prob.terms)
     if beta0 is None:
-        return _newton_subspace(prob, None, 0.0, **options)
+        return _newton_subspace(prob, None, cold, **options)
     try:
-        return _newton_subspace(prob, beta0, b0, **options)
+        return _newton_subspace(prob, beta0, cold if b0 is None else b0, **options)
     except ConvergenceError:
-        return _newton_subspace(prob, None, 0.0, **options)
+        return _newton_subspace(prob, None, cold, **options)
 
 
 def _newton_subspace(
@@ -265,18 +283,26 @@ def fold_error_and_gradient_subspace(
     blocks: Blocks,
     newton_options: dict[str, Any] | None = None,
     beta0: Array | None = None,
+    offset_train: Array | None = None,
+    w_val: Array | None = None,
+    offset_val: Array | None = None,
 ) -> SubspaceFoldResult:
     """Validation error of one fold and its gradient w.r.t. ``(log lam, log s_k)`` (subspace model).
 
-    ``x_train``, ``z`` and ``x_val`` must already be scaled.
+    ``x_train``, ``z`` and ``x_val`` must already be scaled. ``offset_train`` and
+    ``offset_val`` are per-sample offsets added to the decision values; ``w_val`` are validation
+    weights, passed to ``validation`` only if it is ``weighted``.
     """
-    prob = SubspaceProblem(x_train, z, y_train, loss, lam, w_train)
+    prob = SubspaceProblem(x_train, z, y_train, loss, lam, w_train, offset_train)
     sol = newton_subspace(prob, beta0, **(newton_options or {}))
     beta, b, f = sol.beta, sol.b, sol.f
     g, h, _ = prob.per_sample(f)
     # validation: error and its gradient w.r.t. the predictions
     k_vz = rbf(x_val, prob.z)
-    err, e = validation(k_vz @ beta + b, y_val)
+    f_val = k_vz @ beta + b
+    if offset_val is not None:
+        f_val = f_val + offset_val
+    err, e = validation(f_val, y_val, w_val) if validation.weighted else validation(f_val, y_val)
     nb = n_blocks(blocks)
     grad = np.zeros(1 + nb)
     # explicit part: the kernel between validation points and basis points depends on the scalings

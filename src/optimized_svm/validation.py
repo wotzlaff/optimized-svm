@@ -19,7 +19,10 @@ Array = NDArray[np.float64]
 class ValidationLoss:
     """Returns the summed loss and its gradient w.r.t. the predictions."""
 
-    def __call__(self, f: Array, y: Array) -> tuple[float, Array]:
+    #: whether the loss uses per-sample validation weights (e.g. binomial trials)
+    weighted: bool = False
+
+    def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         raise NotImplementedError
 
 
@@ -32,7 +35,7 @@ class SmoothHingeValidation(ValidationLoss):
     degree: Degree = "6"
     balanced: bool = False
 
-    def __call__(self, f: Array, y: Array) -> tuple[float, Array]:
+    def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         m, dm, _ = smooth_max(self.smoothing, self.degree)
         w = np.ones_like(y)
         if self.balanced:
@@ -50,7 +53,7 @@ class LogisticValidation(ValidationLoss):
 
     balanced: bool = False
 
-    def __call__(self, f: Array, y: Array) -> tuple[float, Array]:
+    def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         w = np.ones_like(y)
         if self.balanced:
             pos = y > 0
@@ -67,7 +70,7 @@ class SmoothAbsoluteValidation(ValidationLoss):
     smoothing: float = 0.1
     degree: Degree = "2"
 
-    def __call__(self, f: Array, y: Array) -> tuple[float, Array]:
+    def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         m, dm, _ = smooth_max(self.smoothing, self.degree)
         e = f - y
         return float(m(e).sum() + m(-e).sum()), dm(e) - dm(-e)
@@ -77,7 +80,7 @@ class SmoothAbsoluteValidation(ValidationLoss):
 class SquaredValidation(ValidationLoss):
     """``1/2 sum_v (f_v - y_v)^2``."""
 
-    def __call__(self, f: Array, y: Array) -> tuple[float, Array]:
+    def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         e = f - y
         return 0.5 * float(e @ e), e
 
@@ -86,7 +89,7 @@ class SquaredValidation(ValidationLoss):
 class PoissonValidation(ValidationLoss):
     """Poisson deviance-type loss ``sum_v exp(f_v) - y_v f_v + log(y_v!)``."""
 
-    def __call__(self, f: Array, y: Array) -> tuple[float, Array]:
+    def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         with np.errstate(over="ignore"):
             ef = np.exp(f)
         return float(ef.sum() - f @ y + gammaln(y + 1).sum()), ef - y

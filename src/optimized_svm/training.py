@@ -193,7 +193,8 @@ _SMO_OPTIONS = {
 def smo_warm_start(
     prob: TrainingProblem, alpha0: Array | None = None, **options: Any
 ) -> tuple[Array, float, float, int]:
-    """Solves the dual with quadratic smoothing by SMO (``smo_solver``); zeros if not applicable.
+    """Solves the dual with quadratic smoothing by SMO (``smo_solver``); if not applicable,
+    ``a = 0`` with the loss-specific initial bias (``loss.initial_bias``).
 
     ``alpha0`` (e.g. the solution for neighbouring hyperparameters) is used as starting point
     if it is feasible.
@@ -203,7 +204,7 @@ def smo_warm_start(
         raise ValueError(f"unknown SMO options: {sorted(unknown)}")
     loss: Any = prob.loss  # `smoothing`, `shift`, `epsilon` depend on the loss class
     if loss.smo_kind is None:
-        return np.zeros(prob.size), 0.0, 0.0, 0
+        return np.zeros(prob.size), loss.initial_bias(prob.terms), 0.0, 0
     common = dict(gamma=1.0, weights=prob.w, smoothing=loss.smoothing, max_asum=prob.max_asum)
 
     def run(start: Array | None) -> Any:
@@ -266,7 +267,8 @@ def train(
     """Two-step training: SMO warm start followed by Newton refinement.
 
     For non-smooth losses (``smoothing = 0``) the SMO solution is already exact; for losses
-    without SMO formulation (squared, logistic, Poisson) Newton starts at zero.
+    without SMO formulation (squared, logistic, Poisson) Newton starts at ``a = 0`` with the
+    loss-specific initial bias.
 
     By default the SMO stage stops at the tolerance :data:`ROUGH_SMO_TOL` or after
     ``ROUGH_SMO_STEPS`` steps per loss term, whichever comes first. Passing ``tol`` or

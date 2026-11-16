@@ -53,7 +53,18 @@ SMO runs to the rough tolerance `tol = 0.3` or for at most five steps per loss t
 [Switching from SMO to Newton](switching.md) for the reasons.
 
 For non-smooth losses ($\delta = 0$) only SMO is used; for losses without an SMO formulation
-(squared, logistic, Poisson) Newton starts at zero.
+(squared, logistic, Poisson) Newton starts at $a = 0$ with the loss-specific bias `loss.initial_bias(terms)` (e.g. the weighted
+mean of $y$ for the squared loss, $\log(\sum_i w_i y_i / \sum_i w_i e^{o_i})$ for the Poisson loss).
+
+## Offset
+
+For losses without an SMO stage (squared, logistic, Poisson) the training problem accepts a fixed
+per-sample offset $o_i$ (`TrainingProblem(..., offset=o)`, `cv_error_and_gradient(..., offset=o)`).
+The decision value of a loss term is $t_l = (Ka/\lambda)_l + b + s_l c + o_{k(l)}$, i.e. the model
+learns the deviation from a known baseline (e.g. $\log$ exposure in a Poisson model). The offset does not
+enter the optimality conditions otherwise, so the implicit-function hypergradient is unchanged; in the
+validation error the offsets of the validation samples are added to the predictions. The SMO dual has no
+offset, so smoothed hinge and $\varepsilon$-insensitive losses reject it (`ValueError`).
 
 ## Logistic loss
 

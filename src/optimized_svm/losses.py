@@ -28,6 +28,7 @@ class Terms:
     y: Array
     w: Array
     sign: Array
+    offset: Array | None = None
 
     @property
     def size(self) -> int:
@@ -63,6 +64,10 @@ class Loss:
         hypergradient with respect to loss parameters.
         """
         raise ValueError(f"{type(self).__name__} has no tunable parameter {name!r}")
+
+    def initial_bias(self, terms: Terms) -> float:
+        """Starting value of the bias for Newton without an SMO warm start (``a = 0``)."""
+        return 0.0
 
 
 @dataclass(frozen=True)
@@ -171,6 +176,12 @@ class EpsilonInsensitiveLoss(Loss):
 class SquaredLoss(Loss):
     """Least-squares loss ``w / 2 * (t - y)^2`` (LS-SVM)."""
 
+    def initial_bias(self, terms: Terms) -> float:
+        """Weighted mean of ``y - offset`` (the minimiser for ``a = 0``)."""
+        off = 0.0 if terms.offset is None else terms.offset
+        total = float(terms.w.sum())
+        return float(terms.w @ (terms.y - off)) / total if total > 0.0 else 0.0
+
     def value(self, t: Array, terms: Terms) -> Array:
         return 0.5 * terms.w * (t - terms.y) ** 2
 
@@ -184,6 +195,16 @@ class SquaredLoss(Loss):
 @dataclass(frozen=True)
 class PoissonLoss(Loss):
     """Poisson negative log-likelihood ``w * (exp(t) - y t + log(y!))`` for counts ``y``."""
+
+    def initial_bias(self, terms: Terms) -> float:
+        """``log(sum w y / sum w exp(offset))``, the minimiser for ``a = 0`` (for all-zero ``y``
+        the numerator is replaced by a small positive mean ``1e-3 sum w``)."""
+        off = np.zeros(terms.size) if terms.offset is None else terms.offset
+        denom = float(terms.w @ np.exp(off))
+        if not denom > 0.0 or not np.isfinite(denom):
+            return 0.0
+        num = max(float(terms.w @ terms.y), 1e-3 * float(terms.w.sum()))
+        return float(np.log(num / denom))
 
     def value(self, t: Array, terms: Terms) -> Array:
         with np.errstate(over="ignore"):  # inf is handled by the line search
