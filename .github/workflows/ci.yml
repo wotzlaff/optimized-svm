@@ -28,7 +28,7 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -41,9 +41,23 @@ jobs:
           for f in quickstart ard_feature_relevance logistic_probabilities low_level_api; do
             test -f "site/examples/$f/index.html" || { echo "missing example page $f"; exit 1; }
           done
-      - name: Deploy to GitHub Pages
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@v4
+      - uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          path: site
+
+  deploy-docs:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: docs
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
