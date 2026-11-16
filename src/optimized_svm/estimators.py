@@ -39,7 +39,7 @@ from .losses import (
 )
 from .problem import TrainingProblem
 from .smooth_max import Degree
-from .subspace import SubspaceProblem, newton_subspace, select_basis
+from .subspace import SubspaceProblem, newton_subspace, nystroem_residual, select_basis
 from .training import train
 from .validation import (
     LogisticValidation,
@@ -258,8 +258,14 @@ _SMOOTH_DOC = """
         that size. Needs a smooth loss (``smoothing > 0``) and no ``max_asum``. ``"auto"`` adds
         points until the Nystroem residual ``tr(K - K_s)`` is at most ``basis_tol * lam`` (at most
         ``n // 10`` points; otherwise a warning is issued and the full model is used). Pays off
-        for large regression problems with wide kernels (see the theory page on the subspace
-        SVM). The optimisers choose the basis at the starting values of each stage.
+        for fits with fixed hyperparameters on large regression problems with wide kernels;
+        experimental in the optimisers, where it has not yet saved time without losing accuracy
+        (see the theory page on the subspace SVM). The optimisers choose the basis at the
+        starting values of each stage and keep it fixed during L-BFGS-B. With ``"auto"`` they
+        then check the residual at the result and, if it exceeds ``basis_tol * lam`` in some
+        fold, choose a new basis there and optimise again (at most 5 rounds per stage;
+        ``history_`` entries carry ``basis_round``). The result of a stage is the best
+        evaluation of its last round. An integer keeps its basis for the stage.
     basis_tol : float
         Tolerance of ``n_basis="auto"`` (1: CV error within about 1 % of the full model, 10: about
         10 %).
@@ -569,88 +575,128 @@ class _OptimizedMixin:
         smo_options = dict(self.smo_options or {})
         warm: list[Array | None] | None = [None] * len(folds) if self.warm_start else None
 
-        def select_bases(blocks: Blocks, theta: Array) -> list[NDArray[np.intp]] | None:
-            """Subspace bases of all folds for the kernel and lambda at ``theta`` (fixed during a
-            stage, so that the objective of L-BFGS-B stays smooth)."""
+        def select_bases(
+            blocks: Blocks, theta: Array
+        ) -> tuple[list[NDArray[np.intp]], list[NDArray[np.intp]]] | None:
+            """Subspace bases of all folds for the kernel and lambda at ``theta``: global indices
+            and indices relative to the training set of the fold (``None``: full model). Fixed
+            during a round of L-BFGS-B, so that the objective stays smooth."""
             if self.n_basis is None:
                 return None
             xs = scale_features(x, np.exp(theta[1:]), blocks)
             lam = float(np.exp(theta[0]))
-            bases = []
+            bases, local = [], []
             for tr, _ in folds:
                 idx = self._basis(xs[tr], lam)
                 if idx is None:
                     return None
                 bases.append(np.asarray(tr)[idx])
-            return bases
+                local.append(idx)
+            return bases, local
 
-        def run_stage(blocks: Blocks, theta0: Array) -> Array:
-            bases = select_bases(blocks, theta0)
-            if bases is not None and warm is not None:
-                warm[:] = [None] * len(folds)  # coefficients of an earlier basis do not fit
+        def basis_adequate(blocks: Blocks, theta: Array, local: list[NDArray[np.intp]]) -> bool:
+            """Whether the bases still meet ``basis_tol`` at the hyperparameters ``theta``."""
+            xs = scale_features(x, np.exp(theta[1:]), blocks)
+            lam = float(np.exp(theta[0]))
+            return all(
+                nystroem_residual(xs[tr], idx) / lam <= self.basis_tol
+                for (tr, _), idx in zip(folds, local, strict=True)
+            )
 
-            def fun(theta: Array) -> tuple[float, Array]:
-                if self.time_limit is not None and time.perf_counter() - start > self.time_limit:
-                    raise _Timeout
-                res = cv_error_and_gradient(
-                    theta,
-                    x,
-                    y,
-                    w,
-                    folds,
-                    loss,
-                    validation,
-                    blocks,
-                    self.max_asum,
-                    smo_options,
-                    self.newton_options,
-                    warm,
-                    basis=bases,
-                )
-                history.append(
-                    {
-                        "lam": float(np.exp(theta[0])),
-                        "scaling": np.exp(theta[1:]),
-                        "error": res.error,
-                        "gradient_norm": float(np.linalg.norm(res.gradient)),
-                        "n_support": float(np.mean([f.n_support for f in res.folds])),
-                        "n_basis": None
-                        if bases is None
-                        else float(np.mean([len(b) for b in bases])),
-                        "time": time.perf_counter() - start,
-                        "stage": "features"
-                        if blocks is not None and self.blocks is not None
-                        else "global",
-                    }
-                )
-                if self.verbose:
-                    h = history[-1]
-                    print(
-                        f"[{len(history):3d}] lam = {h['lam']:.3e}, mean scaling = "
-                        f"{np.mean(h['scaling']):.3e}, cv error = {h['error']:.6f}"
+        def run_stage(blocks: Blocks, theta0: Array, error0: float = np.nan) -> tuple[Array, float]:
+            theta, error = theta0, error0
+            adaptive = self.n_basis == "auto"
+            max_rounds = 5 if adaptive else 1
+            for rnd in range(max_rounds):
+                selected = select_bases(blocks, theta)
+                bases = None if selected is None else selected[0]
+                if (bases is not None or rnd > 0) and warm is not None:
+                    warm[:] = [None] * len(folds)  # coefficients of an earlier basis do not fit
+                first = len(history)
+
+                def fun(
+                    theta: Array,
+                    bases: list[NDArray[np.intp]] | None = bases,
+                    rnd: int = rnd,
+                ) -> tuple[float, Array]:
+                    if (
+                        self.time_limit is not None
+                        and time.perf_counter() - start > self.time_limit
+                    ):
+                        raise _Timeout
+                    res = cv_error_and_gradient(
+                        theta,
+                        x,
+                        y,
+                        w,
+                        folds,
+                        loss,
+                        validation,
+                        blocks,
+                        self.max_asum,
+                        smo_options,
+                        self.newton_options,
+                        warm,
+                        basis=bases,
                     )
-                return res.error, res.gradient
+                    history.append(
+                        {
+                            "lam": float(np.exp(theta[0])),
+                            "scaling": np.exp(theta[1:]),
+                            "error": res.error,
+                            "gradient_norm": float(np.linalg.norm(res.gradient)),
+                            "n_support": float(np.mean([f.n_support for f in res.folds])),
+                            "n_basis": None
+                            if bases is None
+                            else float(np.mean([len(b) for b in bases])),
+                            "time": time.perf_counter() - start,
+                            "stage": "features"
+                            if blocks is not None and self.blocks is not None
+                            else "global",
+                            "basis_round": rnd,
+                        }
+                    )
+                    if self.verbose:
+                        h = history[-1]
+                        print(
+                            f"[{len(history):3d}] lam = {h['lam']:.3e}, mean scaling = "
+                            f"{np.mean(h['scaling']):.3e}, cv error = {h['error']:.6f}"
+                        )
+                    return res.error, res.gradient
 
-            bounds = [tuple(lam_bounds)] + [tuple(s_bounds)] * (theta0.size - 1)
-            best_before = len(history)
-            try:
-                result = minimize(
-                    fun,
-                    theta0,
-                    jac=True,
-                    method="L-BFGS-B",
-                    bounds=bounds,
-                    options={"maxiter": self.max_iter, "ftol": self.tol, "gtol": self.tol},
-                )
-                self.optimize_result_ = result
-                self.n_iter_ = getattr(self, "n_iter_", 0) + int(result.nit)
-            except _Timeout:
-                self.optimize_result_ = None
-            stage = history[best_before:]
-            if not stage:
-                return theta0
-            best = min(stage, key=lambda h: h["error"])
-            return np.log(np.concatenate(([best["lam"]], best["scaling"])))
+                bounds = [tuple(lam_bounds)] + [tuple(s_bounds)] * (theta.size - 1)
+                timeout = False
+                try:
+                    result = minimize(
+                        fun,
+                        theta,
+                        jac=True,
+                        method="L-BFGS-B",
+                        bounds=bounds,
+                        options={"maxiter": self.max_iter, "ftol": self.tol, "gtol": self.tol},
+                    )
+                    self.optimize_result_ = result
+                    self.n_iter_ = getattr(self, "n_iter_", 0) + int(result.nit)
+                except _Timeout:
+                    self.optimize_result_ = None
+                    timeout = True
+                round_entries = history[first:]
+                if round_entries:
+                    best = min(round_entries, key=lambda h: h["error"])
+                    theta = np.log(np.concatenate(([best["lam"]], best["scaling"])))
+                    error = best["error"]
+                if timeout or selected is None or not round_entries or not adaptive:
+                    break
+                if basis_adequate(blocks, theta, selected[1]):
+                    break
+                if rnd == max_rounds - 1:
+                    warnings.warn(
+                        f"n_basis='auto': the basis still misses basis_tol={self.basis_tol:g} "
+                        f"after {max_rounds} rounds; cv_error_ is that of a too small subspace",
+                        stacklevel=2,
+                    )
+                    break
+            return theta, error
 
         self.n_iter_ = 0
         blocks = resolve_blocks(self.blocks, x.shape[1])
@@ -658,17 +704,19 @@ class _OptimizedMixin:
         theta = np.log([self.lam_init, s0])
         if blocks is not None and self.two_stage:
             # first a common scaling for all blocks, then individual ones
-            theta = run_stage(None, theta)
+            theta, error = run_stage(None, theta)
+        else:
+            error = np.nan
         if blocks is not None:
             theta = np.concatenate(([theta[0]], np.full(len(blocks), theta[1])))
-            theta = run_stage(blocks, theta)
+            theta, error = run_stage(blocks, theta, error)
         else:
-            theta = run_stage(None, theta)
+            theta, error = run_stage(None, theta)
         self.lam_ = float(np.exp(theta[0]))
         self.scaling_opt_ = np.exp(theta[1:])
         self.blocks_opt_ = blocks
         self.history_ = history
-        self.cv_error_ = min(h["error"] for h in history) if history else np.nan
+        self.cv_error_ = float(error)
         self.time_ = time.perf_counter() - start
 
 

@@ -1,5 +1,8 @@
 """Subspace SVM: equivalence with the dual problem with the projected kernel, hypergradient."""
 
+import warnings
+from pathlib import Path
+
 import numpy as np
 import pytest
 import smo_solver
@@ -9,11 +12,14 @@ from optimized_svm import EpsilonInsensitiveLoss, HingeLoss, LogisticLoss, Squar
 from optimized_svm.kernels import rbf, scale_features
 from optimized_svm.subspace import (
     SubspaceProblem,
+    _newton_subspace,
     choose_basis,
     fold_error_and_gradient_subspace,
     newton_subspace,
+    nystroem_residual,
     select_basis,
 )
+from optimized_svm.training import ConvergenceError
 from optimized_svm.validation import SmoothAbsoluteValidation, SmoothHingeValidation
 
 
@@ -197,3 +203,70 @@ def test_optimized_svc_with_a_basis_and_one_vs_rest():
     labels = np.digitize(y, np.quantile(y, [1 / 3, 2 / 3]))
     clf = OptimizedSVC(max_iter=8, cv=3, n_basis=50).fit(x, labels)
     assert clf.score(x, labels) > 0.8
+
+
+def test_nystroem_residual_matches_the_dense_trace():
+    x, _, _ = make(60)
+    idx = choose_basis(60, 12, seed=1)
+    k_xz = rbf(x, x[idx])
+    dense = 60 - np.trace(k_xz @ np.linalg.solve(rbf(x[idx], x[idx]), k_xz.T))
+    assert nystroem_residual(x, idx) == pytest.approx(dense, abs=1e-6)
+    assert nystroem_residual(x, np.arange(60)) < 1e-6
+
+
+def _adaptive_data(n=200):
+    rng = np.random.default_rng(3)
+    x = rng.uniform(-3, 3, size=(n, 1))
+    return x, np.sin(2 * x[:, 0]) + 0.05 * rng.normal(size=n)
+
+
+def test_auto_basis_is_reselected_when_lambda_drifts():
+    x, y = _adaptive_data()
+    est = OptimizedSVR(
+        n_basis="auto", basis_tol=10.0, lam_init=1.0, scaling_init=0.5, max_iter=30, cv=3
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        est.fit(x, y)
+    rounds = [h["basis_round"] for h in est.history_]
+    assert max(rounds) >= 1 and rounds == sorted(rounds)
+    assert est.n_iter_ >= max(rounds) + 1
+
+
+def test_integer_basis_is_never_reselected():
+    x, y = _adaptive_data()
+    est = OptimizedSVR(n_basis=30, lam_init=1.0, scaling_init=0.5, max_iter=30, cv=3).fit(x, y)
+    assert {h["basis_round"] for h in est.history_} == {0}
+
+
+@pytest.mark.parametrize("n_basis", [None, 30, "auto"])
+def test_cv_error_is_the_error_at_the_returned_hyperparameters(n_basis):
+    x, y = _adaptive_data()
+    est = OptimizedSVR(
+        n_basis=n_basis, basis_tol=10.0, lam_init=1.0, scaling_init=0.5, max_iter=15, cv=3
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        est.fit(x, y)
+    match = [
+        h
+        for h in est.history_
+        if h["lam"] == pytest.approx(est.lam_, rel=1e-12)
+        and np.allclose(h["scaling"], est.scaling_opt_, rtol=1e-12)
+    ]
+    assert match and est.cv_error_ == pytest.approx(match[-1]["error"])
+
+
+def test_newton_falls_back_to_a_cold_start_from_a_hopeless_warm_start():
+    # Captured during HPO (Friedman #1, n_basis="auto", lam = 1e-6): the warm start has coefficients
+    # of order 1e6, the loss is linear in all samples (no curvature but lam) and the damped Newton
+    # method finds no descent step; the cold start u = 0 converges in a few steps.
+    data = np.load(Path(__file__).parent / "data_subspace_warm_start.npz")
+    loss = EpsilonInsensitiveLoss(0.1, 0.5)
+    prob = SubspaceProblem(data["x"], data["z"], data["y"], loss, float(data["lam"]))
+    with pytest.raises(ConvergenceError):
+        _newton_subspace(prob, data["beta0"], 0.0)
+    cold = newton_subspace(prob)
+    sol = newton_subspace(prob, data["beta0"], 0.0)
+    assert sol.residual < 1e-12
+    np.testing.assert_allclose(sol.f, cold.f, atol=1e-6)

@@ -44,7 +44,12 @@ est = OptimizedSVR(n_basis=200).fit(X, y)                      # fixed size
 - Needs a smooth loss (`smoothing > 0`, or squared/logistic/Poisson) and no `max_asum`. Models are
   trained by Newton's method only (`newton_options`; `smo_options` is ignored).
 - The optimizers (`OptimizedSVC/SVR`) choose the basis of every fold at the starting values of each stage
-  (global scaling, then ARD scalings) and keep it fixed within the stage, so the objective stays smooth. The final
+  (global scaling, then ARD scalings) and keep it fixed during L-BFGS-B, so the objective stays smooth. With
+  `n_basis="auto"` the rule is then checked at the result (`nystroem_residual(x_scaled, idx) / lam <= basis_tol`
+  in every fold); if it fails, e.g. because the optimizer lowered $\lambda$ by orders of magnitude, a new basis is
+  chosen there and L-BFGS-B restarts (at most 5 rounds per stage). The stage keeps the best evaluation of its
+  last round (earlier rounds used smaller subspaces and are not comparable); `history_` entries carry `basis_round`. An integer
+  `n_basis` is never re-selected. The final
   model is trained on all data with a basis chosen at the optimized hyperparameters. After fitting,
   `basis_` holds its indices, `support_`/`dual_coef_` the basis points and expansion coefficients, and
   `history_` records `n_basis` per evaluation.
@@ -121,8 +126,32 @@ full model.
 
   The gain grows with $n$: the basis size needed for a given $\tau$ grows slowly with $n$ while the full
   model gets much more expensive. At $n = 10000$ the subspace model is 6 to 33 times faster at $\tau = 1$ with at most 0.4 % excess error.
-- The basis depends on the kernel scale and on $\lambda$; choose it for the starting values
-  of a hyperparameter optimization and re-select it if they change a lot.
+- The basis depends on the kernel scale and on $\lambda$; with `n_basis="auto"` the optimizers re-select
+  it when the hyperparameters move too far (see below).
+
+## Hyperparameter optimization (experimental)
+
+The single-evaluation gains above do not carry over to a complete optimization so far
+(`benchmarks/subspace_hpo.py`, `OptimizedSVR`, Friedman #1, $n = 5000$, 5 folds, `max_iter = 30`, starting
+values $\lambda = 0.1$, scale 0.05; raw data `benchmarks/results/subspace_hpo_*.json`):
+
+| noise | variant | time (s) | basis rounds | CV error | test MSE | final $\lambda$ |
+|---|---|---|---|---|---|---|
+| 1 | full | 932 | – | 0.2163 | 1.143 | $10^{-6}$ (bound) |
+| 1 | `"auto"`, $\tau = 1$ | 1095 | 2, then full | 0.2163 | 1.143 | $10^{-6}$ |
+| 1 | `"auto"`, $\tau = 10$ | 1256 | 3, then full | 0.2163 | 1.143 | $10^{-6}$ |
+| 3 | full | 416 | – | 0.5352 | 9.68 | $6.3 \cdot 10^{-3}$ |
+| 3 | `"auto"`, $\tau = 1$ | 242 | 2, then full | 0.5352 | 9.69 | $9.2 \cdot 10^{-3}$ |
+| 3 | `"auto"`, $\tau = 10$ | 29 | 5, rule not met | 0.5611 | 11.11 | $1.2 \cdot 10^{-6}$ |
+
+The optimizer drives $\lambda$ to values ($\le 10^{-2}$) where the residual rule needs more than the
+$n/10$ basis points allowed per fold, so with $\tau = 1$ it ends up running the full model; the subspace
+rounds act at best as a cheap warm-up (1.7× faster in one case, 17 % slower in the other). Before the
+re-selection was added, a basis fixed at the starting values led to clearly wrong optima (CV error 0.42
+instead of 0.216 at $\tau = 10$). With $\tau = 10$ the optimization can be much faster but ends in a
+different, worse optimum (very wide kernel, $\lambda$ at the bound) and warns that the rule was not met.
+For hyperparameter optimization the full model is therefore the recommended default; the subspace SVM is
+useful for fits with fixed hyperparameters at large $n$ and wide kernels. Not run: $n = 10000$.
 
 ## Example
 

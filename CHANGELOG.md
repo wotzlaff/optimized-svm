@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Subspace SVM (thesis Sec. 5.3), experimental: `optimized_svm.subspace` (Newton training in the span of
+  $m$ basis points, systems of size $m+1$) and the `basis` argument of `cv_error_and_gradient` with an
+  exact hypergradient (checked against finite differences). `select_basis` chooses the basis points by
+  pivoted Cholesky until the Nyström residual trace is at most `tol * lam`; `nystroem_residual`. The
+  estimators take `n_basis` (int or `"auto"`) and `basis_tol`; with `"auto"` the optimizers re-select the
+  basis (up to 5 rounds per stage, `basis_round` in `history_`) when the residual exceeds
+  `basis_tol * lam` at the result of L-BFGS-B. Studies: `benchmarks/subspace_params.py`,
+  `subspace_large.py`, `subspace_hpo.py`. Pays off for fits with fixed hyperparameters at large $n$;
+  in the optimizers no gain without loss of accuracy so far; see `theory/subspace.md`.
 - Benchmark scripts `benchmarks/hpo_vs_search.py` (gradient method against grid, random and
   successive-halving search) and `benchmarks/hpo_timing.py` (wall-clock time of complete
   optimizations, for comparing releases). Results: https://wotzlaff.github.io/svm-site/benchmarks/
@@ -11,6 +20,10 @@
   differences), but not used by the estimators: tuning these parameters rarely pays off (`epsilon` is not
   identifiable below the smoothing width, the CV error is multimodal in `smoothing`). Study:
   `benchmarks/hpo_loss_params.py`.
+
+### Fixed
+- `newton_subspace` repeats the solve from a cold start when a warm start with huge coefficients
+  (tiny `lam`) gives no descent step.
 
 ## 0.2.1 – 2026-10-29
 

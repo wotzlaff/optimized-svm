@@ -1,0 +1,26 @@
+[
+ {
+  "n": 5000,
+  "noise": 3.0,
+  "variant": "subspace tol 10",
+  "lam_init": 0.1,
+  "scaling_init": 0.05,
+  "time": 28.888133991509676,
+  "evaluations": 32,
+  "cv_error": 0.5610608701930424,
+  "lam": 1.174992768496655e-06,
+  "scaling": [
+   0.007758198697760477
+  ],
+  "test_mse": 11.108523765230274,
+  "n_basis": [
+   58.4
+  ],
+  "n_basis_last": 66.6,
+  "basis_rounds": 5,
+  "final_basis": 68,
+  "warnings": [
+   "n_basis='auto': the basis still misses basis_tol=10 after 5 rounds; cv_error_ is that of a too small subspace"
+  ]
+ }
+]

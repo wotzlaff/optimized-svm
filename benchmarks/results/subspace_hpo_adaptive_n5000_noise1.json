@@ -1,0 +1,52 @@
+[
+ {
+  "n": 5000,
+  "noise": 1.0,
+  "variant": "subspace tol 1",
+  "lam_init": 0.1,
+  "scaling_init": 0.05,
+  "time": 1094.5299006067216,
+  "evaluations": 33,
+  "cv_error": 0.21629525637609012,
+  "lam": 1.0000000000000004e-06,
+  "scaling": [
+   0.04230812840949647
+  ],
+  "test_mse": 1.1428466762398848,
+  "n_basis": [
+   138.6
+  ],
+  "n_basis_last": null,
+  "basis_rounds": 2,
+  "final_basis": null,
+  "warnings": [
+   "n_basis='auto': 400 basis points (n // 10) do not reach basis_tol=1 (residual / lam = 35.9); using the full model",
+   "n_basis='auto': 500 basis points (n // 10) do not reach basis_tol=1 (residual / lam = 435); using the full model"
+  ]
+ },
+ {
+  "n": 5000,
+  "noise": 1.0,
+  "variant": "subspace tol 10",
+  "lam_init": 0.1,
+  "scaling_init": 0.05,
+  "time": 1255.5019020549953,
+  "evaluations": 58,
+  "cv_error": 0.21629525496839033,
+  "lam": 1.0000000000000004e-06,
+  "scaling": [
+   0.04229886155301172
+  ],
+  "test_mse": 1.1428341015363035,
+  "n_basis": [
+   58.4
+  ],
+  "n_basis_last": null,
+  "basis_rounds": 3,
+  "final_basis": null,
+  "warnings": [
+   "n_basis='auto': 400 basis points (n // 10) do not reach basis_tol=10 (residual / lam = 16.5); using the full model",
+   "n_basis='auto': 500 basis points (n // 10) do not reach basis_tol=10 (residual / lam = 435); using the full model"
+  ]
+ }
+]

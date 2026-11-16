@@ -82,6 +82,18 @@ def select_basis(
     return np.sort(np.array(pivots, dtype=np.intp)), float(diag.sum() / lam)
 
 
+def nystroem_residual(x: Array, idx: NDArray[np.intp]) -> float:
+    """Trace of the Nystroem residual ``tr(K - K_s)`` of the RBF kernel on scaled features ``x``
+    for the basis ``x[idx]``, i.e. ``n - ||psi||_F^2`` with ``psi = K_XZ L^-T`` and ``L`` the
+    Cholesky factor of the jittered ``K_ZZ`` (as in :class:`SubspaceProblem`). Clipped at 0."""
+    x = np.ascontiguousarray(x, dtype=np.float64)
+    z = x[np.asarray(idx, dtype=np.intp)]
+    k_zz = rbf(z, z)
+    chol = cholesky(k_zz + JITTER * np.eye(z.shape[0]), lower=True)
+    psi = solve_triangular(chol, rbf(x, z).T, lower=True)
+    return max(float(x.shape[0] - np.sum(psi**2)), 0.0)
+
+
 class SubspaceProblem:
     """Training problem on scaled features ``x`` restricted to the span of the basis points ``z``
     (``z`` are scaled, too)."""
@@ -151,13 +163,33 @@ def newton_subspace(
     prob: SubspaceProblem,
     beta0: Array | None = None,
     b0: float = 0.0,
+    **options: Any,
+) -> SubspaceSolution:
+    """Damped Newton method for the subspace problem (``m + 1`` unknowns).
+
+    A warm start ``(beta0, b0)`` may lie in a region where the loss is linear in all samples (tiny
+    ``lam`` gives huge coefficients), so the Hessian is just ``lam I`` and no step is accepted. The
+    solve is then repeated from the cold start ``u = 0, b = 0``, which is always well-posed; a
+    :class:`ConvergenceError` of the cold start is raised.
+    """
+    if beta0 is None:
+        return _newton_subspace(prob, None, 0.0, **options)
+    try:
+        return _newton_subspace(prob, beta0, b0, **options)
+    except ConvergenceError:
+        return _newton_subspace(prob, None, 0.0, **options)
+
+
+def _newton_subspace(
+    prob: SubspaceProblem,
+    beta0: Array | None,
+    b0: float,
     *,
     tol: float = 1e-12,
     max_steps: int = 100,
     max_backtracks: int = 30,
     sigma: float = 1e-4,
 ) -> SubspaceSolution:
-    """Damped Newton method for the subspace problem (``m + 1`` unknowns)."""
     t0 = time.perf_counter()
     lam, psi, m = prob.lam, prob.psi, prob.m
     u = prob.chol.T @ beta0 if beta0 is not None else np.zeros(m)
