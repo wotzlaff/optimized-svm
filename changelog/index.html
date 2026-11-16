@@ -13,15 +13,18 @@
         <link rel="canonical" href="https://wotzlaff.github.io/optimized-svm/changelog/">
       
       
+      
         <link rel="prev" href="../api/">
       
+      
+        <link rel="next" href="https://wotzlaff.github.io/svm-site/">
       
       
         
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="zensical-0.1.1">
     
     
       
@@ -29,10 +32,15 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      <link rel="stylesheet" href="../assets/stylesheets/classic/main.0006804e.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/classic/palette.813d4b3f.min.css">
       
       
 
@@ -46,16 +54,14 @@
         
         
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
         <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
       
     
     
-      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
-    
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
 
@@ -76,14 +82,11 @@
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
-    <label class="md-overlay" for="__drawer"></label>
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
     <div data-md-component="skip">
-      
-        
-        <a href="#changelog" class="md-skip">
-          Skip to content
-        </a>
-      
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
     </div>
     <div data-md-component="announce">
       
@@ -96,7 +99,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="optimized-svm" class="md-header__button md-logo" aria-label="optimized-svm" data-md-component="logo">
+    <a href="./.." title="optimized-svm" class="md-header__button md-logo" aria-label="optimized-svm" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -105,6 +108,7 @@
     <label class="md-header__button md-icon" for="__drawer">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      <span class="md-visually-hidden">Navigation</span>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -132,7 +136,7 @@
     <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
     
       <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-moon" viewBox="0 0 24 24"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg>
       </label>
     
   
@@ -142,7 +146,7 @@
     <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
     
       <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
       </label>
     
   
@@ -159,54 +163,28 @@
         <label class="md-header__button md-icon" for="__search">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+          <span class="md-visually-hidden">Search</span>
         </label>
-        <div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
-      <label class="md-search__icon md-icon" for="__search">
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
-        
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-      </label>
-      <nav class="md-search__options" aria-label="Search">
-        
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
-          
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-        </button>
-      </nav>
-      
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="search-result">
-          <div class="md-search-result__meta">
-            Initializing search
-          </div>
-          <ol class="md-search-result__list" role="presentation"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
 </div>
       
     
-    
-      <div class="md-header__source">
+    <div class="md-header__source">
+      
         <a href="https://github.com/wotzlaff/optimized-svm" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     wotzlaff/optimized-svm
   </div>
 </a>
-      </div>
-    
+      
+    </div>
   </nav>
   
 </header>
@@ -232,7 +210,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="optimized-svm" class="md-nav__button md-logo" aria-label="optimized-svm" data-md-component="logo">
+    <a href="./.." title="optimized-svm" class="md-nav__button md-logo" aria-label="optimized-svm" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -245,7 +223,7 @@
       <a href="https://github.com/wotzlaff/optimized-svm" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
   </div>
   <div class="md-source__repository">
     wotzlaff/optimized-svm
@@ -262,15 +240,14 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="./.." class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Home
-  
+  Home
 
     
   </span>
@@ -296,8 +273,7 @@
   <span class="md-ellipsis">
     
   
-    Getting started
-  
+  Getting started
 
     
   </span>
@@ -339,8 +315,7 @@
   <span class="md-ellipsis">
     
   
-    Background
-  
+  Background
 
     
   </span>
@@ -350,19 +325,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_3">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Background
-  
+  Background
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -375,8 +350,7 @@
   <span class="md-ellipsis">
     
   
-    Training problem
-  
+  Training problem
 
     
   </span>
@@ -387,10 +361,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -403,8 +377,7 @@
   <span class="md-ellipsis">
     
   
-    Switching from SMO to Newton
-  
+  Switching from SMO to Newton
 
     
   </span>
@@ -415,10 +388,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -431,8 +404,7 @@
   <span class="md-ellipsis">
     
   
-    Hyperparameter gradients
-  
+  Hyperparameter gradients
 
     
   </span>
@@ -443,10 +415,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -459,8 +431,7 @@
   <span class="md-ellipsis">
     
   
-    Subspace SVM
-  
+  Subspace SVM
 
     
   </span>
@@ -471,10 +442,11 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -510,8 +482,7 @@
   <span class="md-ellipsis">
     
   
-    Examples
-  
+  Examples
 
     
   </span>
@@ -521,19 +492,19 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
   
-    Examples
-  
+  Examples
 
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
               
                 
+                  
   
   
   
@@ -546,8 +517,7 @@
   <span class="md-ellipsis">
     
   
-    Quickstart: gradient-based tuning vs. grid search
-  
+  Quickstart
 
     
   </span>
@@ -558,10 +528,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -574,8 +544,7 @@
   <span class="md-ellipsis">
     
   
-    Feature relevance (ARD)
-  
+  Feature relevance (ARD)
 
     
   </span>
@@ -586,10 +555,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -602,8 +571,7 @@
   <span class="md-ellipsis">
     
   
-    Class probabilities with the logistic loss
-  
+  Class probabilities (logistic loss)
 
     
   </span>
@@ -614,10 +582,10 @@
     </li>
   
 
-              
-            
+                
               
                 
+                  
   
   
   
@@ -630,8 +598,7 @@
   <span class="md-ellipsis">
     
   
-    Low-level API
-  
+  Low-level API
 
     
   </span>
@@ -642,10 +609,11 @@
     </li>
   
 
+                
               
-            
-          </ul>
-        </nav>
+            </ul>
+          </nav>
+        
       
     </li>
   
@@ -665,8 +633,7 @@
   <span class="md-ellipsis">
     
   
-    Reproducing the thesis
-  
+  Reproducing the thesis
 
     
   </span>
@@ -692,8 +659,7 @@
   <span class="md-ellipsis">
     
   
-    API reference
-  
+  API reference
 
     
   </span>
@@ -715,7 +681,9 @@
   
     <li class="md-nav__item md-nav__item--active">
       
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+        <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
       
       
         
@@ -728,8 +696,7 @@
   <span class="md-ellipsis">
     
   
-    Changelog
-  
+  Changelog
 
     
   </span>
@@ -739,15 +706,14 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <a href="./" class="md-nav__link md-nav__link--active">
+      <a href="././" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    Changelog
-  
+  Changelog
 
     
   </span>
@@ -758,7 +724,8 @@
       
         
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -767,16 +734,44 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Unreleased
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Changed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#030-2026-11-16" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.3.0 – 2026-11-16
-      
+      </span>
     </span>
   </a>
   
@@ -786,20 +781,20 @@
           <li class="md-nav__item">
   <a href="#added" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -808,9 +803,9 @@
           <li class="md-nav__item">
   <a href="#fixed" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Fixed
-      
+      </span>
     </span>
   </a>
   
@@ -824,9 +819,9 @@
         <li class="md-nav__item">
   <a href="#021-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.2.1 – 2026-10-29
-      
+      </span>
     </span>
   </a>
   
@@ -834,11 +829,11 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -847,9 +842,9 @@
           <li class="md-nav__item">
   <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
@@ -863,9 +858,9 @@
         <li class="md-nav__item">
   <a href="#020-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.2.0 – 2026-10-29
-      
+      </span>
     </span>
   </a>
   
@@ -875,9 +870,9 @@
           <li class="md-nav__item">
   <a href="#added_2" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
@@ -891,9 +886,9 @@
         <li class="md-nav__item">
   <a href="#011-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.1.1 – 2026-10-29
-      
+      </span>
     </span>
   </a>
   
@@ -901,11 +896,11 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_2" class="md-nav__link">
+  <a href="#changed_3" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -914,9 +909,9 @@
           <li class="md-nav__item">
   <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Fixed
-      
+      </span>
     </span>
   </a>
   
@@ -930,9 +925,9 @@
         <li class="md-nav__item">
   <a href="#010-2026-10-28" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.1.0 – 2026-10-28
-      
+      </span>
     </span>
   </a>
   
@@ -940,11 +935,11 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_3" class="md-nav__link">
+  <a href="#changed_4" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -953,9 +948,9 @@
           <li class="md-nav__item">
   <a href="#added_3" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
@@ -964,9 +959,9 @@
           <li class="md-nav__item">
   <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Fixed
-      
+      </span>
     </span>
   </a>
   
@@ -999,8 +994,7 @@
   <span class="md-ellipsis">
     
   
-    Project website
-  
+  Project website
 
     
   </span>
@@ -1022,10 +1016,12 @@
               
               <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
                 <div class="md-sidebar__scrollwrap">
+                  
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
   
   
   
@@ -1034,16 +1030,44 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      On this page
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#unreleased" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Unreleased
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unreleased">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Changed
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#030-2026-11-16" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.3.0 – 2026-11-16
-      
+      </span>
     </span>
   </a>
   
@@ -1053,20 +1077,20 @@
           <li class="md-nav__item">
   <a href="#added" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -1075,9 +1099,9 @@
           <li class="md-nav__item">
   <a href="#fixed" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Fixed
-      
+      </span>
     </span>
   </a>
   
@@ -1091,9 +1115,9 @@
         <li class="md-nav__item">
   <a href="#021-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.2.1 – 2026-10-29
-      
+      </span>
     </span>
   </a>
   
@@ -1101,11 +1125,11 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -1114,9 +1138,9 @@
           <li class="md-nav__item">
   <a href="#added_1" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
@@ -1130,9 +1154,9 @@
         <li class="md-nav__item">
   <a href="#020-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.2.0 – 2026-10-29
-      
+      </span>
     </span>
   </a>
   
@@ -1142,9 +1166,9 @@
           <li class="md-nav__item">
   <a href="#added_2" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
@@ -1158,9 +1182,9 @@
         <li class="md-nav__item">
   <a href="#011-2026-10-29" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.1.1 – 2026-10-29
-      
+      </span>
     </span>
   </a>
   
@@ -1168,11 +1192,11 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_2" class="md-nav__link">
+  <a href="#changed_3" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -1181,9 +1205,9 @@
           <li class="md-nav__item">
   <a href="#fixed_1" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Fixed
-      
+      </span>
     </span>
   </a>
   
@@ -1197,9 +1221,9 @@
         <li class="md-nav__item">
   <a href="#010-2026-10-28" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         0.1.0 – 2026-10-28
-      
+      </span>
     </span>
   </a>
   
@@ -1207,11 +1231,11 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_3" class="md-nav__link">
+  <a href="#changed_4" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Changed
-      
+      </span>
     </span>
   </a>
   
@@ -1220,9 +1244,9 @@
           <li class="md-nav__item">
   <a href="#added_3" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Added
-      
+      </span>
     </span>
   </a>
   
@@ -1231,9 +1255,9 @@
           <li class="md-nav__item">
   <a href="#fixed_2" class="md-nav__link">
     <span class="md-ellipsis">
-      
+      <span class="md-typeset">
         Fixed
-      
+      </span>
     </span>
   </a>
   
@@ -1256,15 +1280,22 @@
             <div class="md-content" data-md-component="content">
               
               <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
                 
                   
-
 
   
   
 
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
+<h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Documentation built with Zensical instead of MkDocs Material (<code>zensical.toml</code>); the example scripts are
+  executed by <code>scripts/build_examples.py</code> before the build (Zensical has no <code>mkdocs-jupyter</code>). API
+  reference: new section for <code>optimized_svm.subspace</code>.</li>
+</ul>
 <h2 id="030-2026-11-16">0.3.0 – 2026-11-16<a class="headerlink" href="#030-2026-11-16" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1286,7 +1317,7 @@
   identifiable below the smoothing width, the CV error is multimodal in <code>smoothing</code>). Study:
   <code>benchmarks/hpo_loss_params.py</code>.</li>
 </ul>
-<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>cv_error_</code> of the optimizers is the cross-validation error at the returned hyperparameters
   (before: the minimum over <code>history_</code>; the same value except with re-selected subspace bases).</li>
@@ -1297,7 +1328,7 @@
   (tiny <code>lam</code>) gives no descent step.</li>
 </ul>
 <h2 id="021-2026-10-29">0.2.1 – 2026-10-29<a class="headerlink" href="#021-2026-10-29" title="Permanent link">&para;</a></h2>
-<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Switch from SMO to Newton: the rough SMO stage now stops at tolerance 0.3 (was 0.1) or after five
   steps per loss term. Same results; ε-SVR hyperparameter optimization up to 2.5 times faster, and
@@ -1319,7 +1350,7 @@
   dense; <code>max_asum</code> is not supported. Hypergradients are covered by the finite-difference tests.</li>
 </ul>
 <h2 id="011-2026-10-29">0.1.1 – 2026-10-29<a class="headerlink" href="#011-2026-10-29" title="Permanent link">&para;</a></h2>
-<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
+<h3 id="changed_3">Changed<a class="headerlink" href="#changed_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Faster hypergradient: kernel matrices are handled per sample (ε-SVR uses <code>n</code> instead of <code>2n</code>
   columns), the validation kernel columns are reused for the adjoint system, and the kernel
@@ -1341,7 +1372,7 @@
 </ul>
 <h2 id="010-2026-10-28">0.1.0 – 2026-10-28<a class="headerlink" href="#010-2026-10-28" title="Permanent link">&para;</a></h2>
 <p>Complete overhaul of the 2022 code (tag <code>legacy-2022</code>).</p>
-<h3 id="changed_3">Changed<a class="headerlink" href="#changed_3" title="Permanent link">&para;</a></h3>
+<h3 id="changed_4">Changed<a class="headerlink" href="#changed_4" title="Permanent link">&para;</a></h3>
 <ul>
 <li>training backend: Rust solver <code>smo-solver</code> instead of the Nim package <code>nimsmo</code></li>
 <li>new package layout (<code>src/</code>), <code>pyproject.toml</code>, snake_case API, scikit-learn compatible
@@ -1362,6 +1393,8 @@
   <code>maxAsum</code> did not terminate, SMO and Newton used different kernel parameters, the 1-norm
   constraint was always treated as active</li>
 </ul>
+
+
 
 
 
@@ -1402,8 +1435,8 @@
   
   
     Made with
-    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
-      Material for MkDocs
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
     </a>
   
 </div>
@@ -1413,7 +1446,7 @@
 </footer>
       
     </div>
-    <div class="md-dialog" data-md-component="dialog">
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
@@ -1421,10 +1454,14 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      
+      
+        
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["navigation.sections","navigation.top","content.code.copy"],"redirect":null,"search":"../assets/javascripts/workers/search.719e0d91.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      <script src="../assets/javascripts/bundle.3cb411a8.min.js"></script>
       
         <script src="../javascripts/katex.js"></script>
       
@@ -1433,112 +1470,5 @@
         <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
       
     
-  <script data-mkdocs-jupyter-mathjax="{&quot;url&quot;: &quot;https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-mml-chtml.js&quot;, &quot;version&quot;: 4}">
-/* Shared by full pages and Material's instant navigation. */
-(() => {
-  const config = JSON.parse(document.currentScript.dataset.mkdocsJupyterMathjax);
-  if (window.mkdocsJupyterMathJax) return;
-
-  let loading;
-  let queue = Promise.resolve();
-  let previous = [];
-
-  const ready = async () => {
-    if (!loading) {
-      loading = (async () => {
-        let math = window.MathJax;
-        if (!math?.typesetPromise) {
-          const url = new URL(config.url, document.baseURI).href;
-          const existing = Array.from(document.scripts).find(script =>
-            script.src && (script.src === url || script.id === 'MathJax-script' ||
-              (/mathjax/i.test(script.src) &&
-               /\/(?:MathJax|latest|(?:tex|mml)(?:-mml)?-(?:chtml|svg))\.js(?:[?#]|$)/i.test(script.src))));
-          if (existing) {
-            if (!math?.startup?.promise) {
-              await new Promise((resolve, reject) => {
-                existing.addEventListener('load', resolve, { once: true });
-                existing.addEventListener('error', reject, { once: true });
-              });
-            }
-          } else {
-            // Keep site macros, delimiters and startup hooks when supplied.
-            const options = math || {};
-            window.MathJax = {
-              ...options,
-              loader: {
-                ...options.loader,
-                load: Array.from(new Set(['ui/safe', ...(options.loader?.load || [])]))
-              },
-              startup: { typeset: false, ...options.startup },
-              tex: {
-                tags: 'ams',
-                useLabelIds: true,
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']],
-                processEscapes: true,
-                processEnvironments: true,
-                ...options.tex
-              }
-            };
-            await new Promise((resolve, reject) => {
-              const script = document.createElement('script');
-              script.src = config.url;
-              script.id = 'MathJax-script';
-              script.async = true;
-              script.onload = resolve;
-              script.onerror = reject;
-              document.head.appendChild(script);
-            });
-          }
-        }
-        math = window.MathJax;
-        await math.startup.promise;
-        return math;
-      })();
-    }
-    const math = await loading;
-    // A site owner can extend the v3 queue again on each navigation.
-    await math.startup.promise;
-    return math;
-  };
-
-  const unrendered = node => {
-    if (node.matches('mjx-container')) return [];
-    if (!node.querySelector('mjx-container')) return [node];
-    // In v3, scanning generated assistive MathML again produces nested output.
-    return Array.from(node.children).flatMap(unrendered);
-  };
-
-  const refresh = () => {
-    // A separate chain also serializes v3, without changing v4's startup promise.
-    queue = queue.then(async () => {
-      const notebooks = Array.from(document.querySelectorAll('.jupyter-wrapper'));
-      if (!notebooks.length && !previous.length) return;
-      if (notebooks.length === previous.length &&
-          notebooks.every((node, index) => node === previous[index])) return;
-      const math = await ready();
-      if (previous.length) {
-        math.typesetClear(previous);
-        math.texReset();
-      }
-      previous = notebooks.filter(node => node.isConnected);
-      const pending = previous.flatMap(unrendered);
-      if (pending.length) await math.typesetPromise(pending);
-    }).catch(error => console.error('mkdocs-jupyter: MathJax rendering failed', error));
-    return queue;
-  };
-
-  window.mkdocsJupyterMathJax = { refresh };
-  const start = () => {
-    if (typeof document$ !== 'undefined') document$.subscribe(refresh);
-    else refresh();
-  };
-  // Theme bundles and user-provided MathJax scripts can follow notebook content.
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start, { once: true });
-  } else start();
-})();
-
-</script>
-</body>
+  </body>
 </html>
