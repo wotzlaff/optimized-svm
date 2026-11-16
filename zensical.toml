@@ -1,0 +1,77 @@
+[project]
+site_name = "optimized-svm"
+site_description = "Support vector machines with hyperparameters tuned by exact gradients"
+site_url = "https://wotzlaff.github.io/optimized-svm/"
+repo_url = "https://github.com/wotzlaff/optimized-svm"
+repo_name = "wotzlaff/optimized-svm"
+copyright = "Copyright &copy; 2022–2026 Nico Strasdat"
+
+# The example pages (examples/*.md) are generated from examples/*.py by
+# scripts/build_examples.py, which must run before `zensical build`.
+nav = [
+  { "Home" = "index.md" },
+  { "Getting started" = "getting-started.md" },
+  { "Background" = [
+    { "Training problem" = "theory/training.md" },
+    { "Switching from SMO to Newton" = "theory/switching.md" },
+    { "Hyperparameter gradients" = "theory/hypergradient.md" },
+    { "Subspace SVM" = "theory/subspace.md" },
+  ] },
+  { "Examples" = [
+    { "Quickstart" = "examples/quickstart.md" },
+    { "Feature relevance (ARD)" = "examples/ard_feature_relevance.md" },
+    { "Class probabilities (logistic loss)" = "examples/logistic_probabilities.md" },
+    { "Low-level API" = "examples/low_level_api.md" },
+  ] },
+  { "Reproducing the thesis" = "reproduction.md" },
+  { "API reference" = "api.md" },
+  { "Changelog" = "changelog.md" },
+  { "Project website" = "https://wotzlaff.github.io/svm-site/" },
+]
+
+extra_javascript = [
+  "javascripts/katex.js",
+  "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js",
+  "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js",
+]
+extra_css = ["https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"]
+
+[project.theme]
+# "classic" keeps the look of Material for MkDocs.
+variant = "classic"
+features = [
+  "navigation.sections",
+  "navigation.top",
+  "content.code.copy",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "indigo"
+toggle.icon = "lucide/moon"
+toggle.name = "Dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "indigo"
+toggle.icon = "lucide/sun"
+toggle.name = "Light mode"
+
+[project.markdown_extensions]
+admonition = {}
+tables = {}
+toc.permalink = true
+pymdownx.arithmatex.generic = true
+pymdownx.highlight = {}
+pymdownx.superfences = {}
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "numpy"
+show_source = false
+members_order = "source"
+show_root_heading = true

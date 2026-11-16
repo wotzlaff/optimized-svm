@@ -30,6 +30,10 @@
 
 ::: optimized_svm.fold_error_and_gradient
 
+## Subspace SVM
+
+::: optimized_svm.subspace
+
 ## Validation losses
 
 ::: optimized_svm.validation

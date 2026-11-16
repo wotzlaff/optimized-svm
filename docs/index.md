@@ -89,7 +89,8 @@ python benchmarks/thesis_regression.py --datasets pyrim triazines mpg housing --
 ## Documentation
 
 See [Getting started](getting-started.md) and the [background pages](theory/training.md).
-Build locally with `uv run --group docs mkdocs serve`.
+Build locally with `uv run --group docs python scripts/build_examples.py` (executes the examples)
+followed by `uv run --group docs zensical serve`.
 
 ## Citation
 

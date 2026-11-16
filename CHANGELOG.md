@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Documentation built with Zensical instead of MkDocs Material (`zensical.toml`); the example scripts are
+  executed by `scripts/build_examples.py` before the build (Zensical has no `mkdocs-jupyter`). API
+  reference: new section for `optimized_svm.subspace`.
+
 ## 0.3.0 – 2026-11-16
 
 ### Added

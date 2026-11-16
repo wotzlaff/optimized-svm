@@ -21,7 +21,7 @@ jobs:
         run: |
           uv venv
           uv pip install -e . pytest cvxpy ruff mypy
-      - run: uv run --no-sync ruff check src tests examples benchmarks
+      - run: uv run --no-sync ruff check src tests examples benchmarks scripts
       - run: uv run --no-sync mypy src
       - run: uv run --no-sync pytest -q
 
@@ -34,9 +34,13 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Build documentation
         run: |
-          uv venv
-          uv pip install -e . mkdocs-material "mkdocstrings[python]" mkdocs-jupyter ipykernel matplotlib
-          uv run --no-sync mkdocs build --strict
+          uv sync --group docs --python 3.12
+          uv run --no-sync python scripts/build_examples.py
+          uv run --no-sync zensical build --clean --strict
+          # Zensical silently skips unsupported plugins and missing pages: check the example pages
+          for f in quickstart ard_feature_relevance logistic_probabilities low_level_api; do
+            test -f "site/examples/$f/index.html" || { echo "missing example page $f"; exit 1; }
+          done
       - name: Deploy to GitHub Pages
         if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v4

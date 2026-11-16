@@ -93,7 +93,8 @@ python benchmarks/thesis_regression.py --datasets pyrim triazines mpg housing --
 ## Documentation
 
 Full documentation including the mathematical background: <https://wotzlaff.github.io/optimized-svm/>.
-Build locally with `uv run --group docs mkdocs serve`.
+Build locally with `uv run --group docs python scripts/build_examples.py` (executes the examples)
+followed by `uv run --group docs zensical serve`.
 
 ## Citation
 
