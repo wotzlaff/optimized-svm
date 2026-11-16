@@ -74,13 +74,18 @@ def fold_error_and_gradient(
     newton_options: dict[str, Any] | None = None,
     alpha0: Array | None = None,
     loss_params: Sequence[str] = (),
+    offset_train: Array | None = None,
+    w_val: Array | None = None,
+    offset_val: Array | None = None,
 ) -> FoldResult:
     """Validation error of one fold and its gradient w.r.t. ``(log lam, log s_k, log p_j)``.
 
     ``p_j`` are the loss parameters named in ``loss_params`` (e.g. ``"epsilon"``, ``"smoothing"``),
-    taken from ``loss``. ``x_train``/``x_val`` must already be scaled.
+    taken from ``loss``. ``x_train``/``x_val`` must already be scaled. ``offset_train`` and
+    ``offset_val`` are per-sample offsets added to the decision values (``None``: zero); ``w_val``
+    are validation weights, passed to ``validation`` only if it is ``weighted``.
     """
-    prob = TrainingProblem(x_train, y_train, loss, lam, w_train, max_asum)
+    prob = TrainingProblem(x_train, y_train, loss, lam, w_train, max_asum, offset_train)
     sol = train(prob, smo_options, newton_options, alpha0)
     a = sol.a
     lam_inv = 1.0 / lam
@@ -93,7 +98,11 @@ def fold_error_and_gradient(
     k_val_sv = rbf(x_val, x_sv)
     ka_val = k_val_sv @ beta[sv]
     f_val = ka_val + sol.b
-    err, d_err = validation(f_val, y_val)
+    if offset_val is not None:
+        f_val = f_val + offset_val
+    err, d_err = (
+        validation(f_val, y_val, w_val) if validation.weighted else validation(f_val, y_val)
+    )
     grad = np.zeros(1 + n_blocks(blocks) + len(loss_params))
     grad[0] = -d_err @ ka_val
     grad[1 : 1 + n_blocks(blocks)] = contract_gradient(
@@ -158,6 +167,7 @@ def cv_error_and_gradient(
     warm_start: list[Array | None] | None = None,
     loss_params: Sequence[str] = (),
     basis: Sequence[NDArray[np.intp]] | None = None,
+    offset: Array | None = None,
 ) -> CVResult:
     """Mean validation error over all folds and its gradient w.r.t. ``theta``.
 
@@ -172,6 +182,10 @@ def cv_error_and_gradient(
     *Subspace SVM* whose model is spanned by these basis points (:mod:`optimized_svm.subspace`);
     ``warm_start`` then holds expansion coefficients instead of dual variables. Loss parameters and
     the 1-norm constraint are not supported in that case.
+
+    ``offset`` is an optional per-sample offset (like ``w``): it is added to the decision values
+    of the training problem and of the validation predictions. If ``validation.weighted`` is set,
+    ``w[val_idx]`` is also passed to the validation loss.
     """
     nb = 1 if blocks is None else len(blocks)
     lam = float(np.exp(theta[0]))
@@ -187,6 +201,7 @@ def cv_error_and_gradient(
     total, grad = 0.0, np.zeros_like(theta, dtype=np.float64)
     results: list[FoldResult | SubspaceFoldResult] = []
     n_val = 0
+    weighted = validation.weighted
     for i, (train_idx, val_idx) in enumerate(folds):
         start = warm_start[i] if warm_start is not None else None
         if basis is not None:
@@ -195,6 +210,9 @@ def cv_error_and_gradient(
             sub = fold_error_and_gradient_subspace(
                 xs[train_idx], y[train_idx], w[train_idx], xs[basis[i]], xs[val_idx], y[val_idx],
                 loss, validation, lam, blocks, newton_options, start,
+                None if offset is None else offset[train_idx],
+                w[val_idx] if weighted else None,
+                None if offset is None else offset[val_idx],
             )  # fmt: skip
             if warm_start is not None:
                 warm_start[i] = sub.solution.beta
@@ -218,6 +236,9 @@ def cv_error_and_gradient(
             newton_options,
             start,
             loss_params,
+            None if offset is None else offset[train_idx],
+            w[val_idx] if weighted else None,
+            None if offset is None else offset[val_idx],
         )
         if warm_start is not None:
             warm_start[i] = res.solution.a

@@ -9,6 +9,8 @@ For loss terms ``phi_l`` (see :mod:`optimized_svm.losses`), the primal training 
 
 from __future__ import annotations
 
+import dataclasses
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -33,6 +35,7 @@ class TrainingProblem:
         lam: float,
         weights: Array | None = None,
         max_asum: float | None = None,
+        offset: Array | None = None,
     ) -> None:
         if lam <= 0:
             raise ValueError(f"lam must be positive, got {lam}")
@@ -45,6 +48,13 @@ class TrainingProblem:
         self.lam = float(lam)
         self.max_asum = max_asum
         self.terms = loss.terms(self.y, self.w)
+        if offset is not None:
+            if loss.smo_kind is not None:
+                raise ValueError(f"offset is not supported for {type(loss).__name__} (SMO dual)")
+            off = np.asarray(offset, dtype=np.float64)
+            if off.shape != self.y.shape:
+                raise ValueError(f"offset must have shape {self.y.shape}, got {off.shape}")
+            self.terms = dataclasses.replace(self.terms, offset=off[self.terms.kernel_index])
         n = self.x.shape[0]
         # the matrix is stored per *sample*, not per loss term
         self._k = rbf(self.x, self.x) if n <= PRECOMPUTE_LIMIT else None
@@ -95,7 +105,8 @@ class TrainingProblem:
         return per_sample[self.terms.kernel_index] / self.lam
 
     def decision(self, b: float, c: float, ka: Array) -> Array:
-        return ka + b + self.sign * c
+        dec = ka + b + self.sign * c
+        return dec if self.terms.offset is None else dec + self.terms.offset
 
     def objective(self, a: Array, b: float, c: float, ka: Array) -> float:
         dec = self.decision(b, c, ka)

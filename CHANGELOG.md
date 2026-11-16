@@ -7,7 +7,13 @@
   (proportions with trial counts as weights), `NegativeBinomialLoss` (tunable `dispersion`),
   `GammaLoss` and `TweedieLoss` (power in (1, 2)), plus the matching validation losses
   `BinomialDeviance`, `NegativeBinomialDeviance`, `GammaDeviance`, `TweedieDeviance`.
-  `Loss.initial_bias` gives a starting bias for Newton; `Terms` has an optional `offset`.
+- Per-sample `offset` in the training problem (`TrainingProblem`, `SubspaceProblem`) and in
+  `fold_error_and_gradient`, `fold_error_and_gradient_subspace` and `cv_error_and_gradient`
+  (decision value `K a / lam + b + offset`; only for losses without SMO stage). The hypergradient stays exact.
+- `Loss.initial_bias(terms)`: loss-specific starting bias for Newton without SMO warm start (squared and
+  Poisson loss override it).
+- `ValidationLoss.weighted` and an optional per-sample weight argument `w` of validation losses (passed
+  from the cross-validation code only if `weighted` is set).
 
 ## 0.3.1 – 2026-11-16
 
