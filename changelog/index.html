@@ -772,15 +772,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#030-2026-11-16" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unreleased
+        0.3.0 – 2026-11-16
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+    <nav class="md-nav" aria-label="0.3.0 – 2026-11-16">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -788,6 +788,17 @@
     <span class="md-ellipsis">
       
         Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
       
     </span>
   </a>
@@ -823,7 +834,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -890,7 +901,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -929,7 +940,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_2" class="md-nav__link">
+  <a href="#changed_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -1028,15 +1039,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#unreleased" class="md-nav__link">
+  <a href="#030-2026-11-16" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unreleased
+        0.3.0 – 2026-11-16
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Unreleased">
+    <nav class="md-nav" aria-label="0.3.0 – 2026-11-16">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1044,6 +1055,17 @@
     <span class="md-ellipsis">
       
         Added
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changed
       
     </span>
   </a>
@@ -1079,7 +1101,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed" class="md-nav__link">
+  <a href="#changed_1" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -1146,7 +1168,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_1" class="md-nav__link">
+  <a href="#changed_2" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -1185,7 +1207,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#changed_2" class="md-nav__link">
+  <a href="#changed_3" class="md-nav__link">
     <span class="md-ellipsis">
       
         Changed
@@ -1243,7 +1265,7 @@
 
 
 <h1 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h1>
-<h2 id="unreleased">Unreleased<a class="headerlink" href="#unreleased" title="Permanent link">&para;</a></h2>
+<h2 id="030-2026-11-16">0.3.0 – 2026-11-16<a class="headerlink" href="#030-2026-11-16" title="Permanent link">&para;</a></h2>
 <h3 id="added">Added<a class="headerlink" href="#added" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Subspace SVM (thesis Sec. 5.3), experimental: <code>optimized_svm.subspace</code> (Newton training in the span of
@@ -1264,13 +1286,18 @@
   identifiable below the smoothing width, the CV error is multimodal in <code>smoothing</code>). Study:
   <code>benchmarks/hpo_loss_params.py</code>.</li>
 </ul>
+<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>cv_error_</code> of the optimizers is the cross-validation error at the returned hyperparameters
+  (before: the minimum over <code>history_</code>; the same value except with re-selected subspace bases).</li>
+</ul>
 <h3 id="fixed">Fixed<a class="headerlink" href="#fixed" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>newton_subspace</code> repeats the solve from a cold start when a warm start with huge coefficients
   (tiny <code>lam</code>) gives no descent step.</li>
 </ul>
 <h2 id="021-2026-10-29">0.2.1 – 2026-10-29<a class="headerlink" href="#021-2026-10-29" title="Permanent link">&para;</a></h2>
-<h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
+<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Switch from SMO to Newton: the rough SMO stage now stops at tolerance 0.3 (was 0.1) or after five
   steps per loss term. Same results; ε-SVR hyperparameter optimization up to 2.5 times faster, and
@@ -1292,7 +1319,7 @@
   dense; <code>max_asum</code> is not supported. Hypergradients are covered by the finite-difference tests.</li>
 </ul>
 <h2 id="011-2026-10-29">0.1.1 – 2026-10-29<a class="headerlink" href="#011-2026-10-29" title="Permanent link">&para;</a></h2>
-<h3 id="changed_1">Changed<a class="headerlink" href="#changed_1" title="Permanent link">&para;</a></h3>
+<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Faster hypergradient: kernel matrices are handled per sample (ε-SVR uses <code>n</code> instead of <code>2n</code>
   columns), the validation kernel columns are reused for the adjoint system, and the kernel
@@ -1314,7 +1341,7 @@
 </ul>
 <h2 id="010-2026-10-28">0.1.0 – 2026-10-28<a class="headerlink" href="#010-2026-10-28" title="Permanent link">&para;</a></h2>
 <p>Complete overhaul of the 2022 code (tag <code>legacy-2022</code>).</p>
-<h3 id="changed_2">Changed<a class="headerlink" href="#changed_2" title="Permanent link">&para;</a></h3>
+<h3 id="changed_3">Changed<a class="headerlink" href="#changed_3" title="Permanent link">&para;</a></h3>
 <ul>
 <li>training backend: Rust solver <code>smo-solver</code> instead of the Nim package <code>nimsmo</code></li>
 <li>new package layout (<code>src/</code>), <code>pyproject.toml</code>, snake_case API, scikit-learn compatible
