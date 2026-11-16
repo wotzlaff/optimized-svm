@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 – 2026-11-16
 
 ### Added
 - `KernelGLMRegressor` and `OptimizedKernelGLMRegressor`: kernel GLMs (`family` Poisson, binomial,
@@ -20,6 +20,8 @@
   Poisson loss override it).
 - `ValidationLoss.weighted` and an optional per-sample weight argument `w` of validation losses (passed
   from the cross-validation code only if `weighted` is set).
+- Theory page `theory/glm.md` and example `examples/glm_counts.py` (count data with exposure, Poisson vs.
+  negative binomial with tuned dispersion).
 
 ## 0.3.1 – 2026-11-16
 

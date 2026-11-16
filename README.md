@@ -35,6 +35,10 @@ followed by a semismooth Newton method on the smoothed primal problem.
 - ARD kernels (`blocks="features"`) with two-stage optimization, warm starts, time limits,
   full optimization history
 - `decision_gradient()` for local feature sensitivities
+- kernel GLMs: `KernelGLMRegressor`, `OptimizedKernelGLMRegressor` with Poisson, binomial (trials),
+  negative binomial (dispersion tuned by the hypergradient), Gamma and Tweedie families, offsets/exposure
+  and a D² score
+- scikit-learn CV splitters with `groups` (e.g. `LeaveOneGroupOut`)
 
 ## Installation
 
