@@ -367,8 +367,16 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
 _CLASSIFICATION_LOSSES = ("hinge", "logistic")
 
 
-def _fit_one_vs_rest(est: Any, x: Array, y: Array, sample_weight: ArrayLike | None) -> bool:
-    """Fits one binary clone per class if there are more than two classes."""
+def _fit_one_vs_rest(
+    est: Any,
+    x: Array,
+    y: Array,
+    sample_weight: ArrayLike | None,
+    groups: ArrayLike | None = None,
+) -> bool:
+    """Fits one binary clone per class if there are more than two classes.
+
+    ``groups`` (only for the optimizing estimators) is passed on to every binary fit."""
     check_classification_targets(y)
     classes = np.unique(y)
     est.estimators_ = None
@@ -379,8 +387,9 @@ def _fit_one_vs_rest(est: Any, x: Array, y: Array, sample_weight: ArrayLike | No
     if isinstance(est.class_weight, dict):
         w = w * np.array([est.class_weight.get(c, 1.0) for c in y])
     params = {"class_weight": None} if isinstance(est.class_weight, dict) else {}
+    extra = {} if groups is None else {"groups": groups}
     est.estimators_ = [
-        clone(est).set_params(**params).fit(x, (y == c).astype(int), sample_weight=w)
+        clone(est).set_params(**params).fit(x, (y == c).astype(int), sample_weight=w, **extra)
         for c in classes
     ]
     if hasattr(est.estimators_[0], "n_iter_"):
@@ -558,16 +567,18 @@ class _OptimizedMixin:
     def _validation(self) -> ValidationLoss:
         raise NotImplementedError
 
-    def _folds(self, x: Array, y: Array) -> list[Fold]:
+    def _folds(self, x: Array, y: Array, groups: ArrayLike | None = None) -> list[Fold]:
+        if hasattr(self.cv, "split"):  # scikit-learn splitter object
+            return [(np.asarray(tr), np.asarray(va)) for tr, va in self.cv.split(x, y, groups)]
         if not isinstance(self.cv, Integral):
             return [(np.asarray(tr), np.asarray(va)) for tr, va in self.cv]
         splitter_cls = StratifiedKFold if isinstance(self, ClassifierMixin) else KFold
         splitter = splitter_cls(int(self.cv), shuffle=True, random_state=self.random_state)
         return [(tr, va) for tr, va in splitter.split(x, y)]
 
-    def _optimize(self, x: Array, y: Array, w: Array) -> None:
+    def _optimize(self, x: Array, y: Array, w: Array, groups: ArrayLike | None = None) -> None:
         loss, validation = self._loss(), self._validation()
-        folds = self._folds(x, y)
+        folds = self._folds(x, y, groups)
         start = time.perf_counter()
         history: list[dict[str, Any]] = []
         lam_bounds = np.log(self.lam_bounds)
@@ -729,8 +740,12 @@ _OPT_DOC = """
         Feature blocks with individual scalings (``"features"``: ARD kernel).
     two_stage : bool
         With blocks, first optimise one common scaling, then the individual ones.
-    cv : int or iterable of (train, validation) index arrays
-        Folds of the cross-validation error.
+    cv : int, cross-validation splitter or iterable of (train, validation) index arrays
+        Folds of the cross-validation error. An int gives shuffled (stratified for classifiers)
+        ``k``-fold splits seeded by ``random_state``. Any scikit-learn splitter (an object with a
+        ``split`` method, e.g. ``GroupKFold`` or ``LeaveOneGroupOut``) is called as
+        ``cv.split(X, y, groups)`` with the ``groups`` passed to ``fit``; for ``OptimizedSVR`` ``y``
+        is the normalised target. An iterable of index pairs is used as is.
     lam_bounds, scaling_bounds : tuple of float
         Box constraints of the hyperparameters.
     time_limit : float, optional
@@ -835,16 +850,21 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         return SmoothHingeValidation(self.shift, self.validation_smoothing, "6", balanced=balanced)
 
     def fit(
-        self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        sample_weight: ArrayLike | None = None,
+        groups: ArrayLike | None = None,
     ) -> OptimizedSVC:
+        """Fits the model; ``groups`` is passed to ``cv.split`` (splitter objects only)."""
         for name in ("lam_", "scaling_opt_"):
             self.__dict__.pop(name, None)
         x, y = validate_data(self, X, y, dtype=np.float64)
         y = np.asarray(y)
-        if _fit_one_vs_rest(self, x, y, sample_weight):
+        if _fit_one_vs_rest(self, x, y, sample_weight, groups):
             return self
         labels, w = _binary_labels(self, y, x, sample_weight)
-        self._optimize(x, labels, w)
+        self._optimize(x, labels, w, groups)
         self._fit_model(x, labels, w)
         return self
 
@@ -945,8 +965,13 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         raise ValueError(f"unknown validation {kind!r}")
 
     def fit(
-        self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        sample_weight: ArrayLike | None = None,
+        groups: ArrayLike | None = None,
     ) -> OptimizedSVR:
+        """Fits the model; ``groups`` is passed to ``cv.split`` (splitter objects only)."""
         for name in ("lam_", "scaling_opt_"):
             self.__dict__.pop(name, None)
         x, y = validate_data(self, X, y, dtype=np.float64, y_numeric=True)
@@ -955,6 +980,6 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         self._loss()
         self.label_scaler_ = _LabelScaler(self._label_mode()).fit(y)
         yn = self.label_scaler_.transform(y)
-        self._optimize(x, yn, w)
+        self._optimize(x, yn, w, groups)
         self._fit_model(x, yn, w)
         return self

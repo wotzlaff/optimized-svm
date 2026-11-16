@@ -5,7 +5,14 @@ import pytest
 from sklearn.base import clone
 from sklearn.datasets import make_classification, make_friedman1
 from sklearn.metrics import log_loss
-from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.model_selection import (
+    GridSearchCV,
+    GroupKFold,
+    KFold,
+    LeaveOneGroupOut,
+    StratifiedKFold,
+    train_test_split,
+)
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -179,3 +186,72 @@ class TestLogisticClassifier:
         # more confident than a badly regularised model, i.e. the optimisation did something
         bad = SmoothSVC(lam=10.0, loss="logistic").fit(xtr, ytr)
         assert log_loss(yte, proba) < log_loss(yte, bad.predict_proba(xte))
+
+
+# --- cross-validation splitters and groups --------------------------------------------------
+
+
+def _group_data():
+    x, y = make_friedman1(60, noise=0.5, random_state=0)
+    return x, y, np.repeat(np.arange(6), 10)
+
+
+def _fold_signature(folds):
+    return [(tuple(tr), tuple(va)) for tr, va in folds]
+
+
+def test_cv_leave_one_group_out_uses_groups():
+    x, y, groups = _group_data()
+    est = OptimizedSVR(loss="squared", cv=LeaveOneGroupOut(), max_iter=2).fit(x, y, groups=groups)
+    assert len(est.history_) > 0
+    folds = est._folds(x, y, groups)
+    assert len(folds) == 6
+    for (_, va), g in zip(folds, np.unique(groups), strict=True):
+        assert set(groups[va]) == {g}
+
+
+def test_cv_group_kfold_matches_explicit_folds():
+    x, y, groups = _group_data()
+    splitter = GroupKFold(n_splits=3)
+    explicit = [(tr, va) for tr, va in splitter.split(x, y, groups)]
+    kw = dict(loss="squared", max_iter=3)
+    a = OptimizedSVR(cv=splitter, **kw).fit(x, y, groups=groups)
+    b = OptimizedSVR(cv=explicit, **kw).fit(x, y)
+    assert a.cv_error_ == pytest.approx(b.cv_error_)
+    assert a.lam_ == pytest.approx(b.lam_)
+    assert _fold_signature(a._folds(x, y, groups)) == _fold_signature(explicit)
+
+
+def test_cv_splitter_without_groups_and_int_unchanged():
+    x, y, _ = _group_data()
+    kf = KFold(3, shuffle=True, random_state=1)
+    a = OptimizedSVR(cv=kf, loss="squared", max_iter=2).fit(x, y)
+    b = OptimizedSVR(cv=[(tr, va) for tr, va in kf.split(x)], loss="squared", max_iter=2).fit(x, y)
+    assert a.cv_error_ == pytest.approx(b.cv_error_)
+    # int: shuffled KFold seeded by random_state, as before
+    est = OptimizedSVR(cv=4, random_state=3)
+    expected = list(KFold(4, shuffle=True, random_state=3).split(x, y))
+    assert _fold_signature(est._folds(x, y)) == _fold_signature(expected)
+    clf = OptimizedSVC(cv=4, random_state=3)
+    yc = (y > np.median(y)).astype(int)
+    expected = list(StratifiedKFold(4, shuffle=True, random_state=3).split(x, yc))
+    assert _fold_signature(clf._folds(x, yc)) == _fold_signature(expected)
+
+
+def test_cv_groups_required_error():
+    x, y, _ = _group_data()
+    with pytest.raises(ValueError, match="groups"):
+        OptimizedSVR(cv=LeaveOneGroupOut(), loss="squared").fit(x, y)
+
+
+def test_cv_groups_classifier_one_vs_rest():
+    x, y = make_classification(90, 5, n_informative=3, n_classes=3, random_state=0)
+    groups = np.repeat(np.arange(6), 15)
+    clf = OptimizedSVC(cv=GroupKFold(3), max_iter=2).fit(x, y, groups=groups)
+    assert len(clf.estimators_) == 3
+    assert clf.predict(x).shape == y.shape
+    with pytest.raises(ValueError, match="groups"):
+        OptimizedSVC(cv=GroupKFold(3), max_iter=2).fit(x, y)
+    # binary case
+    yb = (y > 0).astype(int)
+    OptimizedSVC(cv=LeaveOneGroupOut(), max_iter=2).fit(x, yb, groups=groups)

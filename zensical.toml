@@ -11,6 +11,7 @@ copyright = "Copyright &copy; 2022–2026 Nico Strasdat"
 nav = [
   { "Home" = "index.md" },
   { "Getting started" = "getting-started.md" },
+  { "Coming from optimized-lssvr" = "migration-lssvr.md" },
   { "Background" = [
     { "Training problem" = "theory/training.md" },
     { "Switching from SMO to Newton" = "theory/switching.md" },

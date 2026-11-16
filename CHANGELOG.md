@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 – 2026-11-16
+
+### Added
+- `cv` of `OptimizedSVC`/`OptimizedSVR` accepts scikit-learn splitter objects (anything with `split`,
+  e.g. `GroupKFold`, `LeaveOneGroupOut`, unshuffled `KFold`); `fit` has a new argument `groups=None`
+  that is passed to `cv.split(X, y, groups)` (also in the one-vs-rest classifier). Integers and iterables
+  of index pairs behave as before.
+- Migration page "Coming from optimized-lssvr" (`docs/migration-lssvr.md`) with the exact parameter
+  mapping; `tests/test_lssvr_oracle.py` checks the cross-validation objective and its gradient
+  (RBF, ARD, feature groups) against reference values of `optimized-lssvr`
+  (`benchmarks/lssvr_oracle_reference.py` regenerates them).
 
 ### Changed
 - Documentation built with Zensical instead of MkDocs Material (`zensical.toml`); the example scripts are
