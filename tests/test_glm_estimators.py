@@ -179,25 +179,27 @@ def test_optimized_with_blocks_and_fixed_dispersion():
     assert all("dispersion" not in h for h in est.history_)
 
 
-def test_tune_dispersion_moves_towards_overdispersion():
-    rng = np.random.default_rng(8)
-    n = 400
+def _nb_data(r, n=400, seed=8):
+    rng = np.random.default_rng(seed)
     x = rng.uniform(-2, 2, (n, 2))
     mu = np.exp(1.0 + 0.8 * np.sin(2 * x[:, 0]))
-    y = rng.negative_binomial(1.0, 1.0 / (1.0 + mu)).astype(float)  # r = 1
+    return x, rng.negative_binomial(r, r / (r + mu)).astype(float)
+
+
+@pytest.mark.parametrize(("truth", "start"), [(1.0, 0.1), (1.0, 50.0), (5.0, 0.1), (5.0, 50.0)])
+def test_tune_dispersion_recovers_truth(truth, start):
+    x, y = _nb_data(truth)
     est = OptimizedKernelGLMRegressor(
         family="negative_binomial",
-        dispersion=100.0,
+        dispersion=start,
         tune_dispersion=True,
-        dispersion_bounds=(0.05, 200.0),
         cv=4,
-        max_iter=30,
+        max_iter=40,
     ).fit(x, y)
-    assert est.dispersion_ < 20.0  # started close to the Poisson limit, truth is 1
-    assert est.history_[0]["dispersion"] == pytest.approx(100.0)
-    assert est.history_[-1]["dispersion"] != est.history_[0]["dispersion"]
+    print(f"truth {truth}, start {start}: dispersion_ = {est.dispersion_:.3f}")
+    assert truth / 2 < est.dispersion_ < truth * 2
+    assert est.history_[0]["dispersion"] == pytest.approx(start)
     assert est.dispersion_ == est.loss_params_opt_["dispersion"]
-    assert 0.05 <= est.dispersion_ <= 200.0
     assert est.score(x, y) > 0.0
 
 

@@ -96,9 +96,11 @@ to the same data (`mu_i = e^{b + offset_i}`, resp. the weighted mean without off
 **Dispersion tuning.** With `tune_dispersion=True` (negative binomial only, not with `n_basis`)
 `log r` is appended to the hyperparameters and optimised within `dispersion_bounds` with the
 hypergradient above; the result is `dispersion_` and each `history_` entry carries the current
-`dispersion`. The half deviance of the validation samples depends on `r` itself and would be
-minimised by degenerate values, so in this case the validation loss is the Poisson deviance of the
-predicted mean (`PoissonValidation`), which is independent of `r`: the dispersion only changes how
-the training problem weights large counts. Its signal is therefore weak; it moves `r` in the right
-direction for clearly over-dispersed data, but the result should not be read as a maximum
-likelihood estimate of `r`.
+`dispersion`. The validation loss is then the full negative binomial negative log-likelihood
+`NegativeBinomialNLL(r)`, `E = sum -lgamma(y+r) + lgamma(r) + lgamma(y+1) - r log(r/(r+mu)) - y log(mu/(r+mu))`.
+Unlike the half deviance it keeps the terms that depend on `r`, so it is a proper criterion for
+`r`. Its derivatives are `dE/df = r (mu - y)/(mu + r)` and
+`dE/dr = sum -psi(y+r) + psi(r) - log(r/(r+mu)) - 1 + (y+r)/(r+mu)`; the hypergradient with respect
+to `log r` is the implicit part above plus the direct term `r dE/dr` (validation losses declare
+tunable parameters in `ValidationLoss.params` and implement `param_grad`). Without tuning, the
+half deviance is used.

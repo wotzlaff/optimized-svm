@@ -252,3 +252,52 @@ def test_hypergradient_wrt_dispersion():
     )
     np.testing.assert_allclose(res.gradient, num, rtol=1e-4, atol=1e-7)
     assert abs(res.gradient[-1]) > 1e-6
+
+
+def test_negative_binomial_nll_finite_differences():
+    from optimized_svm.validation import NegativeBinomialNLL
+
+    rng = np.random.default_rng(0)
+    f = rng.normal(size=12)
+    y = rng.poisson(3.0, 12).astype(float)
+    r, h = 2.3, 1e-6
+    v = NegativeBinomialNLL(r)
+    _, d = v(f, y)
+    for i in range(3):
+        e = np.zeros(12)
+        e[i] = h
+        fd = (v(f + e, y)[0] - v(f - e, y)[0]) / (2 * h)
+        assert d[i] == pytest.approx(fd, rel=1e-6)
+    fd_r = (NegativeBinomialNLL(r + h)(f, y)[0] - NegativeBinomialNLL(r - h)(f, y)[0]) / (2 * h)
+    assert v.param_grad("dispersion", f, y) == pytest.approx(fd_r, rel=1e-6)
+    with pytest.raises(ValueError, match="no tunable parameter"):
+        v.param_grad("nope", f, y)
+
+
+@pytest.mark.parametrize("blocks", [None, [[0], [1]]])
+def test_cv_hypergradient_with_tuned_dispersion_validation(blocks):
+    from optimized_svm import NegativeBinomialLoss, cv_error_and_gradient
+    from optimized_svm.validation import NegativeBinomialNLL
+
+    rng = np.random.default_rng(1)
+    x = rng.normal(size=(60, 2))
+    y = rng.poisson(np.exp(0.5 * x[:, 0]) * 2).astype(float)
+    off = rng.normal(scale=0.3, size=60)
+    folds = [(np.arange(20, 60), np.arange(20)), (np.arange(0, 40), np.arange(40, 60))]
+    loss, val = NegativeBinomialLoss(2.0), NegativeBinomialNLL(2.0)
+    nb = 1 if blocks is None else 2
+    theta = np.log([0.1] + [0.8] * nb + [1.5])
+    newton = {"tol": 1e-12}
+
+    def fun(t):
+        return cv_error_and_gradient(
+            t, x, y, np.ones(60), folds, loss, val, blocks, None, None, newton,
+            loss_params=("dispersion",), offset=off,
+        )  # fmt: skip
+
+    res = fun(theta)
+    for i in range(theta.size):
+        e = np.zeros(theta.size)
+        e[i] = 1e-5
+        fd = (fun(theta + e).error - fun(theta - e).error) / 2e-5
+        assert res.gradient[i] == pytest.approx(fd, rel=1e-4, abs=1e-8)

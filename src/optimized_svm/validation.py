@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.special import expit, gammaln
+from scipy.special import digamma, expit, gammaln
 
 from .losses import BinomialLoss, GammaLoss, Loss, NegativeBinomialLoss, TweedieLoss
 from .smooth_max import Degree, smooth_max
@@ -22,9 +22,16 @@ class ValidationLoss:
 
     #: whether the loss uses per-sample validation weights (e.g. binomial trials)
     weighted: bool = False
+    #: names of the parameters (dataclass fields) with a ``param_grad``; the hypergradient adds
+    #: their direct derivative if they are tuned as loss parameters
+    params: tuple[str, ...] = ()
 
     def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         raise NotImplementedError
+
+    def param_grad(self, name: str, f: Array, y: Array, w: Array | None = None) -> float:
+        """``dE/dp`` of the summed value at fixed predictions ``f`` for the parameter ``name``."""
+        raise ValueError(f"{type(self).__name__} has no tunable parameter {name!r}")
 
 
 @dataclass(frozen=True)
@@ -141,3 +148,35 @@ class TweedieDeviance(ValidationLoss):
 
     def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
         return _deviance(TweedieLoss(self.power), f, y, None)
+
+
+@dataclass(frozen=True)
+class NegativeBinomialNLL(ValidationLoss):
+    """Full negative binomial negative log-likelihood with log link ``mu = e^f``::
+
+        E = sum_v -lgamma(y+r) + lgamma(r) + lgamma(y+1) - r log(r/(r+mu)) - y log(mu/(r+mu))
+
+    Unlike the deviance it contains the terms that depend on the dispersion ``r`` and is
+    therefore a proper criterion for tuning ``r``. ``dE/df = r (mu - y)/(mu + r)`` and
+    ``dE/dr = sum -psi(y+r) + psi(r) - log(r/(r+mu)) - 1 + (y+r)/(r+mu)``.
+    """
+
+    dispersion: float = 1.0
+    params: tuple[str, ...] = ("dispersion",)
+
+    def __call__(self, f: Array, y: Array, w: Array | None = None) -> tuple[float, Array]:
+        r = self.dispersion
+        lr = np.log(r)
+        with np.errstate(over="ignore"):
+            lrm = np.logaddexp(lr, f)  # log(r + mu)
+        val = (-gammaln(y + r) + gammaln(r) + gammaln(y + 1) - r * (lr - lrm) - y * (f - lrm)).sum()
+        return float(val), r * (np.exp(f - lrm) - y * np.exp(lr - lrm) / r)
+
+    def param_grad(self, name: str, f: Array, y: Array, w: Array | None = None) -> float:
+        if name != "dispersion":
+            return super().param_grad(name, f, y, w)
+        r = self.dispersion
+        lrm = np.logaddexp(np.log(r), f)
+        return float(
+            (-digamma(y + r) + digamma(r) + lrm - np.log(r) - 1.0 + (y + r) * np.exp(-lrm)).sum()
+        )

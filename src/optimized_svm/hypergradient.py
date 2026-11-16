@@ -142,6 +142,14 @@ def fold_error_and_gradient(
         for j, name in enumerate(loss_params):
             ratio = loss.param_ratio(name, dec, prob.terms)[p]
             grad[1 + nb + j] = -float(u @ ratio) * float(getattr(loss, name))
+    # loss parameters that also enter the validation loss (e.g. the negative binomial
+    # likelihood): direct term p dE/dp at fixed predictions
+    for j, name in enumerate(loss_params):
+        if name in validation.params:
+            wv = (w_val,) if validation.weighted else ()
+            grad[1 + n_blocks(blocks) + j] += float(getattr(loss, name)) * validation.param_grad(
+                name, f_val, y_val, *wv
+            )
     return FoldResult(err, grad, sol, int(sv.size), sol.time_smo + sol.time_newton)
 
 
@@ -198,6 +206,13 @@ def cv_error_and_gradient(
             cast(Any, loss),
             **{n: float(np.exp(v)) for n, v in zip(loss_params, theta[1 + nb :], strict=True)},
         )
+        tuned = {
+            n: float(np.exp(v))
+            for n, v in zip(loss_params, theta[1 + nb :], strict=True)
+            if n in validation.params
+        }
+        if tuned:  # validation losses that share the tuned parameter use its current value
+            validation = dataclasses.replace(cast(Any, validation), **tuned)
     total, grad = 0.0, np.zeros_like(theta, dtype=np.float64)
     results: list[FoldResult | SubspaceFoldResult] = []
     n_val = 0

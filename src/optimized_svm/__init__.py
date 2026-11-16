@@ -32,6 +32,7 @@ from .validation import (
     BinomialDeviance,
     GammaDeviance,
     NegativeBinomialDeviance,
+    NegativeBinomialNLL,
     PoissonValidation,
     TweedieDeviance,
 )
@@ -50,6 +51,7 @@ __all__ = [
     "LogisticLoss",
     "NegativeBinomialDeviance",
     "NegativeBinomialLoss",
+    "NegativeBinomialNLL",
     "OptimizedKernelGLMRegressor",
     "OptimizedSVC",
     "OptimizedSVR",

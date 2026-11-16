@@ -7,7 +7,7 @@
   negative binomial, Gamma, Tweedie) with per-sample `offset` (e.g. log exposure) in `fit`,
   `decision_function`, `predict` and `score` (deviance explained D^2), fixed or tuned `lam` and kernel
   scalings by the cross-validation deviance; optional tuning of the negative binomial dispersion
-  (`tune_dispersion`, validated by the Poisson deviance of the mean prediction). `_optimize` accepts an
+  (`tune_dispersion`, validated by the new full likelihood `NegativeBinomialNLL`; validation losses can declare tunable `params` with a `param_grad` that enters the hypergradient). `_optimize` accepts an
   offset and tunable loss parameters; the existing estimators are unchanged.
 - GLM losses in the half unit deviance form (minimum 0 per term, log/logit links): `BinomialLoss`
   (proportions with trial counts as weights), `NegativeBinomialLoss` (tunable `dispersion`),

@@ -55,6 +55,7 @@ from .validation import (
     GammaDeviance,
     LogisticValidation,
     NegativeBinomialDeviance,
+    NegativeBinomialNLL,
     PoissonValidation,
     SmoothAbsoluteValidation,
     SmoothHingeValidation,
@@ -1287,12 +1288,9 @@ class OptimizedKernelGLMRegressor(_OptimizedMixin, KernelGLMRegressor):
         + _GLM_DOC
         + """    tune_dispersion : bool
         Optimise the dispersion of the negative binomial family together with the other
-        hyperparameters (not with ``n_basis``). The validation loss then is the *Poisson*
-        deviance of the mean prediction, which does not depend on the dispersion: the negative
-        binomial deviance itself would favour dispersions that make every residual look
-        small. The dispersion then acts only through the training problem (how strongly large
-        counts are down-weighted), which is the quantity the cross-validated mean prediction
-        can judge.
+        hyperparameters (not with ``n_basis``). The validation loss is then the full negative
+        binomial negative log-likelihood (:class:`NegativeBinomialNLL`), which depends on the
+        dispersion; the hypergradient contains its direct derivative.
     dispersion_bounds : tuple of float
         Box constraints of the dispersion.
 
@@ -1364,8 +1362,8 @@ class OptimizedKernelGLMRegressor(_OptimizedMixin, KernelGLMRegressor):
     def _validation(self) -> ValidationLoss:
         if self.family == "negative_binomial":
             if self.tune_dispersion:
-                # independent of the dispersion, so that it is not tuned towards a trivial value
-                return PoissonValidation()
+                # full likelihood; the hypergradient rebuilds it with the current dispersion
+                return NegativeBinomialNLL(float(self.dispersion))
             return NegativeBinomialDeviance(float(self.dispersion))
         if self.family == "poisson":
             return PoissonValidation()
