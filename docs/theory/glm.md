@@ -85,6 +85,9 @@ model.decision_function(X)                 # linear predictor (link scale)
 model.score(X, y, offset=np.log(exposure))  # D^2
 ```
 
+A worked example with overdispersed counts, Poisson vs. negative binomial and a tuned dispersion
+is in [Count data with exposure (GLM)](../examples/glm_counts.md).
+
 For the binomial family `y` are proportions and `sample_weight` the numbers of trials; fitting
 grouped data is equivalent to fitting the expanded Bernoulli data.
 

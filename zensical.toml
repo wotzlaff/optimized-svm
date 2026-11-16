@@ -23,6 +23,7 @@ nav = [
     { "Quickstart" = "examples/quickstart.md" },
     { "Feature relevance (ARD)" = "examples/ard_feature_relevance.md" },
     { "Class probabilities (logistic loss)" = "examples/logistic_probabilities.md" },
+    { "Count data with exposure (GLM)" = "examples/glm_counts.md" },
     { "Low-level API" = "examples/low_level_api.md" },
   ] },
   { "Reproducing the thesis" = "reproduction.md" },
