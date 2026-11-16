@@ -1,0 +1,59 @@
+[
+ {
+  "n": 5000,
+  "variant": "subspace tol 1",
+  "time": 522.3860890567303,
+  "evaluations": 17,
+  "cv_error": 0.21629525517901801,
+  "lam": 1.0000000000000004e-06,
+  "scaling": [
+   0.04229609631744636
+  ],
+  "test_mse": 1.1428303354591103,
+  "n_basis": [
+   null
+  ],
+  "final_basis": null,
+  "warnings": [
+   "n_basis='auto': 400 basis points (n // 10) do not reach basis_tol=1 (residual / lam = 3.25e+03); using the full model",
+   "n_basis='auto': 500 basis points (n // 10) do not reach basis_tol=1 (residual / lam = 435); using the full model"
+  ]
+ },
+ {
+  "n": 5000,
+  "variant": "subspace tol 10",
+  "time": 499.4165633544326,
+  "evaluations": 17,
+  "cv_error": 0.21629525517901801,
+  "lam": 1.0000000000000004e-06,
+  "scaling": [
+   0.04229609631744636
+  ],
+  "test_mse": 1.1428303354591103,
+  "n_basis": [
+   null
+  ],
+  "final_basis": null,
+  "warnings": [
+   "n_basis='auto': 400 basis points (n // 10) do not reach basis_tol=10 (residual / lam = 3.25e+03); using the full model",
+   "n_basis='auto': 500 basis points (n // 10) do not reach basis_tol=10 (residual / lam = 435); using the full model"
+  ]
+ },
+ {
+  "n": 5000,
+  "variant": "full",
+  "time": 518.894584286958,
+  "evaluations": 17,
+  "cv_error": 0.21629525517901801,
+  "lam": 1.0000000000000004e-06,
+  "scaling": [
+   0.04229609631744636
+  ],
+  "test_mse": 1.1428303354591103,
+  "n_basis": [
+   null
+  ],
+  "final_basis": null,
+  "warnings": []
+ }
+]

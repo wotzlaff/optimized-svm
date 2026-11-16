@@ -28,6 +28,7 @@ nav:
       - Training problem: theory/training.md
       - Switching from SMO to Newton: theory/switching.md
       - Hyperparameter gradients: theory/hypergradient.md
+      - Subspace SVM: theory/subspace.md
   - Examples:
       - Quickstart: examples/quickstart.py
       - Feature relevance (ARD): examples/ard_feature_relevance.py

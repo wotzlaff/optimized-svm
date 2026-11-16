@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass
 from numbers import Integral, Real
@@ -38,6 +39,7 @@ from .losses import (
 )
 from .problem import TrainingProblem
 from .smooth_max import Degree
+from .subspace import SubspaceProblem, newton_subspace, nystroem_residual, select_basis
 from .training import train
 from .validation import (
     LogisticValidation,
@@ -138,10 +140,66 @@ class _SmoothBase(BaseEstimator):
             raise ValueError(f"scaling must be positive with {n} entries")
         return s
 
+    def _basis(self, xs: Array, lam: float) -> NDArray[np.intp] | None:
+        """Basis indices of the Subspace SVM for scaled features ``xs`` (``None``: full model)."""
+        mode = self.n_basis
+        if mode is None:
+            return None
+        if self.max_asum is not None:
+            raise ValueError("n_basis is not supported together with max_asum")
+        if getattr(self._loss(), "smoothing", 1.0) <= 0.0:
+            raise ValueError("n_basis needs a smooth loss (smoothing > 0)")
+        n = xs.shape[0]
+        if isinstance(mode, str):
+            if mode != "auto":
+                raise ValueError(
+                    f"n_basis must be None, a positive integer or 'auto', got {mode!r}"
+                )
+            if not isinstance(self.basis_tol, Real) or self.basis_tol <= 0:
+                raise ValueError(f"basis_tol must be positive, got {self.basis_tol!r}")
+            idx, ratio = select_basis(xs, lam, float(self.basis_tol))
+            if ratio > self.basis_tol:
+                warnings.warn(
+                    f"n_basis='auto': {idx.size} basis points (n // 10) do not reach "
+                    f"basis_tol={self.basis_tol:g} (residual / lam = {ratio:.3g}); "
+                    "using the full model",
+                    stacklevel=3,
+                )
+                return None
+            return idx
+        if not isinstance(mode, Integral) or isinstance(mode, bool) or not 1 <= int(mode) <= n:
+            raise ValueError(
+                f"n_basis must be None, 'auto' or an integer in [1, {n}], got {mode!r}"
+            )
+        return select_basis(xs, lam, 1e-12, max_size=int(mode))[0]
+
+    def _fit_subspace(self, xs: Array, y: Array, w: Array, idx: NDArray[np.intp]) -> None:
+        prob = SubspaceProblem(xs, xs[idx], y, self._loss(), self.lam, w)
+        sol = newton_subspace(prob, **(self.newton_options or {}))
+        self.basis_ = idx
+        self.support_ = idx
+        self.dual_coef_ = sol.beta
+        self.intercept_ = sol.b
+        self.n_support_ = idx.size
+        self.training_info_ = {
+            "residual": sol.residual,
+            "smo_steps": 0,
+            "newton_steps": sol.newton_steps,
+            "time_smo": 0.0,
+            "time_newton": sol.time_newton,
+            "c": 0.0,
+        }
+        self._model = _Model(xs[idx], sol.beta, sol.b)
+
     def _fit_model(self, x: Array, y: Array, w: Array) -> None:
         self.blocks_ = resolve_blocks(self.blocks, x.shape[1])
         self.scaling_ = self._scaling(x)
         xs = scale_features(x, self.scaling_, self.blocks_)
+        self.__dict__.pop("basis_", None)
+        idx = self._basis(xs, float(self.lam))
+        if idx is not None:
+            self._fit_subspace(xs, y, w, idx)
+            return
         prob = TrainingProblem(xs, y, self._loss(), self.lam, w, self.max_asum)
         sol = train(prob, self.smo_options, self.newton_options)
         beta = prob.sample_coefficients(sol.a)
@@ -194,6 +252,23 @@ _SMOOTH_DOC = """
         Degree of the smoothed maximum function (``"2"`` is solved exactly by SMO).
     max_asum : float, optional
         Bound on ``sum |alpha|`` (generalised nu-SVM).
+    n_basis : None, int or "auto"
+        Subspace SVM (Strasdat, Sec. 5.3): restrict the model to the span of this many basis
+        points, chosen by greedy pivoted Cholesky, and train by Newton's method with systems of
+        that size. Needs a smooth loss (``smoothing > 0``) and no ``max_asum``. ``"auto"`` adds
+        points until the Nystroem residual ``tr(K - K_s)`` is at most ``basis_tol * lam`` (at most
+        ``n // 10`` points; otherwise a warning is issued and the full model is used). Pays off
+        for fits with fixed hyperparameters on large regression problems with wide kernels;
+        experimental in the optimisers, where it has not yet saved time without losing accuracy
+        (see the theory page on the subspace SVM). The optimisers choose the basis at the
+        starting values of each stage and keep it fixed during L-BFGS-B. With ``"auto"`` they
+        then check the residual at the result and, if it exceeds ``basis_tol * lam`` in some
+        fold, choose a new basis there and optimise again (at most 5 rounds per stage;
+        ``history_`` entries carry ``basis_round``). The result of a stage is the best
+        evaluation of its last round. An integer keeps its basis for the stage.
+    basis_tol : float
+        Tolerance of ``n_basis="auto"`` (1: CV error within about 1 % of the full model, 10: about
+        10 %).
     smo_options, newton_options : dict, optional
         Options of :func:`smo_solver.solve_classification` / :func:`optimized_svm.training.newton`.
 """
@@ -234,6 +309,8 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         degree: Degree = "2",
         shift: float = 1.0,
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         class_weight: Any = None,
         smo_options: dict[str, Any] | None = None,
         newton_options: dict[str, Any] | None = None,
@@ -246,6 +323,8 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         self.degree = degree
         self.shift = shift
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.class_weight = class_weight
         self.smo_options = smo_options
         self.newton_options = newton_options
@@ -389,6 +468,8 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
         smoothing: float = 0.5,
         degree: Degree = "2",
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         normalize_y: bool = True,
         smo_options: dict[str, Any] | None = None,
         newton_options: dict[str, Any] | None = None,
@@ -401,6 +482,8 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
         self.smoothing = smoothing
         self.degree = degree
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.normalize_y = normalize_y
         self.smo_options = smo_options
         self.newton_options = newton_options
@@ -465,9 +548,12 @@ class _OptimizedMixin:
     verbose: int
     warm_start: bool
     max_asum: float | None
+    n_basis: int | str | None
+    basis_tol: float
     smo_options: dict[str, Any] | None
     newton_options: dict[str, Any] | None
     _loss: Callable[[], Loss]
+    _basis: Callable[[Array, float], NDArray[np.intp] | None]
 
     def _validation(self) -> ValidationLoss:
         raise NotImplementedError
@@ -489,65 +575,128 @@ class _OptimizedMixin:
         smo_options = dict(self.smo_options or {})
         warm: list[Array | None] | None = [None] * len(folds) if self.warm_start else None
 
-        def run_stage(blocks: Blocks, theta0: Array) -> Array:
-            def fun(theta: Array) -> tuple[float, Array]:
-                if self.time_limit is not None and time.perf_counter() - start > self.time_limit:
-                    raise _Timeout
-                res = cv_error_and_gradient(
-                    theta,
-                    x,
-                    y,
-                    w,
-                    folds,
-                    loss,
-                    validation,
-                    blocks,
-                    self.max_asum,
-                    smo_options,
-                    self.newton_options,
-                    warm,
-                )
-                history.append(
-                    {
-                        "lam": float(np.exp(theta[0])),
-                        "scaling": np.exp(theta[1:]),
-                        "error": res.error,
-                        "gradient_norm": float(np.linalg.norm(res.gradient)),
-                        "n_support": float(np.mean([f.n_support for f in res.folds])),
-                        "time": time.perf_counter() - start,
-                        "stage": "features"
-                        if blocks is not None and self.blocks is not None
-                        else "global",
-                    }
-                )
-                if self.verbose:
-                    h = history[-1]
-                    print(
-                        f"[{len(history):3d}] lam = {h['lam']:.3e}, mean scaling = "
-                        f"{np.mean(h['scaling']):.3e}, cv error = {h['error']:.6f}"
-                    )
-                return res.error, res.gradient
+        def select_bases(
+            blocks: Blocks, theta: Array
+        ) -> tuple[list[NDArray[np.intp]], list[NDArray[np.intp]]] | None:
+            """Subspace bases of all folds for the kernel and lambda at ``theta``: global indices
+            and indices relative to the training set of the fold (``None``: full model). Fixed
+            during a round of L-BFGS-B, so that the objective stays smooth."""
+            if self.n_basis is None:
+                return None
+            xs = scale_features(x, np.exp(theta[1:]), blocks)
+            lam = float(np.exp(theta[0]))
+            bases, local = [], []
+            for tr, _ in folds:
+                idx = self._basis(xs[tr], lam)
+                if idx is None:
+                    return None
+                bases.append(np.asarray(tr)[idx])
+                local.append(idx)
+            return bases, local
 
-            bounds = [tuple(lam_bounds)] + [tuple(s_bounds)] * (theta0.size - 1)
-            best_before = len(history)
-            try:
-                result = minimize(
-                    fun,
-                    theta0,
-                    jac=True,
-                    method="L-BFGS-B",
-                    bounds=bounds,
-                    options={"maxiter": self.max_iter, "ftol": self.tol, "gtol": self.tol},
-                )
-                self.optimize_result_ = result
-                self.n_iter_ = getattr(self, "n_iter_", 0) + int(result.nit)
-            except _Timeout:
-                self.optimize_result_ = None
-            stage = history[best_before:]
-            if not stage:
-                return theta0
-            best = min(stage, key=lambda h: h["error"])
-            return np.log(np.concatenate(([best["lam"]], best["scaling"])))
+        def basis_adequate(blocks: Blocks, theta: Array, local: list[NDArray[np.intp]]) -> bool:
+            """Whether the bases still meet ``basis_tol`` at the hyperparameters ``theta``."""
+            xs = scale_features(x, np.exp(theta[1:]), blocks)
+            lam = float(np.exp(theta[0]))
+            return all(
+                nystroem_residual(xs[tr], idx) / lam <= self.basis_tol
+                for (tr, _), idx in zip(folds, local, strict=True)
+            )
+
+        def run_stage(blocks: Blocks, theta0: Array, error0: float = np.nan) -> tuple[Array, float]:
+            theta, error = theta0, error0
+            adaptive = self.n_basis == "auto"
+            max_rounds = 5 if adaptive else 1
+            for rnd in range(max_rounds):
+                selected = select_bases(blocks, theta)
+                bases = None if selected is None else selected[0]
+                if (bases is not None or rnd > 0) and warm is not None:
+                    warm[:] = [None] * len(folds)  # coefficients of an earlier basis do not fit
+                first = len(history)
+
+                def fun(
+                    theta: Array,
+                    bases: list[NDArray[np.intp]] | None = bases,
+                    rnd: int = rnd,
+                ) -> tuple[float, Array]:
+                    if (
+                        self.time_limit is not None
+                        and time.perf_counter() - start > self.time_limit
+                    ):
+                        raise _Timeout
+                    res = cv_error_and_gradient(
+                        theta,
+                        x,
+                        y,
+                        w,
+                        folds,
+                        loss,
+                        validation,
+                        blocks,
+                        self.max_asum,
+                        smo_options,
+                        self.newton_options,
+                        warm,
+                        basis=bases,
+                    )
+                    history.append(
+                        {
+                            "lam": float(np.exp(theta[0])),
+                            "scaling": np.exp(theta[1:]),
+                            "error": res.error,
+                            "gradient_norm": float(np.linalg.norm(res.gradient)),
+                            "n_support": float(np.mean([f.n_support for f in res.folds])),
+                            "n_basis": None
+                            if bases is None
+                            else float(np.mean([len(b) for b in bases])),
+                            "time": time.perf_counter() - start,
+                            "stage": "features"
+                            if blocks is not None and self.blocks is not None
+                            else "global",
+                            "basis_round": rnd,
+                        }
+                    )
+                    if self.verbose:
+                        h = history[-1]
+                        print(
+                            f"[{len(history):3d}] lam = {h['lam']:.3e}, mean scaling = "
+                            f"{np.mean(h['scaling']):.3e}, cv error = {h['error']:.6f}"
+                        )
+                    return res.error, res.gradient
+
+                bounds = [tuple(lam_bounds)] + [tuple(s_bounds)] * (theta.size - 1)
+                timeout = False
+                try:
+                    result = minimize(
+                        fun,
+                        theta,
+                        jac=True,
+                        method="L-BFGS-B",
+                        bounds=bounds,
+                        options={"maxiter": self.max_iter, "ftol": self.tol, "gtol": self.tol},
+                    )
+                    self.optimize_result_ = result
+                    self.n_iter_ = getattr(self, "n_iter_", 0) + int(result.nit)
+                except _Timeout:
+                    self.optimize_result_ = None
+                    timeout = True
+                round_entries = history[first:]
+                if round_entries:
+                    best = min(round_entries, key=lambda h: h["error"])
+                    theta = np.log(np.concatenate(([best["lam"]], best["scaling"])))
+                    error = best["error"]
+                if timeout or selected is None or not round_entries or not adaptive:
+                    break
+                if basis_adequate(blocks, theta, selected[1]):
+                    break
+                if rnd == max_rounds - 1:
+                    warnings.warn(
+                        f"n_basis='auto': the basis still misses basis_tol={self.basis_tol:g} "
+                        f"after {max_rounds} rounds; cv_error_ is that of a too small subspace",
+                        stacklevel=2,
+                    )
+                    break
+            return theta, error
 
         self.n_iter_ = 0
         blocks = resolve_blocks(self.blocks, x.shape[1])
@@ -555,17 +704,19 @@ class _OptimizedMixin:
         theta = np.log([self.lam_init, s0])
         if blocks is not None and self.two_stage:
             # first a common scaling for all blocks, then individual ones
-            theta = run_stage(None, theta)
+            theta, error = run_stage(None, theta)
+        else:
+            error = np.nan
         if blocks is not None:
             theta = np.concatenate(([theta[0]], np.full(len(blocks), theta[1])))
-            theta = run_stage(blocks, theta)
+            theta, error = run_stage(blocks, theta, error)
         else:
-            theta = run_stage(None, theta)
+            theta, error = run_stage(None, theta)
         self.lam_ = float(np.exp(theta[0]))
         self.scaling_opt_ = np.exp(theta[1:])
         self.blocks_opt_ = blocks
         self.history_ = history
-        self.cv_error_ = min(h["error"] for h in history) if history else np.nan
+        self.cv_error_ = float(error)
         self.time_ = time.perf_counter() - start
 
 
@@ -637,6 +788,8 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         degree: Degree = "2",
         shift: float = 1.0,
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         class_weight: Any = None,
         validation_smoothing: float = 0.5,
         smo_options: dict[str, Any] | None = None,
@@ -660,6 +813,8 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         self.degree = degree
         self.shift = shift
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.class_weight = class_weight
         self.validation_smoothing = validation_smoothing
         self.smo_options = smo_options
@@ -733,6 +888,8 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         smoothing: float = 0.5,
         degree: Degree = "2",
         max_asum: float | None = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
         normalize_y: bool = True,
         validation: str | None = None,
         validation_smoothing: float = 0.1,
@@ -757,6 +914,8 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         self.smoothing = smoothing
         self.degree = degree
         self.max_asum = max_asum
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
         self.normalize_y = normalize_y
         self.validation = validation
         self.validation_smoothing = validation_smoothing

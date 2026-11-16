@@ -1,0 +1,27 @@
+[
+ {
+  "n": 5000,
+  "noise": 3.0,
+  "variant": "subspace tol 1",
+  "lam_init": 0.1,
+  "scaling_init": 0.05,
+  "time": 242.3010873310268,
+  "evaluations": 21,
+  "cv_error": 0.5351658820341894,
+  "lam": 0.009171901406698175,
+  "scaling": [
+   0.12513930758558522
+  ],
+  "test_mse": 9.687046561551615,
+  "n_basis": [
+   138.6
+  ],
+  "n_basis_last": null,
+  "basis_rounds": 2,
+  "final_basis": null,
+  "warnings": [
+   "n_basis='auto': 400 basis points (n // 10) do not reach basis_tol=1 (residual / lam = 9.27); using the full model",
+   "n_basis='auto': 500 basis points (n // 10) do not reach basis_tol=1 (residual / lam = 199); using the full model"
+  ]
+ }
+]

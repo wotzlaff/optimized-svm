@@ -1,0 +1,24 @@
+[
+ {
+  "n": 5000,
+  "noise": 3.0,
+  "variant": "full",
+  "lam_init": 0.1,
+  "scaling_init": 0.05,
+  "time": 415.7220367267728,
+  "evaluations": 18,
+  "cv_error": 0.5351542577289209,
+  "lam": 0.0062877046495442,
+  "scaling": [
+   0.11803237233140551
+  ],
+  "test_mse": 9.679773252730346,
+  "n_basis": [
+   null
+  ],
+  "n_basis_last": null,
+  "basis_rounds": 1,
+  "final_basis": null,
+  "warnings": []
+ }
+]
