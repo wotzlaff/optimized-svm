@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- GLM losses in the half unit deviance form (minimum 0 per term, log/logit links): `BinomialLoss`
+  (proportions with trial counts as weights), `NegativeBinomialLoss` (tunable `dispersion`),
+  `GammaLoss` and `TweedieLoss` (power in (1, 2)), plus the matching validation losses
+  `BinomialDeviance`, `NegativeBinomialDeviance`, `GammaDeviance`, `TweedieDeviance`.
+  `Loss.initial_bias` gives a starting bias for Newton; `Terms` has an optional `offset`.
+
 ## 0.3.1 – 2026-11-16
 
 ### Added
