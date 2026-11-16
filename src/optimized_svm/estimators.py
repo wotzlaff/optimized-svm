@@ -1,5 +1,9 @@
 """scikit-learn compatible estimators.
 
+* :class:`KernelGLMRegressor`, :class:`OptimizedKernelGLMRegressor`: kernel generalized linear
+  models (Poisson, binomial, negative binomial, Gamma, Tweedie) with offset, fixed or tuned
+  hyperparameters.
+
 * :class:`SmoothSVC`, :class:`SmoothSVR`: kernel SVMs with smoothed losses and *fixed*
   hyperparameters, trained by SMO + Newton.
 * :class:`OptimizedSVC`, :class:`OptimizedSVR`: the same models whose regularization parameter
@@ -9,9 +13,10 @@
 
 from __future__ import annotations
 
+import dataclasses
 import time
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from numbers import Integral, Real
 from typing import Any
@@ -19,7 +24,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import minimize
-from scipy.special import expit
+from scipy.special import expit, gammaln, xlogy
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.utils.metaestimators import available_if
@@ -30,23 +35,31 @@ from .hypergradient import Fold, cv_error_and_gradient
 from .kernels import Blocks, rbf, scale_features
 from .losses import (
     ApproxPoissonLoss,
+    BinomialLoss,
     EpsilonInsensitiveLoss,
+    GammaLoss,
     HingeLoss,
     LogisticLoss,
     Loss,
+    NegativeBinomialLoss,
     PoissonLoss,
     SquaredLoss,
+    TweedieLoss,
 )
 from .problem import TrainingProblem
 from .smooth_max import Degree
 from .subspace import SubspaceProblem, newton_subspace, nystroem_residual, select_basis
 from .training import train
 from .validation import (
+    BinomialDeviance,
+    GammaDeviance,
     LogisticValidation,
+    NegativeBinomialDeviance,
     PoissonValidation,
     SmoothAbsoluteValidation,
     SmoothHingeValidation,
     SquaredValidation,
+    TweedieDeviance,
     ValidationLoss,
 )
 
@@ -173,8 +186,15 @@ class _SmoothBase(BaseEstimator):
             )
         return select_basis(xs, lam, 1e-12, max_size=int(mode))[0]
 
-    def _fit_subspace(self, xs: Array, y: Array, w: Array, idx: NDArray[np.intp]) -> None:
-        prob = SubspaceProblem(xs, xs[idx], y, self._loss(), self.lam, w)
+    def _fit_subspace(
+        self,
+        xs: Array,
+        y: Array,
+        w: Array,
+        idx: NDArray[np.intp],
+        offset: Array | None = None,
+    ) -> None:
+        prob = SubspaceProblem(xs, xs[idx], y, self._loss(), self.lam, w, offset)
         sol = newton_subspace(prob, **(self.newton_options or {}))
         self.basis_ = idx
         self.support_ = idx
@@ -191,16 +211,16 @@ class _SmoothBase(BaseEstimator):
         }
         self._model = _Model(xs[idx], sol.beta, sol.b)
 
-    def _fit_model(self, x: Array, y: Array, w: Array) -> None:
+    def _fit_model(self, x: Array, y: Array, w: Array, offset: Array | None = None) -> None:
         self.blocks_ = resolve_blocks(self.blocks, x.shape[1])
         self.scaling_ = self._scaling(x)
         xs = scale_features(x, self.scaling_, self.blocks_)
         self.__dict__.pop("basis_", None)
         idx = self._basis(xs, float(self.lam))
         if idx is not None:
-            self._fit_subspace(xs, y, w, idx)
+            self._fit_subspace(xs, y, w, idx, offset)
             return
-        prob = TrainingProblem(xs, y, self._loss(), self.lam, w, self.max_asum)
+        prob = TrainingProblem(xs, y, self._loss(), self.lam, w, self.max_asum, offset)
         sol = train(prob, self.smo_options, self.newton_options)
         beta = prob.sample_coefficients(sol.a)
         support = np.flatnonzero(beta)
@@ -576,8 +596,32 @@ class _OptimizedMixin:
         splitter = splitter_cls(int(self.cv), shuffle=True, random_state=self.random_state)
         return [(tr, va) for tr, va in splitter.split(x, y)]
 
-    def _optimize(self, x: Array, y: Array, w: Array, groups: ArrayLike | None = None) -> None:
+    def _optimize(
+        self,
+        x: Array,
+        y: Array,
+        w: Array,
+        groups: ArrayLike | None = None,
+        offset: Array | None = None,
+        loss_params: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
+    ) -> None:
+        """Minimises the cross-validation error.
+
+        ``offset`` is a per-sample offset of the decision values. ``loss_params`` maps names of
+        tunable loss parameters (e.g. ``"dispersion"``) to ``(initial value, bounds)``; their
+        logarithms are appended to ``theta`` (after the scalings, through both stages) and the
+        optimised values are stored in ``loss_params_opt_``.
+        """
         loss, validation = self._loss(), self._validation()
+        params = dict(loss_params or {})
+        names = tuple(params)
+        n_extra = len(names)
+        if n_extra and self.n_basis is not None:
+            raise ValueError("tuning loss parameters is not supported together with n_basis")
+
+        def scalings(theta: Array) -> Array:
+            return np.exp(theta[1 : theta.size - n_extra])
+
         folds = self._folds(x, y, groups)
         start = time.perf_counter()
         history: list[dict[str, Any]] = []
@@ -594,7 +638,7 @@ class _OptimizedMixin:
             during a round of L-BFGS-B, so that the objective stays smooth."""
             if self.n_basis is None:
                 return None
-            xs = scale_features(x, np.exp(theta[1:]), blocks)
+            xs = scale_features(x, scalings(theta), blocks)
             lam = float(np.exp(theta[0]))
             bases, local = [], []
             for tr, _ in folds:
@@ -607,7 +651,7 @@ class _OptimizedMixin:
 
         def basis_adequate(blocks: Blocks, theta: Array, local: list[NDArray[np.intp]]) -> bool:
             """Whether the bases still meet ``basis_tol`` at the hyperparameters ``theta``."""
-            xs = scale_features(x, np.exp(theta[1:]), blocks)
+            xs = scale_features(x, scalings(theta), blocks)
             lam = float(np.exp(theta[0]))
             return all(
                 nystroem_residual(xs[tr], idx) / lam <= self.basis_tol
@@ -648,12 +692,14 @@ class _OptimizedMixin:
                         smo_options,
                         self.newton_options,
                         warm,
+                        names,
                         basis=bases,
+                        offset=offset,
                     )
                     history.append(
                         {
                             "lam": float(np.exp(theta[0])),
-                            "scaling": np.exp(theta[1:]),
+                            "scaling": scalings(theta),
                             "error": res.error,
                             "gradient_norm": float(np.linalg.norm(res.gradient)),
                             "n_support": float(np.mean([f.n_support for f in res.folds])),
@@ -665,6 +711,12 @@ class _OptimizedMixin:
                             if blocks is not None and self.blocks is not None
                             else "global",
                             "basis_round": rnd,
+                            **{
+                                name: float(np.exp(v))
+                                for name, v in zip(
+                                    names, theta[theta.size - n_extra :], strict=True
+                                )
+                            },
                         }
                     )
                     if self.verbose:
@@ -675,7 +727,11 @@ class _OptimizedMixin:
                         )
                     return res.error, res.gradient
 
-                bounds = [tuple(lam_bounds)] + [tuple(s_bounds)] * (theta.size - 1)
+                bounds = (
+                    [tuple(lam_bounds)]
+                    + [tuple(s_bounds)] * (theta.size - 1 - n_extra)
+                    + [tuple(np.log(params[name][1])) for name in names]
+                )
                 timeout = False
                 try:
                     result = minimize(
@@ -694,7 +750,11 @@ class _OptimizedMixin:
                 round_entries = history[first:]
                 if round_entries:
                     best = min(round_entries, key=lambda h: h["error"])
-                    theta = np.log(np.concatenate(([best["lam"]], best["scaling"])))
+                    theta = np.log(
+                        np.concatenate(
+                            ([best["lam"]], best["scaling"], [best[name] for name in names])
+                        )
+                    )
                     error = best["error"]
                 if timeout or selected is None or not round_entries or not adaptive:
                     break
@@ -712,19 +772,23 @@ class _OptimizedMixin:
         self.n_iter_ = 0
         blocks = resolve_blocks(self.blocks, x.shape[1])
         s0 = auto_scaling(x) if self.scaling_init == "auto" else float(self.scaling_init)
-        theta = np.log([self.lam_init, s0])
+        theta = np.log([self.lam_init, s0, *(params[name][0] for name in names)])
         if blocks is not None and self.two_stage:
             # first a common scaling for all blocks, then individual ones
             theta, error = run_stage(None, theta)
         else:
             error = np.nan
         if blocks is not None:
-            theta = np.concatenate(([theta[0]], np.full(len(blocks), theta[1])))
+            theta = np.concatenate(([theta[0]], np.full(len(blocks), theta[1]), theta[2:]))
             theta, error = run_stage(blocks, theta, error)
         else:
             theta, error = run_stage(None, theta)
         self.lam_ = float(np.exp(theta[0]))
-        self.scaling_opt_ = np.exp(theta[1:])
+        self.scaling_opt_ = scalings(theta)
+        self.loss_params_opt_ = {
+            name: float(np.exp(v))
+            for name, v in zip(names, theta[theta.size - n_extra :], strict=True)
+        }
         self.blocks_opt_ = blocks
         self.history_ = history
         self.cv_error_ = float(error)
@@ -982,4 +1046,359 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         yn = self.label_scaler_.transform(y)
         self._optimize(x, yn, w, groups)
         self._fit_model(x, yn, w)
+        return self
+
+
+# --------------------------------------------------------------------------------------------
+# generalized linear models
+
+_GLM_FAMILIES = ("poisson", "binomial", "negative_binomial", "gamma", "tweedie")
+
+
+def _check_offset(offset: ArrayLike | None, n: int) -> Array | None:
+    if offset is None:
+        return None
+    off = np.asarray(offset, dtype=np.float64)
+    if off.shape != (n,):
+        raise ValueError(f"offset must have shape ({n},), got {off.shape}")
+    if not np.all(np.isfinite(off)):
+        raise ValueError("offset must be finite")
+    return off
+
+
+def _check_glm_targets(family: str, y: Array) -> None:
+    if family == "binomial":
+        if np.any((y < 0) | (y > 1)):
+            raise ValueError(
+                "family='binomial' needs targets that are proportions in [0, 1] "
+                "(pass the numbers of trials as sample_weight)"
+            )
+    elif family == "gamma":
+        if np.any(y <= 0):
+            raise ValueError("family='gamma' needs strictly positive targets")
+    elif np.any(y < 0):
+        raise ValueError(f"family={family!r} needs non-negative targets")
+
+
+def _glm_loss(family: str, dispersion: float, power: float) -> Loss:
+    if family == "poisson":
+        return PoissonLoss()
+    if family == "binomial":
+        return BinomialLoss()
+    if family == "negative_binomial":
+        if not isinstance(dispersion, Real) or not dispersion > 0:
+            raise ValueError(f"dispersion must be positive, got {dispersion!r}")
+        return NegativeBinomialLoss(float(dispersion))
+    if family == "gamma":
+        return GammaLoss()
+    if family == "tweedie":
+        if not isinstance(power, Real) or not 1.0 < power < 2.0:
+            raise ValueError(f"power must lie in (1, 2), got {power!r}")
+        return TweedieLoss(float(power))
+    raise ValueError(f"family must be one of {_GLM_FAMILIES}, got {family!r}")
+
+
+def _glm_deviance(family: str, loss: Loss, eta: Array, y: Array, w: Array) -> float:
+    """Summed weighted half deviance of ``eta`` (zero for a perfect fit)."""
+    value = float(loss.value(eta, loss.terms(y, w)).sum())
+    if (
+        family == "poisson"
+    ):  # PoissonLoss is the negative log-likelihood; subtract the saturated one
+        value -= float(w @ (y - xlogy(y, y) + gammaln(y + 1)))
+    return value
+
+
+_GLM_DOC = """
+    lam : float
+        Regularization parameter ``lambda > 0``.
+    family : {"poisson", "binomial", "negative_binomial", "gamma", "tweedie"}
+        Distribution family. The link is ``log`` except for ``binomial`` (``logit``). Targets:
+        ``y >= 0`` (Poisson, negative binomial, Tweedie), ``y > 0`` (Gamma), proportions in
+        ``[0, 1]`` (binomial; ``sample_weight`` are the numbers of trials).
+    dispersion : float
+        Dispersion ``r`` of the negative binomial family (variance ``mu + mu^2 / r``).
+    power : float
+        Variance power ``p`` in ``(1, 2)`` of the Tweedie family (variance ``mu^p``).
+    scaling : float, array or "auto"
+        Feature scaling(s), see :class:`SmoothSVR`.
+    blocks : None, "features" or list of lists
+        Feature blocks sharing one scaling.
+    n_basis : None, int or "auto"
+        Subspace SVM, see :class:`SmoothSVR`.
+    basis_tol : float
+        Tolerance of ``n_basis="auto"``.
+    newton_options : dict, optional
+        Options of :func:`optimized_svm.training.newton`.
+"""
+
+
+class KernelGLMRegressor(RegressorMixin, _SmoothBase):
+    __doc__ = (
+        """Kernel generalized linear model with fixed hyperparameters.
+
+    Minimises ``lam/2 |f|^2 + sum_i w_i d(y_i, g^-1(f(x_i) + offset_i))`` over the RKHS of the
+    Gaussian kernel, where ``d`` is the half unit deviance of the family and ``g`` its link.
+    Trained by Newton's method (no SMO); the solution is dense.
+
+    Parameters
+    ----------"""
+        + _GLM_DOC
+        + """
+    Notes
+    -----
+    ``fit(X, y, sample_weight=None, offset=None)``: ``offset`` is an additive term on the link
+    scale, e.g. ``log(exposure)``. ``decision_function(X, offset=None)`` is the linear predictor
+    (including the offset), ``predict(X, offset=None)`` the mean (``exp`` of it, ``expit`` for
+    the binomial family, i.e. the predicted proportion). ``score`` is the deviance explained
+    ``D^2 = 1 - deviance(model) / deviance(null model)``, the null model being the
+    intercept-only fit (on the link scale it is ``b + offset``).
+    """
+    )
+
+    #: no smoothing parameter, no 1-norm constraint, no SMO: read by the shared training code
+    smoothing = 1.0
+    max_asum: float | None = None
+    smo_options: dict[str, Any] | None = None
+
+    def __init__(
+        self,
+        lam: float = 1.0,
+        *,
+        family: str = "poisson",
+        dispersion: float = 1.0,
+        power: float = 1.5,
+        scaling: float | ArrayLike | str = "auto",
+        blocks: Any = None,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
+        newton_options: dict[str, Any] | None = None,
+    ) -> None:
+        self.lam = lam
+        self.family = family
+        self.dispersion = dispersion
+        self.power = power
+        self.scaling = scaling
+        self.blocks = blocks
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
+        self.newton_options = newton_options
+
+    def __sklearn_tags__(self) -> Any:
+        tags = super().__sklearn_tags__()
+        tags.target_tags.positive_only = self.family != "binomial"
+        tags.regressor_tags.poor_score = True  # D^2 on arbitrary targets, as in sklearn's GLMs
+        return tags
+
+    def _dispersion(self) -> float:
+        return self.dispersion
+
+    def _loss(self) -> Loss:
+        return _glm_loss(self.family, self._dispersion(), self.power)
+
+    def _prepare(
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        sample_weight: ArrayLike | None,
+        offset: ArrayLike | None,
+    ) -> tuple[Array, Array, Array, Array | None]:
+        self._check_params()
+        self._loss()  # validates family and its parameters
+        x, y = validate_data(self, X, y, dtype=np.float64, y_numeric=True)
+        y = np.asarray(y, dtype=np.float64)
+        _check_glm_targets(self.family, y)
+        w = _weights(sample_weight, x)
+        return x, y, w, _check_offset(offset, x.shape[0])
+
+    def fit(
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        sample_weight: ArrayLike | None = None,
+        offset: ArrayLike | None = None,
+    ) -> KernelGLMRegressor:
+        x, y, w, off = self._prepare(X, y, sample_weight, offset)
+        if self.family == "negative_binomial":
+            self.dispersion_ = float(self.dispersion)
+        self._fit_model(x, y, w, off)
+        return self
+
+    def decision_function(self, X: ArrayLike, offset: ArrayLike | None = None) -> Array:
+        """Linear predictor on the link scale, including ``offset``."""
+        eta = self._decision(X)
+        off = _check_offset(offset, eta.shape[0])
+        return eta if off is None else eta + off
+
+    def predict(self, X: ArrayLike, offset: ArrayLike | None = None) -> Array:
+        """Predicted mean: ``exp(eta)``, for the binomial family the proportion ``expit(eta)``."""
+        eta = self.decision_function(X, offset)
+        return np.asarray(expit(eta) if self.family == "binomial" else np.exp(eta))
+
+    def score(
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        sample_weight: ArrayLike | None = None,
+        offset: ArrayLike | None = None,
+    ) -> float:
+        """Deviance explained ``D^2 = 1 - deviance(model) / deviance(null model)``.
+
+        The null model is the intercept-only fit to ``(y, sample_weight, offset)``: the weighted
+        mean (with ``offset``: the maximum likelihood ``b`` with ``mu_i = g^-1(b + offset_i)``).
+        """
+        x, y, w, off = self._prepare_score(X, y, sample_weight, offset)
+        loss = self._loss()
+        terms = loss.terms(y, w)
+        if off is not None:
+            terms = dataclasses.replace(terms, offset=off)
+        null = np.full(y.shape, loss.initial_bias(terms))
+        if off is not None:
+            null = null + off
+        d0 = _glm_deviance(self.family, loss, null, y, w)
+        d1 = _glm_deviance(self.family, loss, self.decision_function(x, off), y, w)
+        return 1.0 - d1 / d0 if d0 > 0 else 0.0
+
+    def _prepare_score(
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        sample_weight: ArrayLike | None,
+        offset: ArrayLike | None,
+    ) -> tuple[Array, Array, Array, Array | None]:
+        check_is_fitted(self)
+        x, y = validate_data(self, X, y, reset=False, dtype=np.float64, y_numeric=True)
+        y = np.asarray(y, dtype=np.float64)
+        _check_glm_targets(self.family, y)
+        return x, y, _weights(sample_weight, x), _check_offset(offset, x.shape[0])
+
+
+class OptimizedKernelGLMRegressor(_OptimizedMixin, KernelGLMRegressor):
+    __doc__ = (
+        """:class:`KernelGLMRegressor` whose ``lam`` and kernel scalings (and optionally the
+    negative binomial dispersion) are optimised by minimising the cross-validation deviance with
+    exact gradients.
+
+    The validation loss is the half deviance of the family (binomial: weighted by the numbers of
+    trials, i.e. ``sample_weight``); the offset enters the validation predictions as well.
+
+    Parameters
+    ----------"""
+        + _OPT_DOC
+        + _GLM_DOC
+        + """    tune_dispersion : bool
+        Optimise the dispersion of the negative binomial family together with the other
+        hyperparameters (not with ``n_basis``). The validation loss then is the *Poisson*
+        deviance of the mean prediction, which does not depend on the dispersion: the negative
+        binomial deviance itself would favour dispersions that make every residual look
+        small. The dispersion then acts only through the training problem (how strongly large
+        counts are down-weighted), which is the quantity the cross-validated mean prediction
+        can judge.
+    dispersion_bounds : tuple of float
+        Box constraints of the dispersion.
+
+    Attributes
+    ----------
+    dispersion_ : float
+        Optimised (``tune_dispersion``) or given dispersion (negative binomial only).
+    """
+    )
+
+    def __init__(
+        self,
+        *,
+        family: str = "poisson",
+        dispersion: float = 1.0,
+        power: float = 1.5,
+        tune_dispersion: bool = False,
+        dispersion_bounds: tuple[float, float] = (1e-2, 1e3),
+        lam_init: float = 1e-2,
+        scaling_init: float | str = "auto",
+        blocks: Any = None,
+        two_stage: bool = True,
+        cv: Any = 5,
+        lam_bounds: tuple[float, float] = (1e-6, 1.0),
+        scaling_bounds: tuple[float, float] = (1e-4, 1e2),
+        time_limit: float | None = None,
+        max_iter: int = 100,
+        tol: float = 1e-6,
+        random_state: int | None = 0,
+        verbose: int = 0,
+        warm_start: bool = True,
+        n_basis: int | str | None = None,
+        basis_tol: float = 1.0,
+        newton_options: dict[str, Any] | None = None,
+    ) -> None:
+        self.family = family
+        self.dispersion = dispersion
+        self.power = power
+        self.tune_dispersion = tune_dispersion
+        self.dispersion_bounds = dispersion_bounds
+        self.lam_init = lam_init
+        self.scaling_init = scaling_init
+        self.blocks = blocks
+        self.two_stage = two_stage
+        self.cv = cv
+        self.lam_bounds = lam_bounds
+        self.scaling_bounds = scaling_bounds
+        self.time_limit = time_limit
+        self.max_iter = max_iter
+        self.tol = tol
+        self.random_state = random_state
+        self.verbose = verbose
+        self.warm_start = warm_start
+        self.n_basis = n_basis
+        self.basis_tol = basis_tol
+        self.newton_options = newton_options
+
+    @property
+    def lam(self) -> float:  # type: ignore[override]
+        return getattr(self, "lam_", self.lam_init)
+
+    @property
+    def scaling(self) -> Any:  # type: ignore[override]
+        return getattr(self, "scaling_opt_", self.scaling_init)
+
+    def _dispersion(self) -> float:
+        return getattr(self, "dispersion_", self.dispersion)
+
+    def _validation(self) -> ValidationLoss:
+        if self.family == "negative_binomial":
+            if self.tune_dispersion:
+                # independent of the dispersion, so that it is not tuned towards a trivial value
+                return PoissonValidation()
+            return NegativeBinomialDeviance(float(self.dispersion))
+        if self.family == "poisson":
+            return PoissonValidation()
+        if self.family == "binomial":
+            return BinomialDeviance()
+        if self.family == "gamma":
+            return GammaDeviance()
+        return TweedieDeviance(float(self.power))
+
+    def fit(
+        self,
+        X: ArrayLike,
+        y: ArrayLike,
+        sample_weight: ArrayLike | None = None,
+        offset: ArrayLike | None = None,
+        groups: ArrayLike | None = None,
+    ) -> OptimizedKernelGLMRegressor:
+        """Fits the model; ``groups`` is passed to ``cv.split`` (splitter objects only)."""
+        for name in ("lam_", "scaling_opt_", "dispersion_"):
+            self.__dict__.pop(name, None)
+        x, y, w, off = self._prepare(X, y, sample_weight, offset)
+        tuned: dict[str, tuple[float, tuple[float, float]]] = {}
+        if self.tune_dispersion:
+            if self.family != "negative_binomial":
+                raise ValueError("tune_dispersion needs family='negative_binomial'")
+            if self.n_basis is not None:
+                raise ValueError("tune_dispersion is not supported together with n_basis")
+            lo, hi = self.dispersion_bounds
+            if not 0 < lo < hi:
+                raise ValueError(f"dispersion_bounds must satisfy 0 < low < high, got {(lo, hi)}")
+            tuned["dispersion"] = (float(self.dispersion), (float(lo), float(hi)))
+        self._optimize(x, y, w, groups, off, tuned)
+        if self.family == "negative_binomial":
+            self.dispersion_ = self.loss_params_opt_.get("dispersion", float(self.dispersion))
+        self._fit_model(x, y, w, off)
         return self

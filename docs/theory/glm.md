@@ -56,3 +56,49 @@ trials as validation weights), the others ignore weights.
 
 `Loss.initial_bias` returns the intercept-only estimate (logit or log of the weighted mean of `y`,
 corrected for the mean offset if present) that Newton can use when it starts without SMO.
+
+## Usage
+
+`KernelGLMRegressor` (fixed hyperparameters) and `OptimizedKernelGLMRegressor` (`lam`, the kernel
+scalings and optionally the negative binomial dispersion tuned by the cross-validation deviance)
+fit these models with `family` in `"poisson"`, `"binomial"`, `"negative_binomial"`, `"gamma"` and
+`"tweedie"`. Counts with an exposure, e.g. claims per policy and time at risk, enter through the
+`offset` (the log of the exposure), which is added to the decision value on the link scale in
+training, validation and prediction:
+
+```python
+import numpy as np
+from optimized_svm import OptimizedKernelGLMRegressor
+
+rng = np.random.default_rng(0)
+X = rng.uniform(-2, 2, (400, 2))
+exposure = rng.uniform(0.5, 3.0, 400)
+rate = np.exp(0.5 + np.sin(2 * X[:, 0]))
+y = rng.negative_binomial(2.0, 2.0 / (2.0 + rate * exposure))
+
+model = OptimizedKernelGLMRegressor(family="negative_binomial", dispersion=2.0, cv=5)
+model.fit(X, y, offset=np.log(exposure))
+
+model.predict(X, offset=np.log(exposure))  # expected counts
+model.predict(X)                           # rates per unit exposure
+model.decision_function(X)                 # linear predictor (link scale)
+model.score(X, y, offset=np.log(exposure))  # D^2
+```
+
+For the binomial family `y` are proportions and `sample_weight` the numbers of trials; fitting
+grouped data is equivalent to fitting the expanded Bernoulli data.
+
+**Score.** `score` returns the deviance explained
+`D^2 = 1 - deviance(model) / deviance(null model)`, where the null model is the intercept-only fit
+to the same data (`mu_i = e^{b + offset_i}`, resp. the weighted mean without offset; computed by
+`Loss.initial_bias`). It is 1 for a perfect fit and 0 for the intercept-only model.
+
+**Dispersion tuning.** With `tune_dispersion=True` (negative binomial only, not with `n_basis`)
+`log r` is appended to the hyperparameters and optimised within `dispersion_bounds` with the
+hypergradient above; the result is `dispersion_` and each `history_` entry carries the current
+`dispersion`. The half deviance of the validation samples depends on `r` itself and would be
+minimised by degenerate values, so in this case the validation loss is the Poisson deviance of the
+predicted mean (`PoissonValidation`), which is independent of `r`: the dispersion only changes how
+the training problem weights large counts. Its signal is therefore weak; it moves `r` in the right
+direction for clearly over-dispersed data, but the result should not be read as a maximum
+likelihood estimate of `r`.

@@ -2,6 +2,10 @@
 
 ## Estimators
 
+::: optimized_svm.KernelGLMRegressor
+
+::: optimized_svm.OptimizedKernelGLMRegressor
+
 ::: optimized_svm.OptimizedSVC
 
 ::: optimized_svm.OptimizedSVR
