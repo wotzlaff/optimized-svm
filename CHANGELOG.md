@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 – 2026-11-16
 
 ### Added
 - Subspace SVM (thesis Sec. 5.3), experimental: `optimized_svm.subspace` (Newton training in the span of
@@ -20,6 +20,10 @@
   differences), but not used by the estimators: tuning these parameters rarely pays off (`epsilon` is not
   identifiable below the smoothing width, the CV error is multimodal in `smoothing`). Study:
   `benchmarks/hpo_loss_params.py`.
+
+### Changed
+- `cv_error_` of the optimizers is the cross-validation error at the returned hyperparameters
+  (before: the minimum over `history_`; the same value except with re-selected subspace bases).
 
 ### Fixed
 - `newton_subspace` repeats the solve from a cold start when a warm start with huge coefficients
