@@ -1,0 +1,1627 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Support vector machines with hyperparameters tuned by exact gradients">
+      
+      
+      
+        <link rel="canonical" href="https://wotzlaff.github.io/optimized-svm/theory/subspace/">
+      
+      
+        <link rel="prev" href="../hypergradient/">
+      
+      
+        <link rel="next" href="../../examples/quickstart/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+    
+    
+      
+        <title>Subspace SVM - optimized-svm</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#subspace-svm" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="optimized-svm" class="md-header__button md-logo" aria-label="optimized-svm" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            optimized-svm
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Subspace SVM
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/wotzlaff/optimized-svm" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    wotzlaff/optimized-svm
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="optimized-svm" class="md-nav__button md-logo" aria-label="optimized-svm" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    optimized-svm
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/wotzlaff/optimized-svm" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    wotzlaff/optimized-svm
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Background
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../training/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Training problem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../switching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Switching from SMO to Newton
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hypergradient/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hyperparameter gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Subspace SVM
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Subspace SVM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hypergradient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hypergradient
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-the-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing the basis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hyperparameter-optimization-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyperparameter optimization (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart: gradient-based tuning vs. grid search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/ard_feature_relevance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature relevance (ARD)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/logistic_probabilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Class probabilities with the logistic loss
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/low_level_api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Low-level API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reproduction/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducing the thesis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://wotzlaff.github.io/svm-site/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project website
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#training" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hypergradient" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hypergradient
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#choosing-the-basis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing the basis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hyperparameter-optimization-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyperparameter optimization (experimental)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="subspace-svm">Subspace SVM<a class="headerlink" href="#subspace-svm" title="Permanent link">&para;</a></h1>
+<p>The model is restricted to the span of <span class="arithmatex">\(m\)</span> basis points <span class="arithmatex">\(z_1,\dots,z_m\)</span> (thesis, Sec. 5.3):</p>
+<div class="arithmatex">\[
+w = \sum_j \beta_j \phi(z_j), \qquad f(x) = \sum_j \beta_j\, k(x, z_j) + b .
+\]</div>
+<h2 id="training">Training<a class="headerlink" href="#training" title="Permanent link">&para;</a></h2>
+<p>By Corollary 5.9 the dual is the standard dual with the projected kernel
+<span class="arithmatex">\(K_s = K_{XZ} K_{ZZ}^{-1} K_{ZX}\)</span> (a Nyström approximation). Equivalently the SVM has the explicit
+feature map <span class="arithmatex">\(\psi(x) = L^{-1} k_Z(x)\)</span> with <span class="arithmatex">\(K_{ZZ} = L L^\top\)</span>, and the primal problem has only
+<span class="arithmatex">\(m+1\)</span> unknowns:</p>
+<div class="arithmatex">\[
+\min_{u,b}\ \tfrac{\lambda}{2}\|u\|^2 + \sum_l \varphi_l(\psi_{k(l)}^\top u + b), \qquad \beta = L^{-\top} u .
+\]</div>
+<p>It is solved by a damped Newton method with systems of size <span class="arithmatex">\(m+1\)</span>; one step costs
+<span class="arithmatex">\(O(nm^2 + m^3)\)</span> instead of a factorization of size <span class="arithmatex">\(n\)</span>. SMO is not used, so the loss must have
+positive curvature somewhere (<code>smoothing &gt; 0</code>, squared, logistic, Poisson); <code>smoothing = 0</code> is rejected.</p>
+<h2 id="hypergradient">Hypergradient<a class="headerlink" href="#hypergradient" title="Permanent link">&para;</a></h2>
+<p>The stationarity conditions in <span class="arithmatex">\((\beta, b)\)</span> define the solution implicitly. One adjoint system of
+size <span class="arithmatex">\(m+1\)</span> per fold gives the gradient of the cross-validation error with respect to <span class="arithmatex">\(\log\lambda\)</span> and
+the log kernel scalings (including ARD blocks). It is checked against central differences for the
+smoothed hinge, ε-insensitive (degrees 2/3/6), logistic and squared loss.</p>
+<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
+<p>All four estimators take <code>n_basis</code> and <code>basis_tol</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">optimized_svm</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizedSVR</span>
+
+<span class="n">est</span> <span class="o">=</span> <span class="n">OptimizedSVR</span><span class="p">(</span><span class="n">n_basis</span><span class="o">=</span><span class="s2">"auto"</span><span class="p">,</span> <span class="n">basis_tol</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>   <span class="c1"># basis size from the residual rule</span>
+<span class="n">est</span> <span class="o">=</span> <span class="n">OptimizedSVR</span><span class="p">(</span><span class="n">n_basis</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>                      <span class="c1"># fixed size</span>
+</code></pre></div>
+<ul>
+<li><code>n_basis=None</code> (default): full model. An integer: that many basis points. <code>"auto"</code>: <code>select_basis</code>
+  with tolerance <code>basis_tol</code> (see below); if the limit <span class="arithmatex">\(n/10\)</span> is hit, a warning is issued and the full model is used.</li>
+<li>Needs a smooth loss (<code>smoothing &gt; 0</code>, or squared/logistic/Poisson) and no <code>max_asum</code>. Models are
+  trained by Newton's method only (<code>newton_options</code>; <code>smo_options</code> is ignored).</li>
+<li>The optimizers (<code>OptimizedSVC/SVR</code>) choose the basis of every fold at the starting values of each stage
+  (global scaling, then ARD scalings) and keep it fixed during L-BFGS-B, so the objective stays smooth. With
+  <code>n_basis="auto"</code> the rule is then checked at the result (<code>nystroem_residual(x_scaled, idx) / lam &lt;= basis_tol</code>
+  in every fold); if it fails, e.g. because the optimizer lowered <span class="arithmatex">\(\lambda\)</span> by orders of magnitude, a new basis is
+  chosen there and L-BFGS-B restarts (at most 5 rounds per stage). The stage keeps the best evaluation of its
+  last round (earlier rounds used smaller subspaces and are not comparable); <code>history_</code> entries carry <code>basis_round</code>. An integer
+  <code>n_basis</code> is never re-selected. The final
+  model is trained on all data with a basis chosen at the optimized hyperparameters. After fitting,
+  <code>basis_</code> holds its indices, <code>support_</code>/<code>dual_coef_</code> the basis points and expansion coefficients, and
+  <code>history_</code> records <code>n_basis</code> per evaluation.</li>
+<li>Low-level: pass <code>basis</code> (one index array per fold, indices into <code>x</code>) to <code>cv_error_and_gradient</code>;
+  <code>warm_start</code> then holds expansion coefficients. <code>loss_params</code> and <code>max_asum</code> are not supported with a basis.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title"><code>n_basis=\"auto\"</code> often falls back to the full model with the default starting values</p>
+<p>The basis is chosen at the starting values of each stage. With the defaults (<code>lam_init=1e-2</code>,
+<code>scaling_init="auto"</code>) the residual rule did not hold within <span class="arithmatex">\(n/10\)</span> points for ε-SVR on Friedman #1 with
+<span class="arithmatex">\(n = 5000\)</span>, so all three variants (<code>tol</code> 1, <code>tol</code> 10, full) ran the full model and gave identical
+results (17 evaluations, about 520 s each; <code>benchmarks/results/subspace_hpo_n5000_fallback.json</code>). A warning is issued, but
+no speed-up results. The gain shown below was measured at wide kernels (scale 0.05–0.1) and <span class="arithmatex">\(\lambda \ge 10^{-2}\)</span>; start the
+optimization there (<code>scaling_init</code>, <code>lam_init</code>) if you want the subspace model to be used. An end-to-end comparison of
+the optimization with such starting values is still open.</p>
+</div>
+<h2 id="choosing-the-basis">Choosing the basis<a class="headerlink" href="#choosing-the-basis" title="Permanent link">&para;</a></h2>
+<p>Study <code>benchmarks/subspace_params.py</code> (raw data <code>benchmarks/results/subspace_params.json</code>): ε-SVR and
+classification on Friedman-type data, <span class="arithmatex">\(n = 1000\)</span> and <span class="arithmatex">\(2500\)</span>, three kernel scales, <span class="arithmatex">\(\lambda = 10^{-3}\)</span> and
+<span class="arithmatex">\(10^{-1}\)</span>, 5 folds, basis sizes 25–800; the cross-validation error of one evaluation is compared with the
+full model.</p>
+<ul>
+<li><strong>Selection rule: greedy pivoted Cholesky, not random.</strong> At equal <span class="arithmatex">\(m\)</span> the two rules give about the same
+  error (median excess over the full model at <span class="arithmatex">\(m = 400\)</span>: +0.4 % pivoted, +0.7 % random on
+  regression), so the choice does not matter for quality; pivoted Cholesky is used because it yields
+  the residual trace needed for the size rule.</li>
+<li><strong>Size rule: stop when <span class="arithmatex">\(\operatorname{tr}(K - K_s) \le    au\lambda\)</span>.</strong> The trace of the Nyström residual relative to <span class="arithmatex">\(\lambda\)</span>
+  predicts the loss of accuracy, the trace alone does not (with small <span class="arithmatex">\(\lambda\)</span> a residual of <span class="arithmatex">\(10^{-3}\,n\)</span>
+  already costs +55 % error). Excess CV error over the full model, all 24 settings × 6 sizes:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th><span class="arithmatex">\(\operatorname{tr}(K-K_s)/\lambda\)</span></th>
+<th>runs</th>
+<th>median</th>
+<th>maximum</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&lt; 1</td>
+<td>24</td>
+<td>+0.01 %</td>
+<td>+0.9 %</td>
+</tr>
+<tr>
+<td>1–10</td>
+<td>10</td>
+<td>+0.6 %</td>
+<td>+11 %</td>
+</tr>
+<tr>
+<td>10–100</td>
+<td>15</td>
+<td>+2 %</td>
+<td>+14 %</td>
+</tr>
+<tr>
+<td>100–1000</td>
+<td>18</td>
+<td>+15 %</td>
+<td>+82 %</td>
+</tr>
+<tr>
+<td>&gt; 1000</td>
+<td>65</td>
+<td>+17 % to +28 %</td>
+<td>+135 %</td>
+</tr>
+</tbody>
+</table>
+<p><code>select_basis(x_scaled, lam, tol=1.0, max_size=None)</code> implements this with <span class="arithmatex">\(\tau = 1\)</span> (use <code>tol=10</code>
+  to accept up to ~14 %). The default size limit is <span class="arithmatex">\(\max(10, n/10)\)</span>; if it is hit, the returned ratio is
+  above <code>tol</code> and the model is not a close approximation.
+- <strong>Check of the rule</strong> (<code>select_basis</code> with the size limit <span class="arithmatex">\(n/4\)</span>, <span class="arithmatex">\(n = 2500\)</span>, one evaluation incl. 5 folds;
+  excess = CV error over the full model):</p>
+<table>
+<thead>
+<tr>
+<th>task</th>
+<th>kernel scale</th>
+<th><span class="arithmatex">\(\lambda\)</span></th>
+<th><span class="arithmatex">\(\tau\)</span></th>
+<th><span class="arithmatex">\(m\)</span></th>
+<th>excess</th>
+<th>subspace (s)</th>
+<th>full (s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ε-SVR</td>
+<td>0.05</td>
+<td><span class="arithmatex">\(10^{-3}\)</span></td>
+<td>1</td>
+<td>376</td>
+<td>+0.2 %</td>
+<td>6.1</td>
+<td>7.0</td>
+</tr>
+<tr>
+<td>ε-SVR</td>
+<td>0.05</td>
+<td><span class="arithmatex">\(10^{-3}\)</span></td>
+<td>10</td>
+<td>230</td>
+<td>+2.9 %</td>
+<td>3.0</td>
+<td>7.0</td>
+</tr>
+<tr>
+<td>ε-SVR</td>
+<td>0.05</td>
+<td><span class="arithmatex">\(10^{-1}\)</span></td>
+<td>1</td>
+<td>93</td>
+<td>+1.1 %</td>
+<td>1.2</td>
+<td>4.1</td>
+</tr>
+<tr>
+<td>ε-SVR</td>
+<td>0.05</td>
+<td><span class="arithmatex">\(10^{-1}\)</span></td>
+<td>10</td>
+<td>47</td>
+<td>+12 %</td>
+<td>0.3</td>
+<td>4.1</td>
+</tr>
+<tr>
+<td>ε-SVR</td>
+<td>0.15</td>
+<td><span class="arithmatex">\(10^{-1}\)</span></td>
+<td>1</td>
+<td>625 (limit)</td>
+<td>+0.9 %</td>
+<td>9.3</td>
+<td>5.7</td>
+</tr>
+<tr>
+<td>classification</td>
+<td>0.05</td>
+<td><span class="arithmatex">\(10^{-3}\)</span></td>
+<td>1</td>
+<td>238</td>
+<td>0.0 %</td>
+<td>6.2</td>
+<td>1.1</td>
+</tr>
+<tr>
+<td>classification</td>
+<td>0.05</td>
+<td><span class="arithmatex">\(10^{-1}\)</span></td>
+<td>1</td>
+<td>74</td>
+<td>+0.2 %</td>
+<td>0.7</td>
+<td>0.9</td>
+</tr>
+</tbody>
+</table>
+<p>The rule keeps the error small whenever the ratio reaches <span class="arithmatex">\(\tau\)</span>. Whether it also saves time depends on the
+  problem: only for ε-SVR with a wide kernel (scale 0.05) and not too small <span class="arithmatex">\(\lambda\)</span> (3.4× faster at
+  <span class="arithmatex">\(\tau = 1\)</span>, 14× at <span class="arithmatex">\(\tau = 10\)</span> with +12 % error); for small <span class="arithmatex">\(\lambda\)</span> the basis grows and the gain
+  disappears. With a narrower kernel (scale 0.15) the limit is hit and the full model is faster. For
+  classification the full model (SMO) takes about 1 s here and the subspace model is not faster.
+- <strong>Larger <span class="arithmatex">\(n\)</span></strong> (<code>benchmarks/subspace_large.py</code>, ε-SVR on Friedman #1, 5 folds, one evaluation; time of the subspace model
+  includes <code>select_basis</code>; excess = CV error over the full model):</p>
+<table>
+<thead>
+<tr>
+<th><span class="arithmatex">\(n\)</span></th>
+<th>scale</th>
+<th><span class="arithmatex">\(\lambda\)</span></th>
+<th><span class="arithmatex">\(\tau\)</span></th>
+<th><span class="arithmatex">\(m\)</span></th>
+<th>excess</th>
+<th>subspace (s)</th>
+<th>full (s)</th>
+<th>speed-up</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>5000</td>
+<td>0.05</td>
+<td>0.1</td>
+<td>1</td>
+<td>139</td>
+<td>+0.7 %</td>
+<td>2.4</td>
+<td>14.0</td>
+<td>5.8×</td>
+</tr>
+<tr>
+<td>5000</td>
+<td>0.05</td>
+<td>0.01</td>
+<td>1</td>
+<td>282</td>
+<td>+0.3 %</td>
+<td>4.5</td>
+<td>23.6</td>
+<td>5.2×</td>
+</tr>
+<tr>
+<td>5000</td>
+<td>0.1</td>
+<td>0.1</td>
+<td>1</td>
+<td>685</td>
+<td>+0.1 %</td>
+<td>11.5</td>
+<td>20.7</td>
+<td>1.8×</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>0.05</td>
+<td>0.1</td>
+<td>1</td>
+<td>189</td>
+<td>+0.4 %</td>
+<td>2.9</td>
+<td>95.5</td>
+<td>33×</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>0.05</td>
+<td>0.01</td>
+<td>1</td>
+<td>348</td>
+<td>+0.2 %</td>
+<td>6.9</td>
+<td>154.8</td>
+<td>22×</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>0.1</td>
+<td>0.1</td>
+<td>1</td>
+<td>939</td>
+<td>+0.1 %</td>
+<td>18.4</td>
+<td>106.1</td>
+<td>5.8×</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>0.05</td>
+<td>0.1</td>
+<td>10</td>
+<td>70</td>
+<td>+7.7 %</td>
+<td>1.2</td>
+<td>95.5</td>
+<td>80×</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>0.05</td>
+<td>0.01</td>
+<td>10</td>
+<td>189</td>
+<td>+2.3 %</td>
+<td>3.5</td>
+<td>154.8</td>
+<td>44×</td>
+</tr>
+<tr>
+<td>10000</td>
+<td>0.1</td>
+<td>0.1</td>
+<td>10</td>
+<td>429</td>
+<td>+1.5 %</td>
+<td>12.0</td>
+<td>106.1</td>
+<td>8.8×</td>
+</tr>
+</tbody>
+</table>
+<p>The gain grows with <span class="arithmatex">\(n\)</span>: the basis size needed for a given <span class="arithmatex">\(\tau\)</span> grows slowly with <span class="arithmatex">\(n\)</span> while the full
+  model gets much more expensive. At <span class="arithmatex">\(n = 10000\)</span> the subspace model is 6 to 33 times faster at <span class="arithmatex">\(\tau = 1\)</span> with at most 0.4 % excess error.
+- The basis depends on the kernel scale and on <span class="arithmatex">\(\lambda\)</span>; with <code>n_basis="auto"</code> the optimizers re-select
+  it when the hyperparameters move too far (see below).</p>
+<h2 id="hyperparameter-optimization-experimental">Hyperparameter optimization (experimental)<a class="headerlink" href="#hyperparameter-optimization-experimental" title="Permanent link">&para;</a></h2>
+<p>The single-evaluation gains above do not carry over to a complete optimization so far
+(<code>benchmarks/subspace_hpo.py</code>, <code>OptimizedSVR</code>, Friedman #1, <span class="arithmatex">\(n = 5000\)</span>, 5 folds, <code>max_iter = 30</code>, starting
+values <span class="arithmatex">\(\lambda = 0.1\)</span>, scale 0.05; raw data <code>benchmarks/results/subspace_hpo_*.json</code>):</p>
+<table>
+<thead>
+<tr>
+<th>noise</th>
+<th>variant</th>
+<th>time (s)</th>
+<th>basis rounds</th>
+<th>CV error</th>
+<th>test MSE</th>
+<th>final <span class="arithmatex">\(\lambda\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>full</td>
+<td>932</td>
+<td>–</td>
+<td>0.2163</td>
+<td>1.143</td>
+<td><span class="arithmatex">\(10^{-6}\)</span> (bound)</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>"auto"</code>, <span class="arithmatex">\(\tau = 1\)</span></td>
+<td>1095</td>
+<td>2, then full</td>
+<td>0.2163</td>
+<td>1.143</td>
+<td><span class="arithmatex">\(10^{-6}\)</span></td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>"auto"</code>, <span class="arithmatex">\(\tau = 10\)</span></td>
+<td>1256</td>
+<td>3, then full</td>
+<td>0.2163</td>
+<td>1.143</td>
+<td><span class="arithmatex">\(10^{-6}\)</span></td>
+</tr>
+<tr>
+<td>3</td>
+<td>full</td>
+<td>416</td>
+<td>–</td>
+<td>0.5352</td>
+<td>9.68</td>
+<td><span class="arithmatex">\(6.3 \cdot 10^{-3}\)</span></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>"auto"</code>, <span class="arithmatex">\(\tau = 1\)</span></td>
+<td>242</td>
+<td>2, then full</td>
+<td>0.5352</td>
+<td>9.69</td>
+<td><span class="arithmatex">\(9.2 \cdot 10^{-3}\)</span></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>"auto"</code>, <span class="arithmatex">\(\tau = 10\)</span></td>
+<td>29</td>
+<td>5, rule not met</td>
+<td>0.5611</td>
+<td>11.11</td>
+<td><span class="arithmatex">\(1.2 \cdot 10^{-6}\)</span></td>
+</tr>
+</tbody>
+</table>
+<p>The optimizer drives <span class="arithmatex">\(\lambda\)</span> to values (<span class="arithmatex">\(\le 10^{-2}\)</span>) where the residual rule needs more than the
+<span class="arithmatex">\(n/10\)</span> basis points allowed per fold, so with <span class="arithmatex">\(\tau = 1\)</span> it ends up running the full model; the subspace
+rounds act at best as a cheap warm-up (1.7× faster in one case, 17 % slower in the other). Before the
+re-selection was added, a basis fixed at the starting values led to clearly wrong optima (CV error 0.42
+instead of 0.216 at <span class="arithmatex">\(\tau = 10\)</span>). With <span class="arithmatex">\(\tau = 10\)</span> the optimization can be much faster but ends in a
+different, worse optimum (very wide kernel, <span class="arithmatex">\(\lambda\)</span> at the bound) and warns that the rule was not met.
+For hyperparameter optimization the full model is therefore the recommended default; the subspace SVM is
+useful for fits with fixed hyperparameters at large <span class="arithmatex">\(n\)</span> and wide kernels. Not run: <span class="arithmatex">\(n = 10000\)</span>.</p>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<p>ε-SVR on Friedman #1, <span class="arithmatex">\(n = 3000\)</span>, 5 folds, <span class="arithmatex">\(\lambda = 10^{-3}\)</span>, one kernel scale, one evaluation of
+error and gradient (cold start, one machine):</p>
+<table>
+<thead>
+<tr>
+<th>basis size <span class="arithmatex">\(m\)</span></th>
+<th>CV error</th>
+<th>time (s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>50</td>
+<td>0.351</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td>100</td>
+<td>0.253</td>
+<td>0.9</td>
+</tr>
+<tr>
+<td>200</td>
+<td>0.234</td>
+<td>3.9</td>
+</tr>
+<tr>
+<td>400</td>
+<td>0.1823</td>
+<td>6.9</td>
+</tr>
+<tr>
+<td>800</td>
+<td>0.1819</td>
+<td>9.3</td>
+</tr>
+<tr>
+<td>full model</td>
+<td>0.1818</td>
+<td>44.3</td>
+</tr>
+</tbody>
+</table>
+<p>A single evaluation at one hyperparameter value; it shows the trade-off, not a general speed-up.
+The basis is random, so <span class="arithmatex">\(m\)</span> must be large enough for the kernel scale in use.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2022–2026 Nico Strasdat
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
+      
+        <script src="../../javascripts/katex.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+      
+    
+  <script data-mkdocs-jupyter-mathjax="{&quot;url&quot;: &quot;https://cdn.jsdelivr.net/npm/mathjax@4.1.3/tex-mml-chtml.js&quot;, &quot;version&quot;: 4}">
+/* Shared by full pages and Material's instant navigation. */
+(() => {
+  const config = JSON.parse(document.currentScript.dataset.mkdocsJupyterMathjax);
+  if (window.mkdocsJupyterMathJax) return;
+
+  let loading;
+  let queue = Promise.resolve();
+  let previous = [];
+
+  const ready = async () => {
+    if (!loading) {
+      loading = (async () => {
+        let math = window.MathJax;
+        if (!math?.typesetPromise) {
+          const url = new URL(config.url, document.baseURI).href;
+          const existing = Array.from(document.scripts).find(script =>
+            script.src && (script.src === url || script.id === 'MathJax-script' ||
+              (/mathjax/i.test(script.src) &&
+               /\/(?:MathJax|latest|(?:tex|mml)(?:-mml)?-(?:chtml|svg))\.js(?:[?#]|$)/i.test(script.src))));
+          if (existing) {
+            if (!math?.startup?.promise) {
+              await new Promise((resolve, reject) => {
+                existing.addEventListener('load', resolve, { once: true });
+                existing.addEventListener('error', reject, { once: true });
+              });
+            }
+          } else {
+            // Keep site macros, delimiters and startup hooks when supplied.
+            const options = math || {};
+            window.MathJax = {
+              ...options,
+              loader: {
+                ...options.loader,
+                load: Array.from(new Set(['ui/safe', ...(options.loader?.load || [])]))
+              },
+              startup: { typeset: false, ...options.startup },
+              tex: {
+                tags: 'ams',
+                useLabelIds: true,
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true,
+                ...options.tex
+              }
+            };
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = config.url;
+              script.id = 'MathJax-script';
+              script.async = true;
+              script.onload = resolve;
+              script.onerror = reject;
+              document.head.appendChild(script);
+            });
+          }
+        }
+        math = window.MathJax;
+        await math.startup.promise;
+        return math;
+      })();
+    }
+    const math = await loading;
+    // A site owner can extend the v3 queue again on each navigation.
+    await math.startup.promise;
+    return math;
+  };
+
+  const unrendered = node => {
+    if (node.matches('mjx-container')) return [];
+    if (!node.querySelector('mjx-container')) return [node];
+    // In v3, scanning generated assistive MathML again produces nested output.
+    return Array.from(node.children).flatMap(unrendered);
+  };
+
+  const refresh = () => {
+    // A separate chain also serializes v3, without changing v4's startup promise.
+    queue = queue.then(async () => {
+      const notebooks = Array.from(document.querySelectorAll('.jupyter-wrapper'));
+      if (!notebooks.length && !previous.length) return;
+      if (notebooks.length === previous.length &&
+          notebooks.every((node, index) => node === previous[index])) return;
+      const math = await ready();
+      if (previous.length) {
+        math.typesetClear(previous);
+        math.texReset();
+      }
+      previous = notebooks.filter(node => node.isConnected);
+      const pending = previous.flatMap(unrendered);
+      if (pending.length) await math.typesetPromise(pending);
+    }).catch(error => console.error('mkdocs-jupyter: MathJax rendering failed', error));
+    return queue;
+  };
+
+  window.mkdocsJupyterMathJax = { refresh };
+  const start = () => {
+    if (typeof document$ !== 'undefined') document$.subscribe(refresh);
+    else refresh();
+  };
+  // Theme bundles and user-provided MathJax scripts can follow notebook content.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else start();
+})();
+
+</script>
+</body>
+</html>

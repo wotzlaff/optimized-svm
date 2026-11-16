@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://wotzlaff.github.io/optimized-svm/examples/quickstart/">
       
       
-        <link rel="prev" href="../../theory/hypergradient/">
+        <link rel="prev" href="../../theory/subspace/">
       
       
         <link rel="next" href="../ard_feature_relevance/">
@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -434,6 +434,34 @@
     
   
     Hyperparameter gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../theory/subspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Subspace SVM
   
 
     
@@ -1002,7 +1030,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </style>
 <div class="jupyter-wrapper">
 <div class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=5c5a4157">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=802b1c2b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1016,7 +1044,7 @@ classification task.</p>
 </div>
 </div>
 <div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=58277320">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=8d78f045">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1067,7 +1095,7 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=0)</div>
 </div>
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=f65fb35a">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=4a0c8dfa">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1113,7 +1141,7 @@ print(
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>OptimizedSVC: lam = 0.205, gamma = 0.153, 16 CV evaluations, 2.3 s, test accuracy 0.844
+<pre>OptimizedSVC: lam = 0.205, gamma = 0.153, 16 CV evaluations, 2.5 s, test accuracy 0.844
 </pre>
 </div>
 </div>
@@ -1121,7 +1149,7 @@ print(
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=c07a883f">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=b9f917f5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1133,7 +1161,7 @@ print(
 </div>
 </div>
 <div class="jp-Cell jp-CodeCell jp-Notebook-cell">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=a0235d08">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=f34bfc01">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1183,7 +1211,7 @@ print(
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>GridSearchCV: C = 1, gamma = 0.316, 143 grid points, 14.6 s, test accuracy 0.856
+<pre>GridSearchCV: C = 1, gamma = 0.316, 143 grid points, 13.7 s, test accuracy 0.856
 </pre>
 </div>
 </div>
@@ -1256,7 +1284,7 @@ print(
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.top", "content.code.copy"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../../javascripts/katex.js"></script>
       

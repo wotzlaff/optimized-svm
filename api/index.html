@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
     
     
       
@@ -434,6 +434,34 @@
     
   
     Hyperparameter gradients
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theory/subspace/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Subspace SVM
   
 
     
@@ -2954,7 +2982,7 @@ no SMO warm start and every Newton system has the full size <code>n</code>.</p>
 
 
 <h2 id="optimized_svm.cv_error_and_gradient" class="doc doc-heading">
-            <code class="highlight language-python"><span class="n">optimized_svm</span><span class="o">.</span><span class="n">cv_error_and_gradient</span><span class="p">(</span><span class="n">theta</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">validation</span><span class="p">,</span> <span class="n">blocks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_asum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">smo_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">newton_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">warm_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_params</span><span class="o">=</span><span class="p">())</span></code>
+            <code class="highlight language-python"><span class="n">optimized_svm</span><span class="o">.</span><span class="n">cv_error_and_gradient</span><span class="p">(</span><span class="n">theta</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">w</span><span class="p">,</span> <span class="n">folds</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">validation</span><span class="p">,</span> <span class="n">blocks</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_asum</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">smo_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">newton_options</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">warm_start</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_params</span><span class="o">=</span><span class="p">(),</span> <span class="n">basis</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
 
 <a href="#optimized_svm.cv_error_and_gradient" class="headerlink" title="Permanent link">&para;</a></h2>
 
@@ -2967,6 +2995,10 @@ the values of the loss parameters named in <code>loss_params</code> (fields of <
 <code>"epsilon"</code> or <code>"smoothing"</code>; they replace the values stored in <code>loss</code>).</p>
 <p><code>warm_start</code> is a list with one (possibly <code>None</code>) start vector per fold; it is updated
 in place with the new solutions.</p>
+<p>With <code>basis</code> (one array of sample indices per fold, indices into <code>x</code>) every fold trains a
+<em>Subspace SVM</em> whose model is spanned by these basis points (:mod:<code>optimized_svm.subspace</code>);
+<code>warm_start</code> then holds expansion coefficients instead of dual variables. Loss parameters and
+the 1-norm constraint are not supported in that case.</p>
 
 
     </div>
@@ -3616,7 +3648,7 @@ polynomial on <code>(-delta, delta)</code>. The degree determines the smoothness
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy"], "search": "../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.c21346df.min.js"></script>
+      <script src="../assets/javascripts/bundle.a5f9d56c.min.js"></script>
       
         <script src="../javascripts/katex.js"></script>
       
