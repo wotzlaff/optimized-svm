@@ -321,8 +321,8 @@ def fold_error_and_gradient_subspace(
     p = solve_triangular(prob.chol.T, zz[:m], lower=False)
     q = float(zz[m])
     # implicit part: -[p; q]^T d(grad J)/d theta
-    kzz_beta = prob.k_zz @ beta
-    grad[0] = -lam * float(p @ kzz_beta)
+    # d/dlog(lam) of grad_beta J = lam (K_ZZ + JITTER I) beta; p^T L L^T beta = z_u^T u (stable)
+    grad[0] = -lam * float(zz[:m] @ sol.u)
     left = h * (prob.k_xz @ p) + q * h
     grad[1:] -= (
         lam * contract_gradient(prob.z, prob.z, prob.k_zz, p, beta, blocks)

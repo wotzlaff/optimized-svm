@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Subspace hypergradient: the derivative w.r.t. `log lam` ignored the jitter of the basis kernel
+  (`lam/2 beta^T (K_ZZ + JITTER I) beta`), so it was only accurate to ~1e-5 (default jitter) up to
+  ~1e-3 for ill-conditioned `K_ZZ` (wide kernel, large basis, small `lam`). It is now computed exactly
+  in the Cholesky coordinates; the scaling components were not affected.
+
 ## 0.4.0 – 2026-11-16
 
 ### Added

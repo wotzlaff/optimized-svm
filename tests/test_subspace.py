@@ -270,3 +270,31 @@ def test_newton_falls_back_to_a_cold_start_from_a_hopeless_warm_start():
     sol = newton_subspace(prob, data["beta0"], 0.0)
     assert sol.residual < 1e-12
     np.testing.assert_allclose(sol.f, cold.f, atol=1e-6)
+
+
+def test_subspace_lambda_gradient_is_exact_for_an_ill_conditioned_basis(monkeypatch):
+    # wide kernel + large basis: K_ZZ is numerically singular, the jitter matters. The training
+    # objective is lam/2 beta^T (K_ZZ + JITTER I) beta + ..., so d/dlog(lam) must include it.
+    monkeypatch.setattr("optimized_svm.subspace.JITTER", 1e-8)
+    x, _, t = make(90)
+    tr, va = np.arange(60), np.arange(60, 90)
+    basis = tr[choose_basis(len(tr), 60, seed=0)]
+    blocks = [[0], [1], [2]]
+    theta = np.r_[np.log(1e-4), np.full(3, np.log(0.03))]
+    tight = {"tol": 1e-26, "max_steps": 200}
+
+    def f(th):
+        xs = scale_features(x, np.exp(th[1:]), blocks)
+        r = fold_error_and_gradient_subspace(
+            xs[tr], t[tr], np.ones(len(tr)), xs[basis], xs[va], t[va],
+            SquaredLoss(), SmoothAbsoluteValidation(), float(np.exp(th[0])), blocks, tight,
+        )  # fmt: skip
+        return r.error, r.gradient
+
+    grad = f(theta)[1]
+    eps = 1e-4
+    fd = np.array(
+        [(f(theta + eps * e)[0] - f(theta - eps * e)[0]) / (2 * eps) for e in np.eye(theta.size)]
+    )
+    np.testing.assert_allclose(grad[0], fd[0], rtol=2e-6)
+    np.testing.assert_allclose(grad[1:3], fd[1:3], rtol=1e-3)
