@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 – 2026-11-17
 
 ### Added
 - `multi_class="softmax"` for `SmoothSVC` and `OptimizedSVC` (default `"ovr"`, unchanged): one joint

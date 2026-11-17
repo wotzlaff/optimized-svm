@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.0 – 2026-11-17
+
+### Added
+- `multi_class="softmax"` for `SmoothSVC` and `OptimizedSVC` (default `"ovr"`, unchanged): one joint
+  multinomial (soft-max) model for more than two classes (thesis Sec. 5.1) with a decision function per
+  class, common `lam` and scalings, trained by a dense Newton method (`optimized_svm.multiclass`). Needs
+  `loss="logistic"`; `predict_proba` returns the soft-max probabilities. The optimiser tunes `lam` and the
+  scalings with exact hypergradients of the cross-validation multinomial negative log-likelihood
+  (`cv_error_and_gradient_multiclass`, with `n_jobs` and warm starts). Cost is `O((r n)^3)` per step (a
+  `UserWarning` above `r n = 4000`); every training fold must contain all classes. With two classes the
+  binary logistic model with `lam / 2` is used (the same model). See the new theory page and example.
+- `optimized_svm.hypergradient.run_folds`: shared serial/parallel fold runner behind `n_jobs`.
+- `n_jobs` parameter of `OptimizedSVC`, `OptimizedSVR`, `OptimizedKernelGLMRegressor` and
+  `cv_error_and_gradient`: trains the cross-validation folds in parallel threads (scikit-learn
+  semantics, `None`/1 serial, -1 all cores); the BLAS threads are divided among the workers. Results equal
+  the serial ones up to floating-point rounding (the BLAS thread count differs). The gain is largest when
+  SMO dominates (classification); for large Newton-dominated problems the serial run already uses
+  multithreaded BLAS, and memory grows with the number of parallel folds. Uses `joblib`
+  (a dependency of scikit-learn).
+
+### Fixed
+- Subspace hypergradient: the derivative w.r.t. `log lam` ignored the jitter of the basis kernel
+  (`lam/2 beta^T (K_ZZ + JITTER I) beta`), so it was only accurate to ~1e-5 (default jitter) up to
+  ~1e-3 for ill-conditioned `K_ZZ` (wide kernel, large basis, small `lam`). It is now computed exactly
+  in the Cholesky coordinates; the scaling components were not affected.
+
 ## 0.4.0 – 2026-11-16
 
 ### Added

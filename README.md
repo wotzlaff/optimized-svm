@@ -39,6 +39,8 @@ followed by a semismooth Newton method on the smoothed primal problem.
   negative binomial (dispersion tuned by the hypergradient), Gamma and Tweedie families, offsets/exposure
   and a D² score
 - scikit-learn CV splitters with `groups` (e.g. `LeaveOneGroupOut`)
+- multi-class soft-max model (`multi_class="softmax"`, one joint model with common hyperparameters)
+- parallel cross-validation folds (`n_jobs`)
 
 ## Installation
 
