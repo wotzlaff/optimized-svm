@@ -68,6 +68,27 @@ def test_bound_aware_stopping_is_passed_to_smo(data):
         train(prob, {"stopping": "nope"})
 
 
+@pytest.mark.skipif(
+    "working_set_size" not in (smo_solver.solve_classification.__text_signature__ or ""),
+    reason="requires the development version of smo-solver with block working sets",
+)
+def test_block_working_sets_in_two_stage_training(data):
+    x, y, t, _ = data
+    for loss, target, bound in [
+        (HingeLoss(smoothing=0.4), y, None),
+        (EpsilonInsensitiveLoss(0.05, 0.2), t, 6.0),
+    ]:
+        prob = TrainingProblem(0.6 * x, target, loss, 0.02, max_asum=bound)
+        reference = train(prob)
+        for size in (4, 8):
+            sol = train(prob, {"working_set_size": size})
+            assert sol.residual < 1e-12
+            np.testing.assert_allclose(sol.ka + sol.b, reference.ka + reference.b, atol=2e-6)
+            assert abs(sol.a.sum()) < 1e-9
+            if bound is not None:
+                assert prob.sign @ sol.a <= bound + 1e-9
+
+
 def test_rough_smo_stage_has_a_step_budget(data, monkeypatch):
     import optimized_svm.training as training
 

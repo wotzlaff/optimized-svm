@@ -2,7 +2,16 @@
 
 ## Unreleased
 
+### Fixed
+- Recheck the 1-norm constraint after Newton refinement: a rough or projected SMO warm start
+  can report a zero multiplier even when the final constraint must be active. Newton now
+  restarts on the correct active branch instead of returning an infeasible dual solution and
+  a warm-start-dependent CV error. Newton step counts include the refinement restarts.
+
 ### Added
+- Pass `working_set_size` through `smo_options` to the development version of `smo-solver`:
+  jointly solved blocks of 2–64 dual variables (default 2). Larger blocks are optional;
+  the rough SMO budget counts outer iterations, not pair-equivalent work.
 - Exact maximal margin classification (`loss="hard_margin"`) and hard epsilon-SVR
   (`loss="hard_epsilon_insensitive"`), thesis Sec. 4.1.2/4.2.3: indicator losses, dense constrained
   training with feasibility/KKT checks and explicit errors for contradictory data; scalar or

@@ -14,6 +14,20 @@ By default SMO stops when the violation measure is at most `ROUGH_SMO_TOL = 0.3`
 accurate SMO solution (tolerance $10^{-6}$, no budget) is computed instead. Passing `tol` or
 `max_steps` in `smo_options` replaces these defaults.
 
+The rough iterate does not determine the final activity of the dual 1-norm bound. After
+Newton refinement, training rechecks the bound and restarts with the active bordered system
+if an initially inactive solve exceeds it. A negative multiplier instead triggers an inactive
+solve. This matters particularly for projected warm starts just inside the constraint face.
+
+The development solver also supports `smo_options={"working_set_size": 4}` (up to 64),
+which jointly optimizes several dual variables per outer step. The default remains 2;
+the rough-stage budget still counts outer steps, so it gives larger blocks more work.
+In a small complete HPO comparison (n = 180, three folds), blocks 4/8 reduced an active-bound
+ν-SVR fit from 0.450 s to 0.306/0.270 s; SVC stayed at about 0.23 s. CV errors agreed to
+roundoff after the activity correction. These measurements do not replace the broader
+switching study below. Scripts and raw records are in the sibling `smo-solver` repository,
+`benchmarks/block_hpo.py` and `benchmarks/results/block_hpo.csv`.
+
 ## Findings
 
 Total time of one training (SMO plus Newton) for tolerances from $10^{-3}$ to "no SMO", on

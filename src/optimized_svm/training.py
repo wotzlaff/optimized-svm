@@ -183,6 +183,7 @@ _SMO_OPTIONS = {
     "max_steps",
     "time_limit",
     "working_set",
+    "working_set_size",
     "two_sided",
     "stopping",
     "rho",
@@ -303,9 +304,27 @@ def train(
     else:
         try:
             sol = newton(prob, a, b, c, **(newton_options or {}))
-            if prob.max_asum is not None and sol.c < 0.0:
-                # the constraint is inactive at the solution: solve without it
-                sol = newton(prob, sol.a, sol.b, 0.0, **(newton_options or {}))
+            newton_steps = sol.newton_steps
+            # A rough SMO iterate does not reliably identify whether the norm bound is
+            # active. In particular, warm-start projection can leave it just inside the
+            # face with c = 0. Certify the branch after Newton, not at the warm start.
+            for _ in range(3):
+                if prob.max_asum is None:
+                    break
+                excess = float(prob.sign @ sol.a) - prob.max_asum
+                if sol.c < 0.0:
+                    next_c = 0.0
+                elif sol.c == 0.0 and excess > 1e-8 * max(1.0, prob.max_asum):
+                    # A positive starting multiplier selects the active bordered system;
+                    # Newton determines its value, rather than fixing it to this seed.
+                    next_c = 1e-6
+                else:
+                    break
+                sol = newton(prob, sol.a, sol.b, next_c, **(newton_options or {}))
+                newton_steps += sol.newton_steps
+            else:
+                raise ConvergenceError("Newton could not identify the norm-constraint active set")
+            sol.newton_steps = newton_steps
         except ConvergenceError:
             # fall back to an accurate SMO solution (exact for quadratic smoothing)
             smo_options["tol"] = 1e-6

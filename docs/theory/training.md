@@ -52,6 +52,13 @@ bound-aware stopping criterion of Sec. 7.6, `smo_options={"stopping": "bound_awa
 SMO runs to the rough tolerance `tol = 0.3` or for at most five steps per loss term; see
 [Switching from SMO to Newton](switching.md) for the reasons.
 
+With the development version of `smo-solver`, `smo_options={"working_set_size": 4}`
+uses a joint block QP instead of a two-variable SMO step; sizes from 2 to 64 are supported.
+The default remains 2. Larger blocks can reduce zig-zagging for small lambda and an active
+1-norm bound, but each outer iteration costs more. The SMO step budget counts outer iterations,
+so a block iteration is not comparable in work to one pair step. Newton refinement still
+determines the final accuracy. These options do not apply to the direct hard-constraint solver.
+
 For non-smooth losses ($\delta = 0$) only SMO is used; for losses without an SMO formulation
 (squared, logistic, Poisson) Newton starts at $a = 0$ with the loss-specific bias `loss.initial_bias(terms)` (e.g. the weighted
 mean of $y$ for the squared loss, $\log(\sum_i w_i y_i / \sum_i w_i e^{o_i})$ for the Poisson loss).
