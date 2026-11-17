@@ -46,6 +46,7 @@ def train_hard(prob: TrainingProblem) -> Solution:
         nonzero = eig > threshold
         basis = vec[:, nonzero] * np.sqrt(eig[nonzero])
     loss = prob.loss
+    targets: NDArray[np.float64]
     if isinstance(loss, MaximalMarginLoss):
         signs = prob.y[keep]
         rows = np.arange(keep.size)
