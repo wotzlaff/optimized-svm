@@ -2,14 +2,21 @@
 
 ## Unreleased
 
+## 0.6.0 – 2026-11-17
+
 ### Fixed
+- Soft-max training and hypergradients use covariance-root SPD systems with class contrasts
+  instead of the ill-conditioned nonsymmetric LU formulation. Stable saturated-probability
+  derivatives, recomputed trial/final kernel products and checked linear solves remove the
+  observed singular-LU warnings without adding kernel jitter. Final factors are reused only
+  for exactly matching curvature; dense systems remain intended for moderate data sizes.
 - Recheck the 1-norm constraint after Newton refinement: a rough or projected SMO warm start
   can report a zero multiplier even when the final constraint must be active. Newton now
   restarts on the correct active branch instead of returning an infeasible dual solution and
   a warm-start-dependent CV error. Newton step counts include the refinement restarts.
 
 ### Added
-- Pass `working_set_size` through `smo_options` to the development version of `smo-solver`:
+- Pass `working_set_size` through `smo_options` to `smo-solver>=0.2.0`:
   jointly solved blocks of 2–64 dual variables (default 2). Larger blocks are optional;
   the rough SMO budget counts outer iterations, not pair-equivalent work.
 - Exact maximal margin classification (`loss="hard_margin"`) and hard epsilon-SVR

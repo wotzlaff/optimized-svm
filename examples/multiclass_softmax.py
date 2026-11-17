@@ -10,7 +10,7 @@
 # log-likelihood, and
 # `predict_proba` returns the soft-max probabilities directly.
 #
-# The soft-max model solves dense Newton systems of size `r * n` (cost `O((r n)^3)` per step), so
+# The soft-max model solves dense SPD systems of size `n * (r - 1)` (cost `O((r n)^3)` per step), so
 # it is
 # meant for a few thousand `r * n` at most. We compare both on the wine data (3 classes).
 

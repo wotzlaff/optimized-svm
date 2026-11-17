@@ -19,7 +19,7 @@ Newton refinement, training rechecks the bound and restarts with the active bord
 if an initially inactive solve exceeds it. A negative multiplier instead triggers an inactive
 solve. This matters particularly for projected warm starts just inside the constraint face.
 
-The development solver also supports `smo_options={"working_set_size": 4}` (up to 64),
+`smo-solver>=0.2.0` also supports `smo_options={"working_set_size": 4}` (up to 64),
 which jointly optimizes several dual variables per outer step. The default remains 2;
 the rough-stage budget still counts outer steps, so it gives larger blocks more work.
 In a small complete HPO comparison (n = 180, three folds), blocks 4/8 reduced an active-bound

@@ -314,15 +314,16 @@ class _SoftmaxModel:
         return multiclass_decision(xs, self.x, self.a, self.b, self.lam)
 
 
-#: warn if the dense Newton system of the soft-max model (size ``r * n``) exceeds this
+#: Conservative sample-class cost threshold for the dense soft-max solver.
 SOFTMAX_MAX_SIZE = 4000
 
 
 def _warn_softmax_cost(r: int, n: int) -> None:
     if r * n > SOFTMAX_MAX_SIZE:
         warnings.warn(
-            f"multi_class='softmax' solves dense Newton systems of size r * n = {r * n} "
-            f"(> {SOFTMAX_MAX_SIZE}, cost O((r n)^3) per step); this can be very slow and "
+            f"multi_class='softmax' solves dense SPD systems of size n * (r - 1) = {n * (r - 1)} "
+            f"(r * n = {r * n} > {SOFTMAX_MAX_SIZE}, cost O((r n)^3) per step); "
+            "this can be very slow and "
             "memory hungry, consider multi_class='ovr' or fewer samples",
             UserWarning,
             stacklevel=4,
@@ -397,7 +398,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         It needs ``loss="logistic"`` and no ``n_basis`` or ``max_asum``; ``predict_proba`` returns
         the soft-max probabilities (no normalisation of one-vs-rest sigmoids) and
         ``decision_function`` has shape ``(n, n_classes)``. The Newton systems are dense of size
-        ``r (n + 1)`` for ``r`` classes (cost ``O((r n)^3)`` per step; a ``UserWarning`` is issued
+        ``n (r - 1)`` for ``r`` classes (cost ``O((r n)^3)`` per step; a ``UserWarning`` is issued
         if ``r n > 4000``). With two classes the binary logistic model is used, which is the same
         model: soft-max with ``lam`` equals the binary model with ``lam / 2``, and the binary
         model with ``lam / 2`` is what is fitted (``lam`` keeps the soft-max meaning for any

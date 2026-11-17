@@ -45,8 +45,9 @@ def test_extreme_regularization_wide_kernel_and_zero_weights(lam, scale):
     x, y, w = data()
     x[2] = x[1]  # singular kernel, without altering the model with jitter
     prob = MulticlassProblem(scale * x, y, 3, lam, w)
-    precision = np.finfo(np.longdouble).eps < np.finfo(float).eps
-    sol = newton_multiclass(prob, tol=1e-24 if precision else 1e-12, max_steps=200)
+    # Check the advertised tolerance: duplicates/wide kernels can have a residual floor
+    # around 1e-17 even with extended accumulation, depending on NumPy/BLAS rounding.
+    sol = newton_multiclass(prob, tol=1e-12, max_steps=200)
     assert np.isfinite(prob.objective(sol.a, sol.b, sol.ka))
     assert np.all(np.isfinite(sol.t))
     assert sol.residual < 1e-12

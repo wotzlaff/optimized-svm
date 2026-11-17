@@ -52,7 +52,7 @@ bound-aware stopping criterion of Sec. 7.6, `smo_options={"stopping": "bound_awa
 SMO runs to the rough tolerance `tol = 0.3` or for at most five steps per loss term; see
 [Switching from SMO to Newton](switching.md) for the reasons.
 
-With the development version of `smo-solver`, `smo_options={"working_set_size": 4}`
+With `smo-solver>=0.2.0`, `smo_options={"working_set_size": 4}`
 uses a joint block QP instead of a two-variable SMO step; sizes from 2 to 64 are supported.
 The default remains 2. Larger blocks can reduce zig-zagging for small lambda and an active
 1-norm bound, but each outer iteration costs more. The SMO step budget counts outer iterations,

@@ -208,6 +208,17 @@ def smo_warm_start(
     loss: Any = prob.loss  # `smoothing`, `shift`, `epsilon` depend on the loss class
     if loss.smo_kind is None:
         return np.zeros(prob.size), loss.initial_bias(prob.terms), 0.0, 0
+    if "working_set_size" in options:
+        solver = (
+            smo_solver.solve_classification
+            if loss.smo_kind == "classification"
+            else smo_solver.solve_regression
+        )
+        signature = getattr(solver, "__text_signature__", "") or ""
+        if "working_set_size" not in signature:
+            if options["working_set_size"] != 2:
+                raise ValueError("block working sets require smo-solver>=0.2.0")
+            del options["working_set_size"]  # explicit default works with older backends
     common = dict(gamma=1.0, weights=prob.w, smoothing=loss.smoothing, max_asum=prob.max_asum)
 
     def run(start: Array | None) -> Any:

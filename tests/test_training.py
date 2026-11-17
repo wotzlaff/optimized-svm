@@ -89,6 +89,26 @@ def test_block_working_sets_in_two_stage_training(data):
                 assert prob.sign @ sol.a <= bound + 1e-9
 
 
+@pytest.mark.parametrize("regression", [False, True])
+def test_block_option_with_older_backend(data, monkeypatch, regression):
+    x, y, t, _ = data
+    name = "solve_regression" if regression else "solve_classification"
+    original = getattr(smo_solver, name)
+
+    def legacy(*args, **kwargs):
+        assert "working_set_size" not in kwargs
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(smo_solver, name, legacy)
+    loss = EpsilonInsensitiveLoss(0.1, 0.2) if regression else HingeLoss(smoothing=0.2)
+    prob = TrainingProblem(0.6 * x, t if regression else y, loss, 0.1)
+    expected = train(prob)
+    default = train(prob, {"working_set_size": 2})
+    np.testing.assert_allclose(default.ka + default.b, expected.ka + expected.b, atol=1e-8)
+    with pytest.raises(ValueError, match="smo-solver>=0.2.0"):
+        train(prob, {"working_set_size": 4})
+
+
 def test_rough_smo_stage_has_a_step_budget(data, monkeypatch):
     import optimized_svm.training as training
 

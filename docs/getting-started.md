@@ -1,5 +1,9 @@
 # Getting started
 
+The default training path supports `smo-solver>=0.1.2`. Optional joint block updates
+(`smo_options={"working_set_size": 4}`) require `smo-solver>=0.2.0`; an older backend
+reports this requirement explicitly. An explicit size of 2 works with either backend.
+
 ## Classification
 
 ```python
