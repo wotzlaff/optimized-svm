@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Exact maximal margin classification (`loss="hard_margin"`) and hard epsilon-SVR
+  (`loss="hard_epsilon_insensitive"`), thesis Sec. 4.1.2/4.2.3: indicator losses, dense constrained
+  training with feasibility/KKT checks and explicit errors for contradictory data; scalar or
+  per-sample epsilon in the low-level API. Positive lambda and positive weights leave predictions
+  unchanged; zero weights remove constraints. The estimators and CV API support local active-set
+  hypergradients for kernel scalings (and scalar epsilon in the low-level API); log-lambda derivative
+  is zero. No subspace, 1-norm constraint, offsets or SMO/Newton options for these losses. Added a
+  theory page and an executed hard/soft comparison example. Intended for moderate, well-conditioned
+  problems; active-set changes can be nondifferentiable.
 - `benchmarks/primal_first_order.py` (thesis Sec. 10.3.1–10.3.2): gradient descent and preconditioned gradient
   descent (Ch. 8.2/8.3) for the primal problem, implemented for this study only, against SMO; empirical error
   bound `‖F(z)‖ ≈ 0.98 ‖z − z*‖`. Neither method is competitive (SMO reaches the same distance about 24 times

@@ -17,7 +17,7 @@ Array = NDArray[np.float64]
 
 
 class ConvergenceError(RuntimeError):
-    """The Newton method could not find a descent step."""
+    """A training solver could not find or certify a numerical solution."""
 
 
 @dataclass
@@ -106,6 +106,8 @@ def newton(
     Requires a loss with (piecewise) second derivative. The 1-norm constraint is treated as
     active iff ``c > 0`` at the starting point.
     """
+    if prob.loss.hard:
+        raise ValueError("Newton derivatives are unavailable for indicator losses; use train")
     use_c = prob.max_asum is not None and c > 0.0
     if not use_c:
         c = 0.0
@@ -266,6 +268,7 @@ def train(
 ) -> Solution:
     """Two-step training: SMO warm start followed by Newton refinement.
 
+    Indicator losses use a direct constrained QP solver instead (see :mod:`optimized_svm.hard`).
     For non-smooth losses (``smoothing = 0``) the SMO solution is already exact; for losses
     without SMO formulation (squared, logistic, Poisson) Newton starts at ``a = 0`` with the
     loss-specific initial bias.
@@ -274,6 +277,12 @@ def train(
     ``ROUGH_SMO_STEPS`` steps per loss term, whichever comes first. Passing ``tol`` or
     ``max_steps`` in ``smo_options`` replaces these defaults (no step budget then).
     """
+    if prob.loss.hard:
+        from .hard import train_hard
+
+        if smo_options or newton_options:
+            raise ValueError("SMO/Newton options are not supported for hard constraints")
+        return train_hard(prob)
     smo_options = dict(smo_options or {})
     smooth = getattr(prob.loss, "smoothing", 1.0) > 0.0
     budgeted = False

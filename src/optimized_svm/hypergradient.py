@@ -26,7 +26,7 @@ from numpy.typing import NDArray
 
 from .kernels import Blocks, contract_gradient, n_blocks, rbf, scale_features
 from .linalg import blas_threads, parallel_section, solve_bordered
-from .losses import Loss
+from .losses import HardEpsilonInsensitiveLoss, Loss
 from .problem import TrainingProblem
 from .subspace import SubspaceFoldResult, fold_error_and_gradient_subspace
 from .training import Solution, train
@@ -113,8 +113,9 @@ def fold_error_and_gradient(
 
     # implicit part: adjoint system on terms with positive curvature
     dec = prob.decision(sol.b, sol.c, sol.ka)
-    h = prob.loss.d2(dec, prob.terms)
-    p = np.flatnonzero(h > 0.0)
+    hard = prob.loss.hard
+    h = np.zeros(prob.size) if hard else prob.loss.d2(dec, prob.terms)
+    p = sol.info["active"] if hard else np.flatnonzero(h > 0.0)
     if p.size > 0:
         p_samples, p_inv = np.unique(prob.terms.kernel_index[p], return_inverse=True)
         factor = sol.factor
@@ -122,7 +123,10 @@ def fold_error_and_gradient(
             # same curvature pattern as in the last Newton system: reuse its factorisation
             q, cho = None, factor.cho
         else:
-            q, cho = prob.kernel(p, p) * lam_inv + np.diag(1.0 / h[p]), None
+            q = prob.kernel(p, p) * lam_inv
+            if not hard:
+                q = q + np.diag(1.0 / h[p])
+            cho = None
         cols: list[Array] = [np.ones(p.size)]
         rhs0 = [d_err.sum()]
         if max_asum is not None and sol.c > 0.0:
@@ -130,7 +134,22 @@ def fold_error_and_gradient(
             rhs0.append(0.0)
         k_val_p = _kernel_columns(x_val, prob.x, k_val_sv, sv, p_samples)
         rhs = (k_val_p.T @ d_err)[p_inv] * lam_inv
-        u, _ = solve_bordered(q, np.stack(cols, axis=1), rhs, np.array(rhs0), cho)
+        if hard:
+            # A hard active set can contain duplicate/dependent constraints. A singular
+            # bordered system has no unique local sensitivity: report this explicitly.
+            assert q is not None
+            system = np.block(
+                [
+                    [prob.kernel(p, p), np.ones((p.size, 1))],
+                    [np.ones((1, p.size)), np.zeros((1, 1))],
+                ]
+            )
+            if np.linalg.cond(system) > 1e12:
+                raise ValueError("hard active set is degenerate; hypergradient is not unique")
+            adjoint = np.linalg.solve(system, np.r_[rhs * lam, rhs0])
+            u = adjoint[:-1]
+        else:
+            u, _ = solve_bordered(q, np.stack(cols, axis=1), rhs, np.array(rhs0), cho)
         # d ka_P / d log lam = -ka_P,  d ka_P / d log s_k = dK_{P,SV} a_SV / lam
         grad[0] += u @ sol.ka[p]
         u_samples = np.bincount(p_inv, weights=u, minlength=p_samples.size).astype(np.float64)
@@ -142,8 +161,14 @@ def fold_error_and_gradient(
         # loss parameters enter the optimality condition a + phi'(t; p) = 0 directly:
         # dE/dp = -u^T (d phi'/dp / phi'') on the terms with positive curvature
         for j, name in enumerate(loss_params):
-            ratio = loss.param_ratio(name, dec, prob.terms)[p]
+            ratio = (
+                np.sign(sol.a[p])
+                if hard and name == "epsilon"
+                else (loss.param_ratio(name, dec, prob.terms)[p])
+            )
             grad[1 + nb + j] = -float(u @ ratio) * float(getattr(loss, name))
+    if hard:
+        grad[0] = 0.0  # lambda rescales the norm objective only; the predictor is invariant
     # loss parameters that also enter the validation loss (e.g. the negative binomial
     # likelihood): direct term p dE/dp at fixed predictions
     for j, name in enumerate(loss_params):
@@ -244,6 +269,8 @@ def cv_error_and_gradient(
         if tuned:  # validation losses that share the tuned parameter use its current value
             validation = dataclasses.replace(cast(Any, validation), **tuned)
     weighted = validation.weighted
+    if basis is not None and loss.hard:
+        raise ValueError("hard constraints do not support a subspace basis")
     if basis is not None and (loss_params or max_asum is not None):
         raise ValueError("loss_params and max_asum are not supported with a subspace basis")
 
@@ -259,13 +286,17 @@ def cv_error_and_gradient(
                 w[val_idx] if weighted else None,
                 None if offset is None else offset[val_idx],
             )  # fmt: skip
+        fold_loss = loss
+        if isinstance(loss, HardEpsilonInsensitiveLoss) and np.ndim(loss.epsilon) == 1:
+            eps = loss.tolerances(y.size)
+            fold_loss = dataclasses.replace(loss, epsilon=eps[train_idx])
         return fold_error_and_gradient(
             xs[train_idx],
             y[train_idx],
             w[train_idx],
             xs[val_idx],
             y[val_idx],
-            loss,
+            fold_loss,
             validation,
             lam,
             blocks,

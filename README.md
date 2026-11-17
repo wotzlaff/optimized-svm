@@ -42,6 +42,10 @@ followed by a semismooth Newton method on the smoothed primal problem.
 - multi-class soft-max model (`multi_class="softmax"`, one joint model with common hyperparameters)
 - parallel cross-validation folds (`n_jobs`)
 
+Hard constraints from thesis Sec. 4.1.2/4.2.3 are also available as `loss="hard_margin"` and
+`loss="hard_epsilon_insensitive"` (unreleased): direct constrained training and local active-set
+hypergradients. See [the guide](docs/theory/hard-constraints.md) and [example](examples/hard_constraints.py).
+
 ## Installation
 
 ```bash

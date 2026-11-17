@@ -40,6 +40,8 @@ class Loss:
 
     #: whether the dual of this loss can be solved by ``smo_solver`` (as warm start)
     smo_kind: str | None = None
+    #: indicator losses need the constrained solver, not Newton derivatives
+    hard: bool = False
     #: whether the 1-norm constraint is meaningful (non-zero signs)
     signed: bool = False
 
@@ -431,3 +433,63 @@ class TweedieLoss(Loss):
 
     def initial_bias(self, terms: Terms) -> float:
         return _log_ratio_bias(terms)
+
+
+@dataclass(frozen=True)
+class MaximalMarginLoss(Loss):
+    """Indicator of ``y * t >= shift`` (maximal margin classifier, Sec. 4.1.2).
+
+    Positive weights leave the constraint unchanged; zero weights remove it. There are no
+    ordinary first/second derivatives: training and hypergradients use the active constraints.
+    """
+
+    shift: float = 1.0
+    hard = True
+
+    def terms(self, y: Array, w: Array) -> Terms:
+        _check_terms("MaximalMarginLoss", y, w)
+        if not np.isfinite(self.shift) or self.shift <= 0:
+            raise ValueError("MaximalMarginLoss: shift must be finite and positive")
+        if not np.all(np.isin(y, [-1.0, 1.0])):
+            raise ValueError("MaximalMarginLoss: labels must be -1 or +1")
+        return super().terms(y, w)
+
+    def value(self, t: Array, terms: Terms) -> Array:
+        return np.where((terms.w == 0) | (terms.y * t >= self.shift), 0.0, np.inf)
+
+
+@dataclass(frozen=True)
+class HardEpsilonInsensitiveLoss(Loss):
+    """Indicator of ``abs(t - y) <= epsilon`` (hard epsilon-SVR, Sec. 4.2.3).
+
+    ``epsilon`` is a non-negative scalar or one tolerance per sample. Positive weights do
+    not soften the tube; zero weights remove its constraint. Per-sample tolerances are
+    supported by :class:`TrainingProblem` and sliced automatically in cross-validation.
+    """
+
+    epsilon: float | Array = 0.1
+    hard = True
+
+    def tolerances(self, n: int) -> Array:
+        eps = np.asarray(self.epsilon, dtype=np.float64)
+        if eps.ndim > 1 or (eps.ndim == 1 and eps.size != n):
+            raise ValueError(f"epsilon must be a scalar or have shape ({n},)")
+        if not np.all(np.isfinite(eps)) or np.any(eps < 0):
+            raise ValueError("epsilon must be finite and non-negative")
+        return np.full(n, float(eps)) if eps.ndim == 0 else eps
+
+    def terms(self, y: Array, w: Array) -> Terms:
+        _check_terms("HardEpsilonInsensitiveLoss", y, w)
+        self.tolerances(y.size)
+        return super().terms(y, w)
+
+    def value(self, t: Array, terms: Terms) -> Array:
+        return np.where(
+            (terms.w == 0) | (np.abs(t - terms.y) <= self.tolerances(terms.size)), 0.0, np.inf
+        )
+
+    def param_ratio(self, name: str, t: Array, terms: Terms) -> Array:
+        # Used only to validate tunable names; the active-set derivative is computed directly.
+        if name == "epsilon" and np.ndim(self.epsilon) == 0:
+            return np.ones_like(t)
+        return super().param_ratio(name, t, terms)

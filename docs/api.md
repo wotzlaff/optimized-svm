@@ -24,6 +24,10 @@
 
 ::: optimized_svm.Solution
 
+## Hard-constraint training
+
+::: optimized_svm.hard
+
 ## Losses
 
 ::: optimized_svm.losses

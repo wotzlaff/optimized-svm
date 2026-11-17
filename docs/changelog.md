@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Exact maximal margin classification (`loss="hard_margin"`) and hard epsilon-SVR
+  (`loss="hard_epsilon_insensitive"`), thesis Sec. 4.1.2/4.2.3: indicator losses, dense constrained
+  training with feasibility/KKT checks and explicit errors for contradictory data; scalar or
+  per-sample epsilon in the low-level API. Positive lambda and positive weights leave predictions
+  unchanged; zero weights remove constraints. The estimators and CV API support local active-set
+  hypergradients for kernel scalings (and scalar epsilon in the low-level API); log-lambda derivative
+  is zero. No subspace, 1-norm constraint, offsets or SMO/Newton options for these losses. Added a
+  theory page and an executed hard/soft comparison example. Intended for moderate, well-conditioned
+  problems; active-set changes can be nondifferentiable.
+- `benchmarks/primal_first_order.py` (thesis Sec. 10.3.1–10.3.2): gradient descent and preconditioned gradient
+  descent (Ch. 8.2/8.3) for the primal problem, implemented for this study only, against SMO; empirical error
+  bound `‖F(z)‖ ≈ 0.98 ‖z − z*‖`. Neither method is competitive (SMO reaches the same distance about 24 times
+  faster in steps and orders of magnitude faster in time), so they are not part of the library.
+- `benchmarks/newton_vs_smo.py` (Sec. 10.3.3): Newton's method from zero, SMO to `1e-8` and the default
+  two-stage training over n = 100 … 40 000 and four λ. Newton needs a size-independent number of steps, its
+  time grows about like n²; SMO and the two-stage training are faster at every size.
+
 ## 0.5.0 – 2026-11-17
 
 ### Added

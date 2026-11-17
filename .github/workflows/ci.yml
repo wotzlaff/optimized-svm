@@ -38,7 +38,7 @@ jobs:
           uv run --no-sync python scripts/build_examples.py
           uv run --no-sync zensical build --clean --strict
           # Zensical silently skips unsupported plugins and missing pages: check the example pages
-          for f in quickstart ard_feature_relevance logistic_probabilities glm_counts low_level_api; do
+          for f in quickstart ard_feature_relevance logistic_probabilities glm_counts multiclass_softmax hard_constraints low_level_api; do
             test -f "site/examples/$f/index.html" || { echo "missing example page $f"; exit 1; }
           done
       - uses: actions/upload-pages-artifact@v3

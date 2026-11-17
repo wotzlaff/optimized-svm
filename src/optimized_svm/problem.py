@@ -37,13 +37,23 @@ class TrainingProblem:
         max_asum: float | None = None,
         offset: Array | None = None,
     ) -> None:
-        if lam <= 0:
+        if not np.isfinite(lam) or lam <= 0:
             raise ValueError(f"lam must be positive, got {lam}")
         if max_asum is not None and not loss.signed:
             raise ValueError(f"max_asum is not supported for {type(loss).__name__}")
+        if loss.hard and offset is not None:
+            raise ValueError("offset is not supported for hard constraints")
         self.x = np.ascontiguousarray(x, dtype=np.float64)
         self.y = np.asarray(y, dtype=np.float64)
         self.w = np.ones_like(self.y) if weights is None else np.asarray(weights, dtype=np.float64)
+        if loss.hard and (
+            self.x.ndim != 2
+            or self.y.shape != (self.x.shape[0],)
+            or self.w.shape != self.y.shape
+            or not np.all(np.isfinite(self.x))
+            or not np.all(np.isfinite(self.w))
+        ):
+            raise ValueError("hard constraints require finite x and weights with matching shapes")
         self.loss = loss
         self.lam = float(lam)
         self.max_asum = max_asum

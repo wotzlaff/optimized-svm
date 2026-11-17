@@ -38,9 +38,11 @@ from .losses import (
     BinomialLoss,
     EpsilonInsensitiveLoss,
     GammaLoss,
+    HardEpsilonInsensitiveLoss,
     HingeLoss,
     LogisticLoss,
     Loss,
+    MaximalMarginLoss,
     NegativeBinomialLoss,
     PoissonLoss,
     SquaredLoss,
@@ -143,7 +145,7 @@ class _SmoothBase(BaseEstimator):
         raise NotImplementedError
 
     def _check_params(self) -> None:
-        if not isinstance(self.lam, Real) or self.lam <= 0:
+        if not isinstance(self.lam, Real) or not np.isfinite(float(self.lam)) or self.lam <= 0:
             raise ValueError(f"lam must be positive, got {self.lam!r}")
         if not isinstance(self.smoothing, Real) or self.smoothing < 0:
             raise ValueError(f"smoothing must be non-negative, got {self.smoothing!r}")
@@ -166,6 +168,8 @@ class _SmoothBase(BaseEstimator):
         mode = self.n_basis
         if mode is None:
             return None
+        if self._loss().hard:
+            raise ValueError("n_basis is not supported for hard constraints")
         if self.max_asum is not None:
             raise ValueError("n_basis is not supported together with max_asum")
         if getattr(self._loss(), "smoothing", 1.0) <= 0.0:
@@ -371,15 +375,18 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
     Parameters
     ----------"""
         + _SMOOTH_DOC
-        + """    loss : {"hinge", "logistic"}
+        + """    loss : {"hinge", "logistic", "hard_margin"}
         ``hinge``: smoothed hinge loss, trained by SMO + Newton, sparse solution. ``logistic``:
         logistic loss (Strasdat, Sec. 4.1.3), trained by Newton's method only; the solution is
         dense and every Newton system has the full size ``n``. It enables
         :meth:`predict_proba` (``sigmoid`` of the decision values, normalised for more than two
         classes) and does not support ``max_asum``; ``smoothing``, ``degree`` and ``shift`` are
         ignored.
+        ``hard_margin`` imposes ``y f >= shift`` directly (Sec. 4.1.2); positive ``lam`` and
+        weights do not change the predictor. Dense constrained training;
+        see the hard-constraints theory guide.
     shift : float
-        Margin of the hinge loss.
+        Margin of the hinge or hard-margin loss.
     class_weight : "balanced", dict or None
         Per-class weights multiplied with ``sample_weight``.
     multi_class : {"ovr", "softmax"}
@@ -433,6 +440,8 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         self.newton_options = newton_options
 
     def _loss(self) -> Loss:
+        if self.loss == "hard_margin":
+            return MaximalMarginLoss(self.shift)
         if self.loss == "hinge":
             return HingeLoss(self.shift, self.smoothing, self.degree)
         if self.loss == "logistic":
@@ -475,7 +484,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         return _ovr_proba(self, X)
 
 
-_CLASSIFICATION_LOSSES = ("hinge", "logistic")
+_CLASSIFICATION_LOSSES = ("hinge", "logistic", "hard_margin")
 
 
 def _fit_one_vs_rest(
@@ -596,7 +605,13 @@ def _weights(sample_weight: ArrayLike | None, x: Array) -> Array:
     return w
 
 
-_REGRESSION_LOSSES = ("epsilon_insensitive", "squared", "poisson", "approx_poisson")
+_REGRESSION_LOSSES = (
+    "epsilon_insensitive",
+    "squared",
+    "poisson",
+    "approx_poisson",
+    "hard_epsilon_insensitive",
+)
 
 
 class SmoothSVR(RegressorMixin, _SmoothBase):
@@ -606,9 +621,13 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
     Parameters
     ----------"""
         + _SMOOTH_DOC
-        + """    loss : {"epsilon_insensitive", "squared", "poisson", "approx_poisson"}
+        + """    loss : str
+        One of ``"epsilon_insensitive"``, ``"squared"``, ``"poisson"``, ``"approx_poisson"``
+        or ``"hard_epsilon_insensitive"``.
         ``epsilon_insensitive``: smoothed epsilon-SVR; ``squared``: LS-SVM; ``poisson``:
         Poisson regression with log link (predictions are ``exp(f)``).
+        ``hard_epsilon_insensitive`` imposes a strict tube (Sec. 4.2.3); positive ``lam`` and
+        weights do not change the predictor. Dense constrained training.
     epsilon : float
         Width of the insensitive tube (in normalised units if ``normalize_y``).
     normalize_y : bool
@@ -649,6 +668,12 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
         self.newton_options = newton_options
 
     def _loss(self) -> Loss:
+        if self.loss == "hard_epsilon_insensitive":
+            if np.ndim(self.epsilon) != 0:
+                raise ValueError(
+                    "estimators require scalar epsilon; use TrainingProblem for arrays"
+                )
+            return HardEpsilonInsensitiveLoss(self.epsilon)
         if self.loss == "epsilon_insensitive":
             return EpsilonInsensitiveLoss(self.epsilon, self.smoothing, self.degree)
         if self.loss == "squared":
@@ -662,7 +687,9 @@ class SmoothSVR(RegressorMixin, _SmoothBase):
     def _label_mode(self) -> str:
         if not self.normalize_y or self.loss in ("poisson", "approx_poisson"):
             return "none"
-        return "median" if self.loss == "epsilon_insensitive" else "mean"
+        return (
+            "median" if self.loss in ("epsilon_insensitive", "hard_epsilon_insensitive") else "mean"
+        )
 
     def fit(self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None) -> SmoothSVR:
         self._check_params()
@@ -1218,9 +1245,11 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
     def _validation(self) -> ValidationLoss:
         kind = self.validation
         if kind is None:
-            kind = {"epsilon_insensitive": "absolute", "squared": "squared"}.get(
-                self.loss, "poisson"
-            )
+            kind = {
+                "epsilon_insensitive": "absolute",
+                "hard_epsilon_insensitive": "absolute",
+                "squared": "squared",
+            }.get(self.loss, "poisson")
         if kind == "absolute":
             return SmoothAbsoluteValidation(self.validation_smoothing)
         if kind == "squared":

@@ -15,6 +15,7 @@ nav = [
   { "Background" = [
     { "Training problem" = "theory/training.md" },
     { "Switching from SMO to Newton" = "theory/switching.md" },
+    { "Hard constraints" = "theory/hard-constraints.md" },
     { "GLM losses" = "theory/glm.md" },
     { "Hyperparameter gradients" = "theory/hypergradient.md" },
     { "Subspace SVM" = "theory/subspace.md" },
@@ -26,6 +27,7 @@ nav = [
     { "Class probabilities (logistic loss)" = "examples/logistic_probabilities.md" },
     { "Count data with exposure (GLM)" = "examples/glm_counts.md" },
     { "Multi-class: one-vs-rest or soft-max" = "examples/multiclass_softmax.md" },
+    { "Hard constraints" = "examples/hard_constraints.md" },
     { "Low-level API" = "examples/low_level_api.md" },
   ] },
   { "Reproducing the thesis" = "reproduction.md" },
