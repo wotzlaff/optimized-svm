@@ -43,9 +43,34 @@ J = \begin{pmatrix} I + HM & HE \\ E^\top H M & E^\top H E + \rho \mathbf{1}\mat
 \qquad (HM)_{(ik),(jl)} = (H_i)_{kl} M_{ij},
 $$
 
-where $E$ stacks $r\times r$ identities. $J$ is nonsymmetric but nonsingular and dense of size
-$r(n+1)$; a backtracking line search on the (penalised) objective globalises the iteration, with the
-preconditioned gradient as a fallback direction.
+where $E$ stacks $r\times r$ identities. The nonsymmetric $J$ is kept as a mathematical
+reference, but is no longer factorized by LU. That product formulation can become severely
+ill-conditioned at small $\lambda$, especially when probabilities saturate.
+
+Let $C\in\mathbb{R}^{r\times(r-1)}$ be orthonormal class contrasts, $C^\top\mathbf{1}=0$,
+and factor each categorical covariance in this subspace as $H_i=R_iR_i^\top$.
+With block-diagonal $R$, factor the symmetric positive definite matrix
+
+$$
+S=I+R^\top M R.
+$$
+
+Its eigenvalues are at least one for a positive semidefinite kernel. The bias is solved with
+the small Schur complement $P^\top S^{-1}P$, where $P=R^\top E C$. The common bias direction
+is handled analytically by the gauge penalty. No inverse or diagonal jitter of $K$ is needed;
+duplicate samples and zero individual sample weights remain supported. Every class must have
+positive total training weight; otherwise it has no finite bias optimum. A singular bias Schur
+complement raises an explicit linear-algebra error rather than producing a non-finite gradient.
+
+Backtracking on the same penalised objective globalises the iteration, with a preconditioned
+gradient fallback if a Newton system cannot be solved. Solves check backward residuals in the
+original $J$ equations. Covariance diagonals and target-class loss derivatives use sums of
+non-target probabilities, preserving tiny probabilities when the target probability rounds to
+one. Kernel products are recomputed at trial points; for $\lambda<10^{-5}$ they use NumPy
+extended accumulation before division. This changes no kernel or objective. The extra precision
+is platform dependent (`longdouble` equals ordinary double on some platforms, including Windows);
+very ill-conditioned kernels still impose a floating-point accuracy floor. The reported final
+residual is recomputed from the returned coefficients and predictions.
 
 ## Hypergradient
 
@@ -60,12 +85,15 @@ J^\top z = \begin{pmatrix} K_{vt}^\top e/\lambda \\ e^\top\mathbf{1}\end{pmatrix
 $$
 
 with $\partial T/\partial\log\lambda = -KA/\lambda$ and $\partial T/\partial\log s_k = (\partial_{s_k}K)\,A/\lambda$
-at fixed $A$. The LU factorisation of $J$ from the last Newton step could be reused; the code
-refactorises once per fold and evaluation.
+at fixed $A$. The same covariance-root factors solve the adjoint directly for
+$u=H(z_a+Ez_b)$, without forming $J^\top$. A factor from the last Newton direction is reused
+only when its curvature equals the final curvature exactly; otherwise the final system is
+factorized once. The bias gauge has no hyperparameter derivative.
 
 ## Cost
 
-One Newton step costs $O((rn)^3)$ and the system needs $O((rn)^2)$ memory, per fold. The model is meant
+The SPD system has size $n(r-1)$, plus an $(r-1)$-dimensional bias solve. One Newton step
+still costs $O((rn)^3)$ and needs $O((rn)^2)$ memory, per fold. The model is meant
 for $rn$ up to a few thousand; a `UserWarning` is issued if $r\cdot n_{\text{train fold}} > 4000$. Use
 `n_jobs` to train the folds in parallel (memory grows with the number of parallel folds) or one-vs-rest
 for larger problems. Every training fold must contain all classes (a `ValueError` is raised otherwise;

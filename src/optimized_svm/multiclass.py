@@ -8,35 +8,27 @@ the multi-class analogue of the binary ``t = K a / lam + b``, and minimises
 
     sum_k a_k^T K a_k / (2 lam) + sum_i w_i (logsumexp(T_i) - T_{i, y_i}).
 
-Identifiability. The soft-max loss is invariant under ``T_i -> T_i + c_i 1``. Stationarity in
-``A`` gives ``A = -G`` with ``G_ik = w_i (p_ik - [k = y_i])``, whose rows sum to zero, so
-``sum_k a_k = 0`` holds at every solution without a constraint (and exactly after one full Newton
-step). The unregularised biases are determined only up to a common constant (Hessian singular
-along ``(0, 1)``); it is fixed by ``sum_k b_k = 0``, enforced by the penalty
-``rho/2 (1^T b)^2`` (``rho = mean(w)``), which vanishes at the solution. This keeps the
-Hessian of the penalised objective positive definite, leaves ``A`` and the decision differences
-untouched and has no dependence on the hyperparameters, so the hypergradient needs no extra
-term. Adding a function ``c`` of the RKHS to all classes changes the regulariser, so the ``A``
-block has no further redundancy (``K`` is positive definite for distinct points).
+Identifiability. The common class direction is removed with orthonormal Helmert contrasts.
+Biases are centred; the equivalent hyperparameter-independent gauge penalty
+``rho/2 (1^T b)^2`` (``rho = mean(w)``) is retained in the objective/stationarity API.
+The canonical representer coefficients satisfy ``A = -G`` and hence have zero row sums.
 
-Newton method. Newton is applied to the stationarity equations ``F(A, b) = 0``,
+Newton and hypergradient. The stationarity Jacobian is the nonsymmetric matrix
 
-    F_a = A + G(T),            F_b = sum_i G_i + rho (1^T b) 1,
+    J = [[ I + H M , H E ], [ E^T H M , E^T H E + rho 1 1^T ]],
 
-(the gradient is ``(M F_a, F_b)`` with ``M = K / lam``; the Newton step is the same). With the
-per-sample Hessian ``H_i = w_i (diag p_i - p_i p_i^T)`` the Jacobian is
+with ``M = K / lam`` and block-diagonal categorical covariances ``H``. It is not
+factorized directly: use covariance roots ``H = R R^T`` in the class contrasts and
+factor the symmetric positive definite ``S = I + R^T M R`` (smallest eigenvalue >= 1),
+then the small centred-bias Schur complement. The same factors solve the adjoint and
+produce ``H (z_a + E z_b)`` directly. No inverse, eigenvalue truncation or jitter of K
+is needed; duplicate samples and zero individual sample weights remain supported.
+The dense system has size ``n (r - 1)`` and still costs cubic time.
 
-    J = [[ I + H M ,  H E ], [ E^T H M ,  E^T H E + rho 1 1^T ]],
-    (H M)_{(ik),(jl)} = H_i[k,l] M_ij.
+The factor can be reused for the adjoint if its curvature exactly matches the final
+iterate. Linear solves check backward residuals in the original stationarity equations.
+Validation hypergradients are contracted with kernel derivatives as before.
 
-``J`` is nonsymmetric but nonsingular, a dense system of size ``r (n + 1)``; one step costs
-``O((r n)^3)``, so the module is meant for ``r n`` up to a few thousand.
-
-Hypergradient. ``dE/dtheta`` for the validation loss ``E(T_val)`` with ``e = dE/dT_val``:
-the explicit part uses ``T_val = K_vt A / lam + 1 b^T`` at fixed ``(A, b)``; the implicit part
-solves the adjoint system ``J^T lam_adj = [K_vt^T e / lam; e^T 1]`` once per fold and gives
-``-sum_i (lam_a,i + lam_b)^T H_i dT_i/dtheta`` with ``dT/dlog lam = -K A / lam`` and
-``dT/dlog s_k = (dK_k A) / lam`` (all at fixed ``A``).
 """
 
 from __future__ import annotations
@@ -48,14 +40,39 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.linalg import lu_factor, lu_solve
+from scipy.linalg import cho_factor, cho_solve
 from scipy.special import logsumexp, softmax
 
 from .hypergradient import Fold, run_folds
 from .kernels import Blocks, contract_gradient, n_blocks, rbf, scale_features
+from .linalg import _limit
 from .training import ConvergenceError
 
 Array = NDArray[np.float64]
+
+
+def _kernel_product(k: Array, a: Array, lam: float) -> Array:
+    """Accumulate before dividing, with extra precision for tiny regularization.
+
+    Oppositely labelled duplicate samples can have O(1) coefficients that cancel
+    to O(lambda). Ordinary BLAS summation otherwise magnifies its rounding error
+    by 1/lambda. Extended accumulation changes no kernel or objective.
+    """
+    if lam < 1e-5:
+        return np.asarray(
+            np.asarray(k, dtype=np.longdouble)
+            @ np.asarray(a, dtype=np.longdouble)
+            / np.longdouble(lam),
+            dtype=np.float64,
+        )
+    return k @ a / lam
+
+
+def _nll(t: Array, y: NDArray[np.intp]) -> Array:
+    """Log loss without cancellation when the target probability is almost one."""
+    differences = t - t[np.arange(t.shape[0]), y, None]
+    differences[np.arange(t.shape[0]), y] = -np.inf
+    return np.logaddexp(0.0, logsumexp(differences, axis=1))
 
 
 def initial_bias(y: NDArray[np.intp], w: Array, n_classes: int) -> Array:
@@ -71,7 +88,7 @@ class MulticlassProblem:
     def __init__(
         self, x: Array, y: Array, n_classes: int, lam: float, w: Array | None = None
     ) -> None:
-        if lam <= 0:
+        if not np.isfinite(lam) or lam <= 0:
             raise ValueError(f"lam must be positive, got {lam}")
         self.x = np.ascontiguousarray(x, dtype=np.float64)
         self.y = np.asarray(y).astype(np.intp)
@@ -80,6 +97,17 @@ class MulticlassProblem:
         self.r = int(n_classes)
         self.lam = float(lam)
         self.w = np.ones(self.y.size) if w is None else np.asarray(w, dtype=np.float64)
+        if (
+            self.x.ndim != 2
+            or self.y.shape != (self.x.shape[0],)
+            or self.w.shape != self.y.shape
+            or not np.all(np.isfinite(self.x))
+            or not np.all(np.isfinite(self.w))
+            or np.any(self.w < 0)
+        ):
+            raise ValueError("soft-max needs finite features and nonnegative matching weights")
+        if np.any(np.bincount(self.y, weights=self.w, minlength=self.r) == 0):
+            raise ValueError("every soft-max class needs positive total training weight")
         self.k = rbf(self.x, self.x)
         self.rho = float(self.w.mean())
 
@@ -89,16 +117,18 @@ class MulticlassProblem:
 
     def decision(self, a: Array, b: Array) -> tuple[Array, Array]:
         """``(K A / lam, K A / lam + 1 b^T)``."""
-        ka = self.k @ a / self.lam
+        ka = _kernel_product(self.k, a, self.lam)
         return ka, ka + b
 
     def loss(self, t: Array) -> float:
-        return float(self.w @ (logsumexp(t, axis=1) - t[np.arange(self.n), self.y]))
+        return float(self.w @ _nll(t, self.y))
 
     def gradient(self, t: Array) -> Array:
         """``G_ik = w_i (p_ik - [k = y_i])`` (derivative of the loss w.r.t. ``T``)."""
         g = softmax(t, axis=1)
-        g[np.arange(self.n), self.y] -= 1.0
+        idx = np.arange(self.n)
+        g[idx, self.y] = 0.0
+        g[idx, self.y] = -g.sum(axis=1)
         return self.w[:, None] * g
 
     def curvature(self, t: Array) -> Array:
@@ -106,7 +136,8 @@ class MulticlassProblem:
         p = softmax(t, axis=1)
         h = -p[:, :, None] * p[:, None, :]
         idx = np.arange(self.r)
-        h[:, idx, idx] += p
+        h[:, idx, idx] = 0.0
+        h[:, idx, idx] = -h.sum(axis=2)
         return self.w[:, None, None] * h
 
     def objective(self, a: Array, b: Array, ka: Array) -> float:
@@ -131,6 +162,110 @@ class MulticlassProblem:
         return jac
 
 
+def _contrasts(r: int) -> Array:
+    """Orthonormal Helmert contrasts, perpendicular to the common class direction."""
+    c = np.zeros((r, r - 1))
+    for j in range(r - 1):
+        scale = np.sqrt((j + 1) * (j + 2))
+        c[: j + 1, j] = 1.0 / scale
+        c[j + 1, j] = -(j + 1) / scale
+    return c
+
+
+@dataclass
+class SoftmaxFactorization:
+    """Covariance-root SPD reduction of the stationarity Jacobian.
+
+    With block-diagonal ``R`` such that ``H = R R.T``, factor
+    ``S = I + R.T M R`` and its small centred-bias Schur complement. No inverse
+    or jitter of the kernel is needed, including with duplicate samples.
+    """
+
+    h: Array
+    m: Array
+    c: Array
+    root: Array
+    cho: Any
+    bias_columns: Array
+    bias_solutions: Array
+    bias_cho: Any
+    rho: float
+
+    @classmethod
+    def build(cls, prob: MulticlassProblem, h: Array) -> SoftmaxFactorization:
+        n, r = prob.n, prob.r
+        c = _contrasts(r)
+        reduced = np.einsum("ka,ikl,lb->iab", c, h, c)
+        values, vectors = np.linalg.eigh(reduced)
+        # Only discard roundoff-negative covariance eigenvalues, never kernel directions.
+        root = np.einsum("ka,iab->ikb", c, vectors * np.sqrt(np.maximum(values, 0))[:, None, :])
+        m = prob.k / prob.lam
+        size = n * (r - 1)
+        system = np.einsum("ika,jkb,ij->iajb", root, root, m).reshape(size, size)
+        system.flat[:: size + 1] += 1.0
+        columns = np.einsum("ika,kb->iab", root, c).reshape(size, r - 1)
+        with _limit(size):
+            cho = cho_factor(system, lower=True)
+            solutions = cho_solve(cho, columns)
+            schur = columns.T @ solutions
+            bias_cho = cho_factor((schur + schur.T) * 0.5, lower=True)
+        return cls(h.copy(), m, c, root, cho, columns, solutions, bias_cho, prob.rho)
+
+    def _root_t(self, a: Array) -> Array:
+        return np.einsum("ika,ik->ia", self.root, a).ravel()
+
+    def _root(self, z: Array) -> Array:
+        return np.einsum("ika,ia->ik", self.root, z.reshape(self.root.shape[0], -1))
+
+    def solve(self, rhs_a: Array, rhs_b: Array) -> tuple[Array, Array]:
+        """Solve the original, nonsymmetric ``J d = rhs`` through SPD systems."""
+        with _limit(self.bias_columns.shape[0]):
+            z = cho_solve(self.cho, self._root_t(self.m @ rhs_a))
+            beta = cho_solve(self.bias_cho, self.c.T @ rhs_b - self.bias_columns.T @ z)
+        z += self.bias_solutions @ beta
+        db = self.c @ beta + rhs_b.sum() / (self.rho * rhs_b.size**2)
+        da = rhs_a - self._root(z)
+        self._check(da, db, rhs_a, rhs_b)
+        return da, db
+
+    def adjoint_curvature(self, rhs_a: Array, rhs_b: Array) -> Array:
+        """Return ``H (z_a + E z_b)`` for ``J.T z = rhs`` without forming J."""
+        with _limit(self.bias_columns.shape[0]):
+            v = cho_solve(self.cho, self._root_t(rhs_a))
+            beta = cho_solve(self.bias_cho, self.c.T @ rhs_b - self.bias_columns.T @ v)
+        v += self.bias_solutions @ beta
+        u = self._root(v)
+        za = rhs_a - self.m @ u
+        zb = self.c @ beta + rhs_b.sum() / (self.rho * rhs_b.size**2)
+        # Check the original adjoint equations, rather than trusting finite factors alone.
+        hu = np.einsum("ikl,il->ik", self.h, za + zb)
+        ra = za + self.m @ hu - rhs_a
+        rb = hu.sum(axis=0) + self.rho * zb.sum() - rhs_b
+        self._check_residual(ra, rb, za, zb, rhs_a, rhs_b)
+        return u
+
+    def _check(self, da: Array, db: Array, rhs_a: Array, rhs_b: Array) -> None:
+        hd = np.einsum("ikl,il->ik", self.h, self.m @ da + db)
+        ra = da + hd - rhs_a
+        rb = hd.sum(axis=0) + self.rho * db.sum() - rhs_b
+        self._check_residual(ra, rb, da, db, rhs_a, rhs_b)
+
+    def _check_residual(
+        self, ra: Array, rb: Array, da: Array, db: Array, rhs_a: Array, rhs_b: Array
+    ) -> None:
+        error = max(float(np.max(np.abs(ra))), float(np.max(np.abs(rb))))
+        scale = max(float(np.max(np.abs(rhs_a))), float(np.max(np.abs(rhs_b))), 1.0)
+        # A conservative Jacobian norm bound makes this a backward-error test even when
+        # M is large. The factorization itself never forms the ill-scaled product H M.
+        hnorm = float(np.max(np.sum(np.abs(self.h), axis=2)))
+        mnorm = float(np.max(np.sum(np.abs(self.m), axis=1)))
+        size = self.h.shape[0]
+        jnorm = 1.0 + size * hnorm * (mnorm + 1.0) + self.rho * self.h.shape[1]
+        scale += jnorm * max(float(np.max(np.abs(da))), float(np.max(np.abs(db))))
+        if not np.isfinite(error) or not error <= 1e-9 * scale:
+            raise np.linalg.LinAlgError("soft-max linear solve failed its backward-error check")
+
+
 @dataclass
 class MulticlassSolution:
     """Solution ``(A, b)`` of the soft-max problem."""
@@ -143,6 +278,7 @@ class MulticlassSolution:
     newton_steps: int = 0
     time_newton: float = 0.0
     info: dict[str, Any] = field(default_factory=dict)
+    factor: SoftmaxFactorization | None = field(default=None, repr=False)
 
 
 def newton_multiclass(
@@ -179,33 +315,34 @@ def _newton(
     t0 = time.perf_counter()
     n, r, lam = prob.n, prob.r, prob.lam
     a = np.zeros((n, r)) if a0 is None else np.array(a0, dtype=np.float64)
+    a -= a.mean(axis=1, keepdims=True)
     b = np.asarray(b0, dtype=np.float64) - np.mean(b0)
     ka, t = prob.decision(a, b)
     obj = prob.objective(a, b, ka)
     res, steps = np.nan, 0
+    factor: SoftmaxFactorization | None = None
     for steps in range(max_steps + 1):
         f_a, f_b = prob.stationarity(a, b, t)
         res = float(np.mean(f_a**2) + np.sum(f_b**2))
         if res < tol or steps == max_steps:
             break
-        grad_a, grad_b = prob.k @ f_a / lam, f_b
+        grad_a, grad_b = _kernel_product(prob.k, f_a, lam), f_b
         directions: list[tuple[Array, Array]] = []
         try:
-            d = lu_solve(lu_factor(prob.jacobian(prob.curvature(t))), -np.append(f_a, f_b))
-            if np.all(np.isfinite(d)):
-                directions.append((d[: n * r].reshape(n, r), d[n * r :]))
+            factor = SoftmaxFactorization.build(prob, prob.curvature(t))
+            da, db = factor.solve(-f_a, -f_b)
+            directions.append((da, db))
         except (np.linalg.LinAlgError, ValueError):
             pass
         directions.append((-f_a, -lam * f_b))  # preconditioned gradient as fallback
         for da, db in directions:
-            kda = prob.k @ da / lam
             slope = float(np.sum(grad_a * da) + grad_b @ db)
             if not slope < 0.0:
                 continue
             step = 1.0
             for _ in range(max_backtracks):
                 a_new, b_new = a + step * da, b + step * db
-                ka_new = ka + step * kda
+                ka_new, _ = prob.decision(a_new, b_new)
                 obj_new = prob.objective(a_new, b_new, ka_new)
                 if obj_new <= obj + sigma * step * slope + 1e-15 * abs(obj):
                     break
@@ -220,7 +357,11 @@ def _newton(
                 break
             raise ConvergenceError(f"no descent step found (residual {res:.3e})")
     ka, t = prob.decision(a, b)  # remove accumulated rounding errors
-    return MulticlassSolution(a, b, ka, t, res, steps, time.perf_counter() - t0)
+    f_a, f_b = prob.stationarity(a, b, t)
+    res = float(np.mean(f_a**2) + np.sum(f_b**2))
+    if factor is not None and not np.array_equal(factor.h, prob.curvature(t)):
+        factor = None
+    return MulticlassSolution(a, b, ka, t, res, steps, time.perf_counter() - t0, factor=factor)
 
 
 # ----------------------------------------------------------------------------------------------
@@ -243,13 +384,14 @@ class MultinomialNLL:
         yi = np.asarray(y).astype(np.intp)
         w = np.ones(t.shape[0]) if w is None else w
         e = softmax(t, axis=1)
-        e[idx, yi] -= 1.0
-        return float(w @ (logsumexp(t, axis=1) - t[idx, yi])), w[:, None] * e
+        e[idx, yi] = 0.0
+        e[idx, yi] = -e.sum(axis=1)
+        return float(w @ _nll(t, yi)), w[:, None] * e
 
 
 def decision_function(x_new: Array, x_train: Array, a: Array, b: Array, lam: float) -> Array:
     """Decision values ``K(x_new, x_train) A / lam + 1 b^T`` for *scaled* features."""
-    return rbf(x_new, x_train) @ a / lam + b
+    return _kernel_product(rbf(x_new, x_train), a, lam) + b
 
 
 def predict_proba(x_new: Array, x_train: Array, a: Array, b: Array, lam: float) -> Array:
@@ -293,10 +435,10 @@ def fold_error_and_gradient_multiclass(
     prob = MulticlassProblem(x_train, y_train, n_classes, lam, w_train)
     a0, b0 = warm_start if warm_start is not None else (None, None)
     sol = newton_multiclass(prob, a0, b0, **(newton_options or {}))
-    n, r = prob.n, prob.r
+    r = prob.r
     a, ka, t = sol.a, sol.ka, sol.t
     k_val = rbf(x_val, prob.x)
-    ka_val = k_val @ a / lam
+    ka_val = _kernel_product(k_val, a, lam)
     t_val = ka_val + sol.b
     err, e = validation(t_val, y_val, w_val) if validation.weighted else validation(t_val, y_val)
     nb = n_blocks(blocks)
@@ -307,10 +449,11 @@ def fold_error_and_gradient_multiclass(
         grad[1:] += contract_gradient(x_val, prob.x, k_val, e[:, k], a[:, k], blocks) / lam
     # implicit part via the adjoint system J^T z = [K_vt^T e / lam; e^T 1]
     h = prob.curvature(t)
-    rhs = np.append(k_val.T @ e / lam, e.sum(axis=0))
-    z = lu_solve(lu_factor(prob.jacobian(h)), rhs, trans=1)
-    z_a, z_b = z[: n * r].reshape(n, r), z[n * r :]
-    u = np.einsum("ikl,il->ik", h, z_a + z_b)
+    factor = sol.factor
+    if factor is None:
+        factor = SoftmaxFactorization.build(prob, h)
+        sol.factor = factor
+    u = factor.adjoint_curvature(k_val.T @ e / lam, e.sum(axis=0))
     grad[0] += float(np.sum(u * ka))
     for k in range(r):
         grad[1:] -= contract_gradient(prob.x, prob.x, prob.k, u[:, k], a[:, k], blocks) / lam
