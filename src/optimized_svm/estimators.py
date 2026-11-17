@@ -577,6 +577,7 @@ class _OptimizedMixin:
     random_state: int | None
     verbose: int
     warm_start: bool
+    n_jobs: int | None
     max_asum: float | None
     n_basis: int | str | None
     basis_tol: float
@@ -696,6 +697,7 @@ class _OptimizedMixin:
                         names,
                         basis=bases,
                         offset=offset,
+                        n_jobs=self.n_jobs,
                     )
                     history.append(
                         {
@@ -823,6 +825,12 @@ _OPT_DOC = """
         Print progress.
     warm_start : bool
         Start SMO at the solution of the previous evaluation (per fold).
+    n_jobs : int, optional
+        Number of folds trained in parallel (threads; the BLAS threads are divided among them).
+        ``None`` or 1: serial, -1: all cores. The result equals the serial one up to floating-point
+        rounding (the BLAS thread count differs). The gain is largest when SMO dominates
+        (classification); for large Newton-dominated problems the serial run already uses
+        multithreaded BLAS. The memory grows with the number of parallel folds.
 
     Attributes
     ----------
@@ -863,6 +871,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         random_state: int | None = 0,
         verbose: int = 0,
         warm_start: bool = True,
+        n_jobs: int | None = None,
         loss: str = "hinge",
         smoothing: float = 0.5,
         degree: Degree = "2",
@@ -888,6 +897,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         self.random_state = random_state
         self.verbose = verbose
         self.warm_start = warm_start
+        self.n_jobs = n_jobs
         self.loss = loss
         self.smoothing = smoothing
         self.degree = degree
@@ -970,6 +980,7 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         random_state: int | None = 0,
         verbose: int = 0,
         warm_start: bool = True,
+        n_jobs: int | None = None,
         smoothing: float = 0.5,
         degree: Degree = "2",
         max_asum: float | None = None,
@@ -996,6 +1007,7 @@ class OptimizedSVR(_OptimizedMixin, SmoothSVR):
         self.random_state = random_state
         self.verbose = verbose
         self.warm_start = warm_start
+        self.n_jobs = n_jobs
         self.smoothing = smoothing
         self.degree = degree
         self.max_asum = max_asum
@@ -1322,6 +1334,7 @@ class OptimizedKernelGLMRegressor(_OptimizedMixin, KernelGLMRegressor):
         random_state: int | None = 0,
         verbose: int = 0,
         warm_start: bool = True,
+        n_jobs: int | None = None,
         n_basis: int | str | None = None,
         basis_tol: float = 1.0,
         newton_options: dict[str, Any] | None = None,
@@ -1344,6 +1357,7 @@ class OptimizedKernelGLMRegressor(_OptimizedMixin, KernelGLMRegressor):
         self.random_state = random_state
         self.verbose = verbose
         self.warm_start = warm_start
+        self.n_jobs = n_jobs
         self.n_basis = n_basis
         self.basis_tol = basis_tol
         self.newton_options = newton_options

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
@@ -18,10 +20,39 @@ SINGLE_THREAD_LIMIT = 1000
 #: the library scan of ``threadpool_limits`` is expensive (ms), so do it once
 _blas = ThreadpoolController().select(user_api="blas")
 
+#: >0 while folds run in parallel threads: the BLAS limit is then set once by
+#: :func:`parallel_section`, and the nested limits below are skipped (they save and restore a
+#: process-global value, so concurrent workers would interleave them)
+_parallel_depth = 0
+
+
+def blas_threads() -> int:
+    """Current number of BLAS threads (of the largest pool)."""
+    return max((int(lib["num_threads"]) for lib in _blas.info()), default=1)
+
+
+@contextmanager
+def parallel_section(limit: int) -> Iterator[None]:
+    """Limits BLAS to ``limit`` threads for a section whose workers run concurrently; the
+    single-thread limits of :func:`factorize` and :func:`solve_bordered` are inactive meanwhile."""
+    global _parallel_depth
+    with _blas.limit(limits=limit):
+        _parallel_depth += 1
+        try:
+            yield
+        finally:
+            _parallel_depth -= 1
+
+
+def _limit(n: int) -> Any:
+    """Single-thread limit for systems of size ``n`` (no-op inside a parallel section)."""
+    small = n <= SINGLE_THREAD_LIMIT and _parallel_depth == 0
+    return _blas.limit(limits=1 if small else None)
+
 
 def factorize(q: Array) -> Any:
     """Cholesky factorisation of an SPD matrix (for :func:`solve_bordered`)."""
-    with _blas.limit(limits=1 if q.shape[0] <= SINGLE_THREAD_LIMIT else None):
+    with _limit(q.shape[0]):
         return cho_factor(q)
 
 
@@ -39,7 +70,7 @@ def solve_bordered(
     if factor is None:
         assert q is not None
         factor = factorize(q)
-    with _blas.limit(limits=1 if a.shape[0] <= SINGLE_THREAD_LIMIT else None):
+    with _limit(a.shape[0]):
         qia = cho_solve(factor, a)
         qir = cho_solve(factor, r)
     v = np.linalg.solve(a.T @ qia, a.T @ qir - r0)

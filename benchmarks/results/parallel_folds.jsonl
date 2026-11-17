@@ -1,0 +1,6 @@
+{"task": "svc", "n": 5000, "n_jobs": 1, "max_iter": 100, "wall_s": 136.26, "n_evals": 16, "cv_error": 0.2368619830521514, "lam": 0.48169095551531865, "scaling": [0.4971482233169475], "peak_rss_mb": 839}
+{"task": "svc", "n": 5000, "n_jobs": 5, "max_iter": 100, "wall_s": 38.57, "n_evals": 16, "cv_error": 0.23686198305215134, "lam": 0.4816909555188232, "scaling": [0.49714822331846154], "peak_rss_mb": 2511}
+{"task": "svr", "n": 2000, "n_jobs": 1, "max_iter": 100, "wall_s": 88.29, "n_evals": 14, "cv_error": 0.22373471083785199, "lam": 1.0000000000000004e-06, "scaling": [0.03472430250990358], "peak_rss_mb": 839}
+{"task": "svr", "n": 2000, "n_jobs": 5, "max_iter": 100, "wall_s": 50.13, "n_evals": 14, "cv_error": 0.22373471015644827, "lam": 1.0000000000000004e-06, "scaling": [0.034724318050622836], "peak_rss_mb": 2025}
+{"task": "svr", "n": 5000, "n_jobs": 1, "max_iter": 100, "wall_s": 891.16, "n_evals": 17, "cv_error": 0.2150768826770639, "lam": 1.0000000000000004e-06, "scaling": [0.03539525697200595], "peak_rss_mb": 4252}
+{"task": "svr", "n": 5000, "n_jobs": 5, "max_iter": 100, "wall_s": 614.89, "n_evals": 17, "cv_error": 0.21507688302749126, "lam": 1.0000000000000004e-06, "scaling": [0.035395259316595054], "peak_rss_mb": 10761}

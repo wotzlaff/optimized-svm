@@ -21,10 +21,11 @@ from dataclasses import dataclass, field
 from typing import Any, cast
 
 import numpy as np
+from joblib import Parallel, delayed, effective_n_jobs
 from numpy.typing import NDArray
 
 from .kernels import Blocks, contract_gradient, n_blocks, rbf, scale_features
-from .linalg import solve_bordered
+from .linalg import blas_threads, parallel_section, solve_bordered
 from .losses import Loss
 from .problem import TrainingProblem
 from .subspace import SubspaceFoldResult, fold_error_and_gradient_subspace
@@ -176,6 +177,7 @@ def cv_error_and_gradient(
     loss_params: Sequence[str] = (),
     basis: Sequence[NDArray[np.intp]] | None = None,
     offset: Array | None = None,
+    n_jobs: int | None = None,
 ) -> CVResult:
     """Mean validation error over all folds and its gradient w.r.t. ``theta``.
 
@@ -190,6 +192,13 @@ def cv_error_and_gradient(
     *Subspace SVM* whose model is spanned by these basis points (:mod:`optimized_svm.subspace`);
     ``warm_start`` then holds expansion coefficients instead of dual variables. Loss parameters and
     the 1-norm constraint are not supported in that case.
+
+    ``n_jobs`` runs the folds in parallel threads (scikit-learn semantics: ``None`` or 1 is serial,
+    -1 uses all cores); the BLAS threads are divided among the workers. The result equals the
+    serial one up to floating-point rounding (the BLAS thread count differs; two parallel runs are
+    bit-identical). Parallel folds pay off most when SMO dominates (classification); for large
+    Newton-dominated problems the serial run already uses multithreaded BLAS, and the memory grows
+    with the number of parallel folds (each holds its kernel and factor matrices).
 
     ``offset`` is an optional per-sample offset (like ``w``): it is added to the decision values
     of the training problem and of the validation predictions. If ``validation.weighted`` is set,
@@ -213,30 +222,23 @@ def cv_error_and_gradient(
         }
         if tuned:  # validation losses that share the tuned parameter use its current value
             validation = dataclasses.replace(cast(Any, validation), **tuned)
-    total, grad = 0.0, np.zeros_like(theta, dtype=np.float64)
-    results: list[FoldResult | SubspaceFoldResult] = []
-    n_val = 0
     weighted = validation.weighted
-    for i, (train_idx, val_idx) in enumerate(folds):
+    if basis is not None and (loss_params or max_asum is not None):
+        raise ValueError("loss_params and max_asum are not supported with a subspace basis")
+
+    def run_fold(i: int) -> FoldResult | SubspaceFoldResult:
+        """Trains and validates fold ``i``; touches no shared state (safe in threads)."""
+        train_idx, val_idx = folds[i]
         start = warm_start[i] if warm_start is not None else None
         if basis is not None:
-            if loss_params or max_asum is not None:
-                raise ValueError("loss_params and max_asum are not supported with a subspace basis")
-            sub = fold_error_and_gradient_subspace(
+            return fold_error_and_gradient_subspace(
                 xs[train_idx], y[train_idx], w[train_idx], xs[basis[i]], xs[val_idx], y[val_idx],
                 loss, validation, lam, blocks, newton_options, start,
                 None if offset is None else offset[train_idx],
                 w[val_idx] if weighted else None,
                 None if offset is None else offset[val_idx],
             )  # fmt: skip
-            if warm_start is not None:
-                warm_start[i] = sub.solution.beta
-            total += sub.error
-            grad += sub.gradient
-            n_val += len(val_idx)
-            results.append(sub)
-            continue
-        res = fold_error_and_gradient(
+        return fold_error_and_gradient(
             xs[train_idx],
             y[train_idx],
             w[train_idx],
@@ -255,10 +257,28 @@ def cv_error_and_gradient(
             w[val_idx] if weighted else None,
             None if offset is None else offset[val_idx],
         )
+
+    if n_jobs is None or n_jobs == 1 or len(folds) < 2:
+        results = [run_fold(i) for i in range(len(folds))]
+    else:
+        # The folds run in threads (the SMO solver and BLAS release the GIL, nothing is copied).
+        # The BLAS threads are divided among the workers; the limit is global to the process, so
+        # it is set once here and the nested limits in ``linalg`` are inactive meanwhile.
+        n_workers = max(1, min(len(folds), effective_n_jobs(n_jobs)))
+        with parallel_section(max(1, blas_threads() // n_workers)):
+            results = Parallel(n_jobs=n_workers, prefer="threads")(
+                delayed(run_fold)(i) for i in range(len(folds))
+            )
+    # summed and stored in fold order, so that the result does not depend on ``n_jobs``
+    total, grad = 0.0, np.zeros_like(theta, dtype=np.float64)
+    n_val = 0
+    for i, res in enumerate(results):
         if warm_start is not None:
-            warm_start[i] = res.solution.a
+            if isinstance(res, SubspaceFoldResult):
+                warm_start[i] = res.solution.beta
+            else:
+                warm_start[i] = res.solution.a
         total += res.error
         grad += res.gradient
-        n_val += len(val_idx)
-        results.append(res)
+        n_val += len(folds[i][1])
     return CVResult(total / n_val, grad / n_val, results)

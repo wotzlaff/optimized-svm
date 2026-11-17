@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+- `n_jobs` parameter of `OptimizedSVC`, `OptimizedSVR`, `OptimizedKernelGLMRegressor` and
+  `cv_error_and_gradient`: trains the cross-validation folds in parallel threads (scikit-learn
+  semantics, `None`/1 serial, -1 all cores); the BLAS threads are divided among the workers. Results equal
+  the serial ones up to floating-point rounding (the BLAS thread count differs). The gain is largest when
+  SMO dominates (classification); for large Newton-dominated problems the serial run already uses
+  multithreaded BLAS, and memory grows with the number of parallel folds. Uses `joblib`
+  (a dependency of scikit-learn).
+
 ### Fixed
 - Subspace hypergradient: the derivative w.r.t. `log lam` ignored the jitter of the basis kernel
   (`lam/2 beta^T (K_ZZ + JITTER I) beta`), so it was only accurate to ~1e-5 (default jitter) up to

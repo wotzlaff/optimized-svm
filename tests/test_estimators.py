@@ -255,3 +255,20 @@ def test_cv_groups_classifier_one_vs_rest():
     # binary case
     yb = (y > 0).astype(int)
     OptimizedSVC(cv=LeaveOneGroupOut(), max_iter=2).fit(x, yb, groups=groups)
+
+
+def test_optimized_estimators_give_the_same_result_with_n_jobs():
+    from sklearn.datasets import make_classification, make_friedman1
+
+    from optimized_svm import OptimizedSVC, OptimizedSVR
+
+    x, t = make_friedman1(120, noise=1.0, random_state=0)
+    reg = [OptimizedSVR(max_iter=8, n_jobs=j).fit(x, t) for j in (None, 3)]
+    # equal up to rounding: the BLAS thread count differs
+    np.testing.assert_allclose(reg[0].lam_, reg[1].lam_, rtol=1e-6)
+    np.testing.assert_allclose(reg[0].scaling_opt_, reg[1].scaling_opt_, rtol=1e-6)
+    assert len(reg[0].history_) == len(reg[1].history_)
+    xc, yc = make_classification(120, n_classes=3, n_informative=4, random_state=0)
+    clf = [OptimizedSVC(max_iter=6, n_jobs=j).fit(xc, yc) for j in (None, 2)]
+    for a, b in zip(clf[0].estimators_, clf[1].estimators_, strict=True):
+        np.testing.assert_allclose(a.lam_, b.lam_, rtol=1e-6)

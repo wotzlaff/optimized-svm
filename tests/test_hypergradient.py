@@ -222,3 +222,79 @@ def test_epsilon_is_not_identifiable_below_the_smoothing_width(data):
     assert a.error == pytest.approx(b.error, abs=1e-12)
     assert abs(a.gradient[-1]) < 1e-12
     assert abs(run(0.2).gradient[-1]) > 1e-5
+
+
+def _warm_copy(folds):
+    return [None] * len(folds)
+
+
+@pytest.mark.parametrize("n_jobs", [2, -1])
+@pytest.mark.parametrize("name", ["hinge", "logistic", "squared-basis", "logistic-offset"])
+def test_parallel_folds_are_bit_identical_to_serial(name, n_jobs, data):
+    from optimized_svm.subspace import choose_basis
+
+    x, y, t, _ = data
+    folds = list(KFold(4, shuffle=True, random_state=0).split(x))
+    kwargs = {}
+    if name == "hinge":
+        loss, validation, target = HingeLoss(smoothing=0.5), SmoothHingeValidation(), y
+    elif name == "logistic":
+        loss, validation, target = LogisticLoss(), LogisticValidation(), y
+    elif name == "logistic-offset":
+        loss, validation, target = LogisticLoss(), LogisticValidation(), y
+        kwargs["offset"] = 0.3 * np.cos(x[:, 1])
+    else:
+        loss, validation, target = SquaredLoss(), SquaredValidation(), t
+        kwargs["basis"] = [tr[choose_basis(len(tr), 20, seed=k)] for k, (tr, _) in enumerate(folds)]
+    theta = np.r_[np.log(0.05), np.log(0.6)]
+    w = np.ones(len(target))
+
+    def run(jobs):
+        warm = _warm_copy(folds)
+        res = cv_error_and_gradient(
+            theta, x, target, w, folds, loss, validation, warm_start=warm, n_jobs=jobs, **kwargs
+        )
+        return res, warm
+
+    serial, warm_s = run(None)
+    par, warm_p = run(n_jobs)
+    if name == "squared-basis":
+        # the serial run uses multithreaded BLAS, the parallel one a single thread: the matrix
+        # products may differ in the last bits (the parallel run is deterministic, see below)
+        np.testing.assert_allclose(serial.error, par.error, rtol=1e-12)
+        np.testing.assert_allclose(serial.gradient, par.gradient, rtol=1e-10, atol=1e-14)
+        again, warm_a = run(n_jobs)
+        assert par.error == again.error and np.array_equal(par.gradient, again.gradient)
+        assert all(np.array_equal(a, b) for a, b in zip(warm_p, warm_a, strict=True))
+        return
+    assert serial.error == par.error
+    assert np.array_equal(serial.gradient, par.gradient)
+    assert all(a is not None and np.array_equal(a, b) for a, b in zip(warm_s, warm_p, strict=True))
+    assert [f.error for f in serial.folds] == [f.error for f in par.folds]
+
+
+def test_errors_in_a_parallel_fold_propagate(data):
+    x, y, _, _ = data
+    folds = list(KFold(3, shuffle=True, random_state=0).split(x))
+    folds[1] = (folds[1][0], np.array([], dtype=int))  # empty validation set
+    bad = SmoothHingeValidation()
+
+    class Boom(type(bad)):  # type: ignore[misc]
+        def __call__(self, f, y, w=None):
+            if len(y) == 0:
+                raise RuntimeError("boom")
+            return super().__call__(f, y, w)
+
+    args = (np.r_[np.log(0.05), np.log(0.6)], x, y, np.ones(len(y)), folds, LogisticLoss())
+    with pytest.raises(RuntimeError, match="boom"):
+        cv_error_and_gradient(*args, Boom(), n_jobs=2)
+
+
+def test_parallel_folds_validate_before_running(data):
+    x, y, _, _ = data
+    folds = list(KFold(3, shuffle=True, random_state=0).split(x))
+    with pytest.raises(ValueError, match="subspace basis"):
+        cv_error_and_gradient(
+            np.r_[np.log(0.05), np.log(0.6)], x, y, np.ones(len(y)), folds, LogisticLoss(),
+            SmoothHingeValidation(), max_asum=3.0, basis=[f[0][:10] for f in folds], n_jobs=2,
+        )  # fmt: skip
