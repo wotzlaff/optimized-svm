@@ -51,7 +51,7 @@ from numpy.typing import NDArray
 from scipy.linalg import lu_factor, lu_solve
 from scipy.special import logsumexp, softmax
 
-from .hypergradient import Fold
+from .hypergradient import Fold, run_folds
 from .kernels import Blocks, contract_gradient, n_blocks, rbf, scale_features
 from .training import ConvergenceError
 
@@ -335,12 +335,15 @@ def cv_error_and_gradient_multiclass(
     blocks: Blocks = None,
     newton_options: dict[str, Any] | None = None,
     warm_start: list[tuple[Array, Array] | None] | None = None,
+    n_jobs: int | None = None,
 ) -> MulticlassCVResult:
     """Mean validation error over all folds and its gradient w.r.t.
-    ``theta = (log lam, log s_1, ..., log s_K)`` (serial over the folds).
+    ``theta = (log lam, log s_1, ..., log s_K)``.
 
     ``warm_start`` holds one (possibly ``None``) pair ``(A, b)`` per fold and is updated in place.
-    ``n_classes`` defaults to ``max(y) + 1``.
+    ``n_classes`` defaults to ``max(y) + 1``. ``n_jobs`` runs the folds in parallel threads
+    (see :func:`optimized_svm.hypergradient.run_folds`); the result is independent of it up to
+    rounding.
     """
     validation = MultinomialNLL() if validation is None else validation
     y = np.asarray(y).astype(np.intp)
@@ -348,19 +351,22 @@ def cv_error_and_gradient_multiclass(
     nb = n_blocks(blocks)
     lam = float(np.exp(theta[0]))
     xs = scale_features(x, np.exp(theta[1 : 1 + nb]), blocks)
-    total, grad, n_val = 0.0, np.zeros(1 + nb), 0
-    results: list[MulticlassFoldResult] = []
-    for i, (train_idx, val_idx) in enumerate(folds):
-        res = fold_error_and_gradient_multiclass(
+
+    def run_fold(i: int) -> MulticlassFoldResult:
+        train_idx, val_idx = folds[i]
+        return fold_error_and_gradient_multiclass(
             xs[train_idx], y[train_idx], w[train_idx], xs[val_idx], y[val_idx], n_classes,
             validation, lam, blocks, newton_options,
             warm_start[i] if warm_start is not None else None,
             w[val_idx] if validation.weighted else None,
         )  # fmt: skip
+
+    results = run_folds(run_fold, len(folds), n_jobs)
+    total, grad, n_val = 0.0, np.zeros(1 + nb), 0
+    for i, res in enumerate(results):  # in fold order: independent of n_jobs
         if warm_start is not None:
             warm_start[i] = (res.solution.a, res.solution.b)
         total += res.error
         grad += res.gradient
-        n_val += len(val_idx)
-        results.append(res)
+        n_val += len(folds[i][1])
     return MulticlassCVResult(total / n_val, grad / n_val, results)

@@ -34,6 +34,10 @@
 
 ::: optimized_svm.fold_error_and_gradient
 
+## Multi-class soft-max SVM
+
+::: optimized_svm.multiclass
+
 ## Subspace SVM
 
 ::: optimized_svm.subspace

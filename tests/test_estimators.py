@@ -41,6 +41,8 @@ def _expected_failures(est):
         OptimizedSVR(cv=2, max_iter=2),
         OptimizedSVC(cv=2, max_iter=2),
         OptimizedSVC(loss="logistic", cv=2, max_iter=2),
+        SmoothSVC(loss="logistic", multi_class="softmax"),
+        OptimizedSVC(loss="logistic", multi_class="softmax", cv=2, max_iter=2),
     ],
     expected_failed_checks=_expected_failures,
 )

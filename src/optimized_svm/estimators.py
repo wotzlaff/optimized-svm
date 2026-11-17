@@ -24,7 +24,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.optimize import minimize
-from scipy.special import expit, gammaln, xlogy
+from scipy.special import expit, gammaln, softmax, xlogy
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin, clone
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.utils.metaestimators import available_if
@@ -46,6 +46,13 @@ from .losses import (
     SquaredLoss,
     TweedieLoss,
 )
+from .multiclass import (
+    MulticlassProblem,
+    MultinomialNLL,
+    cv_error_and_gradient_multiclass,
+    newton_multiclass,
+)
+from .multiclass import decision_function as multiclass_decision
 from .problem import TrainingProblem
 from .smooth_max import Degree
 from .subspace import SubspaceProblem, newton_subspace, nystroem_residual, select_basis
@@ -212,7 +219,10 @@ class _SmoothBase(BaseEstimator):
         }
         self._model = _Model(xs[idx], sol.beta, sol.b)
 
-    def _fit_model(self, x: Array, y: Array, w: Array, offset: Array | None = None) -> None:
+    def _fit_model(
+        self, x: Array, y: Array, w: Array, offset: Array | None = None, lam: float | None = None
+    ) -> None:
+        lam = float(self.lam if lam is None else lam)
         self.blocks_ = resolve_blocks(self.blocks, x.shape[1])
         self.scaling_ = self._scaling(x)
         xs = scale_features(x, self.scaling_, self.blocks_)
@@ -221,12 +231,12 @@ class _SmoothBase(BaseEstimator):
         if idx is not None:
             self._fit_subspace(xs, y, w, idx, offset)
             return
-        prob = TrainingProblem(xs, y, self._loss(), self.lam, w, self.max_asum, offset)
+        prob = TrainingProblem(xs, y, self._loss(), lam, w, self.max_asum, offset)
         sol = train(prob, self.smo_options, self.newton_options)
         beta = prob.sample_coefficients(sol.a)
         support = np.flatnonzero(beta)
         self.support_ = support
-        self.dual_coef_ = beta[support] / self.lam
+        self.dual_coef_ = beta[support] / lam
         self.intercept_ = sol.b
         self.n_support_ = support.size
         self.training_info_ = {
@@ -239,6 +249,30 @@ class _SmoothBase(BaseEstimator):
         }
         self._model = _Model(xs[support], self.dual_coef_, sol.b)
 
+    def _fit_softmax_model(self, x: Array, yi: NDArray[np.intp], w: Array, r: int) -> None:
+        """Soft-max model for ``r >= 3`` classes (labels ``yi`` in ``0..r-1``) at ``self.lam``."""
+        self.blocks_ = resolve_blocks(self.blocks, x.shape[1])
+        self.scaling_ = self._scaling(x)
+        xs = scale_features(x, self.scaling_, self.blocks_)
+        self.__dict__.pop("basis_", None)
+        _warn_softmax_cost(r, x.shape[0])
+        lam = float(self.lam)
+        prob = MulticlassProblem(xs, yi.astype(np.float64), r, lam, w)
+        sol = newton_multiclass(prob, **(self.newton_options or {}))
+        self.support_ = np.arange(x.shape[0])
+        self.dual_coef_ = sol.a / lam
+        self.intercept_ = sol.b  # type: ignore[assignment]  # one per class
+        self.n_support_ = x.shape[0]
+        self.training_info_ = {
+            "residual": sol.residual,
+            "smo_steps": 0,
+            "newton_steps": sol.newton_steps,
+            "time_smo": 0.0,
+            "time_newton": sol.time_newton,
+            "c": 0.0,
+        }
+        self._mc = _SoftmaxModel(xs, sol.a, sol.b, lam)
+
     def _decision(self, X: ArrayLike) -> Array:
         check_is_fitted(self)
         x = validate_data(self, X, reset=False, dtype=np.float64)
@@ -250,6 +284,10 @@ class _SmoothBase(BaseEstimator):
         Useful as a local sensitivity / feature relevance measure.
         """
         check_is_fitted(self)
+        if getattr(self, "_mc", None) is not None:
+            raise NotImplementedError(
+                "decision_gradient is not available for multi_class='softmax'"
+            )
         x = validate_data(self, X, reset=False, dtype=np.float64)
         xs = scale_features(x, self.scaling_, self.blocks_)
         sv = self._model.support_vectors
@@ -257,6 +295,34 @@ class _SmoothBase(BaseEstimator):
         grad_scaled = -2.0 * (k.sum(axis=1)[:, None] * xs - k @ sv)
         factor = scale_features(np.ones((1, x.shape[1])), self.scaling_, self.blocks_)[0]
         return grad_scaled * factor
+
+
+@dataclass
+class _SoftmaxModel:
+    """Soft-max model ``T(x) = K(x, X) A / lam + 1 b^T`` on scaled features."""
+
+    x: Array
+    a: Array
+    b: Array
+    lam: float
+
+    def decision(self, xs: Array) -> Array:
+        return multiclass_decision(xs, self.x, self.a, self.b, self.lam)
+
+
+#: warn if the dense Newton system of the soft-max model (size ``r * n``) exceeds this
+SOFTMAX_MAX_SIZE = 4000
+
+
+def _warn_softmax_cost(r: int, n: int) -> None:
+    if r * n > SOFTMAX_MAX_SIZE:
+        warnings.warn(
+            f"multi_class='softmax' solves dense Newton systems of size r * n = {r * n} "
+            f"(> {SOFTMAX_MAX_SIZE}, cost O((r n)^3) per step); this can be very slow and "
+            "memory hungry, consider multi_class='ovr' or fewer samples",
+            UserWarning,
+            stacklevel=4,
+        )
 
 
 _SMOOTH_DOC = """
@@ -316,6 +382,20 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         Margin of the hinge loss.
     class_weight : "balanced", dict or None
         Per-class weights multiplied with ``sample_weight``.
+    multi_class : {"ovr", "softmax"}
+        Treatment of more than two classes. ``"ovr"``: one binary model per class (one-vs-rest,
+        each with its own hyperparameters in the optimising estimators). ``"softmax"``: one joint
+        multinomial model (Strasdat, Sec. 5.1) with a decision function per class, a common
+        ``lam`` and common scalings, trained by Newton's method on the multinomial logistic loss.
+        It needs ``loss="logistic"`` and no ``n_basis`` or ``max_asum``; ``predict_proba`` returns
+        the soft-max probabilities (no normalisation of one-vs-rest sigmoids) and
+        ``decision_function`` has shape ``(n, n_classes)``. The Newton systems are dense of size
+        ``r (n + 1)`` for ``r`` classes (cost ``O((r n)^3)`` per step; a ``UserWarning`` is issued
+        if ``r n > 4000``). With two classes the binary logistic model is used, which is the same
+        model: soft-max with ``lam`` equals the binary model with ``lam / 2``, and the binary
+        model with ``lam / 2`` is what is fitted (``lam`` keeps the soft-max meaning for any
+        number of classes). ``newton_options`` then takes the options of
+        :func:`optimized_svm.multiclass.newton_multiclass` (``tol``, ``max_steps``, ...).
     """
     )
 
@@ -333,6 +413,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         n_basis: int | str | None = None,
         basis_tol: float = 1.0,
         class_weight: Any = None,
+        multi_class: str = "ovr",
         smo_options: dict[str, Any] | None = None,
         newton_options: dict[str, Any] | None = None,
     ) -> None:
@@ -347,6 +428,7 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
         self.n_basis = n_basis
         self.basis_tol = basis_tol
         self.class_weight = class_weight
+        self.multi_class = multi_class
         self.smo_options = smo_options
         self.newton_options = newton_options
 
@@ -361,9 +443,17 @@ class SmoothSVC(ClassifierMixin, _SmoothBase):
 
     def fit(self, X: ArrayLike, y: ArrayLike, sample_weight: ArrayLike | None = None) -> SmoothSVC:
         self._check_params()
+        _check_multi_class(self)
         self._loss()  # validates `loss`
         x, y = validate_data(self, X, y, dtype=np.float64)
         y = np.asarray(y)
+        if self.multi_class == "softmax":
+            yi, w, r = _softmax_targets(self, y, x, sample_weight)
+            if r >= 3:
+                self._fit_softmax_model(x, yi, w, r)
+            else:  # the same model as the binary one with lam / 2
+                self._fit_model(x, np.where(yi == 1, 1.0, -1.0), w, lam=float(self.lam) / 2)
+            return self
         if _fit_one_vs_rest(self, x, y, sample_weight):
             return self
         labels, w = _binary_labels(self, y, x, sample_weight)
@@ -401,6 +491,7 @@ def _fit_one_vs_rest(
     check_classification_targets(y)
     classes = np.unique(y)
     est.estimators_ = None
+    est._mc = None
     if classes.size <= 2:
         return False
     est.classes_ = classes
@@ -418,8 +509,45 @@ def _fit_one_vs_rest(
     return True
 
 
+def _check_multi_class(est: Any) -> None:
+    if est.multi_class not in ("ovr", "softmax"):
+        raise ValueError(f"multi_class must be 'ovr' or 'softmax', got {est.multi_class!r}")
+    if est.multi_class == "softmax":
+        if est.loss != "logistic":
+            raise ValueError("multi_class='softmax' needs loss='logistic'")
+        if est.n_basis is not None:
+            raise ValueError("multi_class='softmax' does not support n_basis")
+        if est.max_asum is not None:
+            raise ValueError("multi_class='softmax' does not support max_asum")
+
+
+def _softmax_targets(
+    est: Any, y: Array, x: Array, sample_weight: ArrayLike | None
+) -> tuple[NDArray[np.intp], Array, int]:
+    """Integer labels, weights (``sample_weight`` times class weights) and number of classes."""
+    check_classification_targets(y)
+    est.estimators_ = None
+    est._mc = None
+    est.classes_, yi = np.unique(y, return_inverse=True)
+    r = int(est.classes_.size)
+    if r < 2:
+        raise ValueError(f"The number of classes has to be greater than one; got {r} class")
+    w = _weights(sample_weight, x)
+    if est.class_weight == "balanced":
+        counts = np.bincount(yi, minlength=r)
+        w = w * (yi.size / (r * counts[yi]))
+    elif isinstance(est.class_weight, dict):
+        w = w * np.array([est.class_weight.get(c, 1.0) for c in est.classes_])[yi]
+    elif est.class_weight is not None:
+        raise ValueError(f"invalid class_weight {est.class_weight!r}")
+    return yi.astype(np.intp), w, r
+
+
 def _ovr_decision(est: Any, X: ArrayLike) -> Array:
     check_is_fitted(est)
+    if getattr(est, "_mc", None) is not None:
+        x = validate_data(est, X, reset=False, dtype=np.float64)
+        return est._mc.decision(scale_features(x, est.scaling_, est.blocks_))
     if est.estimators_ is None:
         return est._decision(X)
     x = validate_data(est, X, reset=False, dtype=np.float64)
@@ -427,6 +555,8 @@ def _ovr_decision(est: Any, X: ArrayLike) -> Array:
 
 
 def _ovr_proba(est: Any, X: ArrayLike) -> Array:
+    if getattr(est, "_mc", None) is not None:
+        return np.asarray(softmax(_ovr_decision(est, X), axis=1), dtype=np.float64)
     p = expit(_ovr_decision(est, X))
     if p.ndim == 1:
         return np.stack([1.0 - p, p], axis=1)
@@ -606,6 +736,8 @@ class _OptimizedMixin:
         groups: ArrayLike | None = None,
         offset: Array | None = None,
         loss_params: Mapping[str, tuple[float, tuple[float, float]]] | None = None,
+        n_classes: int | None = None,
+        lam_factor: float = 1.0,
     ) -> None:
         """Minimises the cross-validation error.
 
@@ -613,8 +745,20 @@ class _OptimizedMixin:
         tunable loss parameters (e.g. ``"dispersion"``) to ``(initial value, bounds)``; their
         logarithms are appended to ``theta`` (after the scalings, through both stages) and the
         optimised values are stored in ``loss_params_opt_``.
+
+        With ``n_classes`` the labels ``y`` are integers ``0..n_classes-1`` of the soft-max model
+        (validated by the multinomial negative log-likelihood, weighted if there are class
+        weights). ``lam_factor`` rescales ``lam_init`` and ``lam_bounds`` internally (the binary
+        model equivalent to the soft-max model has ``lam / 2``); ``lam_`` and ``history_`` are
+        reported in the unscaled convention.
         """
-        loss, validation = self._loss(), self._validation()
+        softmax_model = n_classes is not None
+        loss = self._loss()
+        validation: Any = (
+            MultinomialNLL(weighted=getattr(self, "class_weight", None) is not None)
+            if softmax_model
+            else self._validation()
+        )
         params = dict(loss_params or {})
         names = tuple(params)
         n_extra = len(names)
@@ -625,12 +769,20 @@ class _OptimizedMixin:
             return np.exp(theta[1 : theta.size - n_extra])
 
         folds = self._folds(x, y, groups)
+        if n_classes is not None:
+            for i, (tr, _) in enumerate(folds):
+                if np.unique(y[tr]).size < n_classes:
+                    raise ValueError(
+                        f"multi_class='softmax': the training set of fold {i} does not contain "
+                        f"all {n_classes} classes; use fewer folds or a stratified splitter"
+                    )
+            _warn_softmax_cost(n_classes, max(len(tr) for tr, _ in folds))
         start = time.perf_counter()
         history: list[dict[str, Any]] = []
-        lam_bounds = np.log(self.lam_bounds)
+        lam_bounds = np.log(self.lam_bounds) + np.log(lam_factor)
         s_bounds = np.log(self.scaling_bounds)
         smo_options = dict(self.smo_options or {})
-        warm: list[Array | None] | None = [None] * len(folds) if self.warm_start else None
+        warm: list[Any] | None = [None] * len(folds) if self.warm_start else None
 
         def select_bases(
             blocks: Blocks, theta: Array
@@ -681,6 +833,52 @@ class _OptimizedMixin:
                         and time.perf_counter() - start > self.time_limit
                     ):
                         raise _Timeout
+
+                    def record(
+                        theta: Array,
+                        cv_err: float,
+                        cv_grad: Array,
+                        n_sup: float,
+                        bases: list[NDArray[np.intp]] | None,
+                    ) -> tuple[float, Array]:
+                        history.append(
+                            {
+                                "lam": float(np.exp(theta[0])),
+                                "scaling": scalings(theta),
+                                "error": cv_err,
+                                "gradient_norm": float(np.linalg.norm(cv_grad)),
+                                "n_support": n_sup,
+                                "n_basis": None
+                                if bases is None
+                                else float(np.mean([len(b) for b in bases])),
+                                "time": time.perf_counter() - start,
+                                "stage": "features"
+                                if blocks is not None and self.blocks is not None
+                                else "global",
+                                "basis_round": rnd,
+                                **{
+                                    name: float(np.exp(v))
+                                    for name, v in zip(
+                                        names, theta[theta.size - n_extra :], strict=True
+                                    )
+                                },
+                            }
+                        )
+                        if self.verbose:
+                            h = history[-1]
+                            print(
+                                f"[{len(history):3d}] lam = {h['lam']:.3e}, mean scaling = "
+                                f"{np.mean(h['scaling']):.3e}, cv error = {h['error']:.6f}"
+                            )
+                        return cv_err, cv_grad
+
+                    if n_classes is not None:
+                        mc = cv_error_and_gradient_multiclass(
+                            theta, x, y, w, folds, n_classes, validation, blocks,
+                            self.newton_options, warm, n_jobs=self.n_jobs,
+                        )  # fmt: skip
+                        n_sup = float(np.mean([len(tr) for tr, _ in folds]))
+                        return record(theta, mc.error, mc.gradient, n_sup, bases)
                     res = cv_error_and_gradient(
                         theta,
                         x,
@@ -699,36 +897,8 @@ class _OptimizedMixin:
                         offset=offset,
                         n_jobs=self.n_jobs,
                     )
-                    history.append(
-                        {
-                            "lam": float(np.exp(theta[0])),
-                            "scaling": scalings(theta),
-                            "error": res.error,
-                            "gradient_norm": float(np.linalg.norm(res.gradient)),
-                            "n_support": float(np.mean([f.n_support for f in res.folds])),
-                            "n_basis": None
-                            if bases is None
-                            else float(np.mean([len(b) for b in bases])),
-                            "time": time.perf_counter() - start,
-                            "stage": "features"
-                            if blocks is not None and self.blocks is not None
-                            else "global",
-                            "basis_round": rnd,
-                            **{
-                                name: float(np.exp(v))
-                                for name, v in zip(
-                                    names, theta[theta.size - n_extra :], strict=True
-                                )
-                            },
-                        }
-                    )
-                    if self.verbose:
-                        h = history[-1]
-                        print(
-                            f"[{len(history):3d}] lam = {h['lam']:.3e}, mean scaling = "
-                            f"{np.mean(h['scaling']):.3e}, cv error = {h['error']:.6f}"
-                        )
-                    return res.error, res.gradient
+                    n_sup = float(np.mean([f.n_support for f in res.folds]))
+                    return record(theta, res.error, res.gradient, n_sup, bases)
 
                 bounds = (
                     [tuple(lam_bounds)]
@@ -775,7 +945,7 @@ class _OptimizedMixin:
         self.n_iter_ = 0
         blocks = resolve_blocks(self.blocks, x.shape[1])
         s0 = auto_scaling(x) if self.scaling_init == "auto" else float(self.scaling_init)
-        theta = np.log([self.lam_init, s0, *(params[name][0] for name in names)])
+        theta = np.log([self.lam_init * lam_factor, s0, *(params[name][0] for name in names)])
         if blocks is not None and self.two_stage:
             # first a common scaling for all blocks, then individual ones
             theta, error = run_stage(None, theta)
@@ -786,7 +956,9 @@ class _OptimizedMixin:
             theta, error = run_stage(blocks, theta, error)
         else:
             theta, error = run_stage(None, theta)
-        self.lam_ = float(np.exp(theta[0]))
+        self.lam_ = float(np.exp(theta[0])) / lam_factor
+        for h in history:
+            h["lam"] /= lam_factor
         self.scaling_opt_ = scalings(theta)
         self.loss_params_opt_ = {
             name: float(np.exp(v))
@@ -847,7 +1019,10 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
     __doc__ = (
         """:class:`SmoothSVC` whose ``lam`` and kernel scalings are optimised by minimising a
     smoothed cross-validation hinge error (``loss="hinge"``) or the cross-validation logistic
-    loss (``loss="logistic"``) with exact gradients.
+    loss (``loss="logistic"``) with exact gradients. With ``multi_class="softmax"`` (and more than
+    two classes) one joint multinomial model is fitted whose common ``lam`` and scalings are
+    tuned by the cross-validation multinomial negative log-likelihood (weighted by the sample and
+    class weights if ``class_weight`` is given); every training fold must contain all classes.
 
     Parameters
     ----------"""
@@ -880,6 +1055,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         n_basis: int | str | None = None,
         basis_tol: float = 1.0,
         class_weight: Any = None,
+        multi_class: str = "ovr",
         validation_smoothing: float = 0.5,
         smo_options: dict[str, Any] | None = None,
         newton_options: dict[str, Any] | None = None,
@@ -906,6 +1082,7 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         self.n_basis = n_basis
         self.basis_tol = basis_tol
         self.class_weight = class_weight
+        self.multi_class = multi_class
         self.validation_smoothing = validation_smoothing
         self.smo_options = smo_options
         self.newton_options = newton_options
@@ -932,10 +1109,21 @@ class OptimizedSVC(_OptimizedMixin, SmoothSVC):
         groups: ArrayLike | None = None,
     ) -> OptimizedSVC:
         """Fits the model; ``groups`` is passed to ``cv.split`` (splitter objects only)."""
+        _check_multi_class(self)
         for name in ("lam_", "scaling_opt_"):
             self.__dict__.pop(name, None)
         x, y = validate_data(self, X, y, dtype=np.float64)
         y = np.asarray(y)
+        if self.multi_class == "softmax":
+            yi, w, r = _softmax_targets(self, y, x, sample_weight)
+            if r >= 3:
+                self._optimize(x, yi.astype(np.float64), w, groups, n_classes=r)
+                self._fit_softmax_model(x, yi, w, r)
+            else:  # the same model as the binary one with lam / 2: tune that, report lam
+                labels = np.where(yi == 1, 1.0, -1.0)
+                self._optimize(x, labels, w, groups, lam_factor=0.5)
+                self._fit_model(x, labels, w, lam=self.lam_ / 2)
+            return self
         if _fit_one_vs_rest(self, x, y, sample_weight, groups):
             return self
         labels, w = _binary_labels(self, y, x, sample_weight)

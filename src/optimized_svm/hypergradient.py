@@ -16,9 +16,9 @@ after which ``dE/dtheta = -u^T (d ka_P / dtheta) + dE^T (d f_V / dtheta)`` with 
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 import numpy as np
 from joblib import Parallel, delayed, effective_n_jobs
@@ -34,6 +34,7 @@ from .validation import ValidationLoss
 
 Array = NDArray[np.float64]
 Fold = tuple[NDArray[np.intp], NDArray[np.intp]]
+_T = TypeVar("_T")
 
 
 def _kernel_columns(
@@ -161,6 +162,26 @@ class CVResult:
     folds: list[FoldResult | SubspaceFoldResult] = field(default_factory=list)
 
 
+def run_folds(run_fold: Callable[[int], _T], n_folds: int, n_jobs: int | None = None) -> list[_T]:
+    """Runs ``run_fold(i)`` for ``i = 0, ..., n_folds - 1``, serially or in parallel threads.
+
+    ``n_jobs`` has scikit-learn semantics (``None`` or 1: serial, -1: all cores). The folds run in
+    threads (the SMO solver and BLAS release the GIL, nothing is copied). The BLAS threads are
+    divided among the workers; the limit is global to the process, so it is set once here and the
+    nested limits in :mod:`optimized_svm.linalg` are inactive meanwhile. ``run_fold`` must not
+    touch shared state. The results are returned in fold order.
+    """
+    if n_jobs is None or n_jobs == 1 or n_folds < 2:
+        return [run_fold(i) for i in range(n_folds)]
+    n_workers = max(1, min(n_folds, effective_n_jobs(n_jobs)))
+    with parallel_section(max(1, blas_threads() // n_workers)):
+        return list(
+            Parallel(n_jobs=n_workers, prefer="threads")(
+                delayed(run_fold)(i) for i in range(n_folds)
+            )
+        )
+
+
 def cv_error_and_gradient(
     theta: Array,
     x: Array,
@@ -258,17 +279,7 @@ def cv_error_and_gradient(
             None if offset is None else offset[val_idx],
         )
 
-    if n_jobs is None or n_jobs == 1 or len(folds) < 2:
-        results = [run_fold(i) for i in range(len(folds))]
-    else:
-        # The folds run in threads (the SMO solver and BLAS release the GIL, nothing is copied).
-        # The BLAS threads are divided among the workers; the limit is global to the process, so
-        # it is set once here and the nested limits in ``linalg`` are inactive meanwhile.
-        n_workers = max(1, min(len(folds), effective_n_jobs(n_jobs)))
-        with parallel_section(max(1, blas_threads() // n_workers)):
-            results = Parallel(n_jobs=n_workers, prefer="threads")(
-                delayed(run_fold)(i) for i in range(len(folds))
-            )
+    results = run_folds(run_fold, len(folds), n_jobs)
     # summed and stored in fold order, so that the result does not depend on ``n_jobs``
     total, grad = 0.0, np.zeros_like(theta, dtype=np.float64)
     n_val = 0

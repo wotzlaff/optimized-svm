@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- `multi_class="softmax"` for `SmoothSVC` and `OptimizedSVC` (default `"ovr"`, unchanged): one joint
+  multinomial (soft-max) model for more than two classes (thesis Sec. 5.1) with a decision function per
+  class, common `lam` and scalings, trained by a dense Newton method (`optimized_svm.multiclass`). Needs
+  `loss="logistic"`; `predict_proba` returns the soft-max probabilities. The optimiser tunes `lam` and the
+  scalings with exact hypergradients of the cross-validation multinomial negative log-likelihood
+  (`cv_error_and_gradient_multiclass`, with `n_jobs` and warm starts). Cost is `O((r n)^3)` per step (a
+  `UserWarning` above `r n = 4000`); every training fold must contain all classes. With two classes the
+  binary logistic model with `lam / 2` is used (the same model). See the new theory page and example.
+- `optimized_svm.hypergradient.run_folds`: shared serial/parallel fold runner behind `n_jobs`.
 - `n_jobs` parameter of `OptimizedSVC`, `OptimizedSVR`, `OptimizedKernelGLMRegressor` and
   `cv_error_and_gradient`: trains the cross-validation folds in parallel threads (scikit-learn
   semantics, `None`/1 serial, -1 all cores); the BLAS threads are divided among the workers. Results equal
