@@ -1,0 +1,2 @@
+method,steps,stop_reason,time,matvecs,psi_gap_final,F_final,dist_final
+pgd,366263,no_numerical_descent,698.9259043224156,369927,3.8471270613626984e-10,0.00023124521925261957,0.00023708940054202848

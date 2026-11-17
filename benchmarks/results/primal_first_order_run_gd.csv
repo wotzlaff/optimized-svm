@@ -1,0 +1,2 @@
+method,steps,stop_reason,time,matvecs,psi_gap_final,F_final,dist_final
+gd,1000000,max_steps,1190.5096570551395,2010002,0.5908366142796702,4.531422677809437,4.417677308527367

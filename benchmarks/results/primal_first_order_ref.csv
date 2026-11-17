@@ -1,0 +1,17 @@
+key,value
+psi_star,20.2844910985
+F_star,4.30295562606e-12
+grad_star,2.12966212654e-08
+residual_library,2.92824787837e-26
+newton_steps,1
+smo_steps,23169
+n_sv,81
+n_bound,11
+b_star,0.231504072398
+alpha_star_norm,4.41333000751
+time_reference,0.050242241472
+fd_rel_err_max,2.25788672509e-11
+pgd_grad_dot_dir,-90449245017.1
+pgd_minus_descent_estimate,-90449245017.1
+pgd_fd_rel_err,3.81192796064e-10
+kernel_check_abs,1.08420217249e-19
