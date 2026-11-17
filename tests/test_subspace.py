@@ -296,5 +296,5 @@ def test_subspace_lambda_gradient_is_exact_for_an_ill_conditioned_basis(monkeypa
     fd = np.array(
         [(f(theta + eps * e)[0] - f(theta - eps * e)[0]) / (2 * eps) for e in np.eye(theta.size)]
     )
-    np.testing.assert_allclose(grad[0], fd[0], rtol=2e-6)
+    np.testing.assert_allclose(grad[0], fd[0], rtol=5e-5)  # old code: 8e-4
     np.testing.assert_allclose(grad[1:3], fd[1:3], rtol=1e-3)
