@@ -19,6 +19,18 @@ which protocol goes first.
 The two synthetic datasets and the selected seeds illustrate the time/quality
 trade-off. The experiment does not estimate speedups for parallel CV or
 generalization to other datasets.
+
+Add `--subset-fraction 0.5 --prescreen-iter 10 --refine-iter 5` and write to
+`benchmarks/results/hpo_subset.csv` to add three protocols: short CV from the
+original initialization and two fixed-subset prescreens followed by short CV.
+The prescreen takes a subset of the first fold's training indices and uses its
+unchanged validation indices. Both stages fit on the same development data
+with different CV index sets. Their fit times include both estimator refits.
+Only hyperparameters cross the stage boundary. In the scaled protocol the
+training-size ratio scales the prescreen lambda initialization and bounds, and
+its reciprocal rescales the learned lambda for the full CV stage. The direct
+protocol uses lambda without either adjustment. The timing excludes generating
+the shared splits and scoring the external test set. Peak RSS is not measured.
 """
 
 from __future__ import annotations
@@ -41,9 +53,20 @@ from threadpoolctl import threadpool_info, threadpool_limits
 
 import optimized_svm
 from optimized_svm import OptimizedSVC, OptimizedSVR
+from optimized_svm.estimators import auto_scaling
 
 
-def run_pair(task: str, n: int, seed: int, max_iter: int, holdout_first: bool) -> list[dict]:
+def run_pair(
+    task: str,
+    n: int,
+    seed: int,
+    max_iter: int,
+    order_index: int,
+    subset_fraction: float | None,
+    prescreen_iter: int,
+    refine_iter: int,
+    selected_protocol: str | None,
+) -> list[dict]:
     classification = task == "svc"
     if classification:
         x, y = make_moons(n_samples=n, noise=0.27, random_state=seed)
@@ -54,20 +77,63 @@ def run_pair(task: str, n: int, seed: int, max_iter: int, holdout_first: bool) -
     )
     splitter = StratifiedKFold if classification else KFold
     folds = list(splitter(n_splits=5, shuffle=True, random_state=seed).split(x_train, y_train))
-    protocols = [("cv5", folds), ("holdout", folds[:1])]
-    if holdout_first:
-        protocols.reverse()
+    protocols = ["cv5", "holdout"]
+    subset_fold = None
+    subset_ratio = 1.0
+    if subset_fraction is not None:
+        reference, validation = folds[0]
+        count = round(len(reference) * subset_fraction)
+        if not 2 <= count <= len(reference) - 2:
+            raise ValueError("subset needs at least two included and two excluded training rows")
+        subset, _ = train_test_split(
+            reference,
+            train_size=count,
+            random_state=seed,
+            stratify=y_train[reference] if classification else None,
+        )
+        subset_fold = [(np.sort(subset), validation)]
+        subset_ratio = len(subset) / len(reference)
+        protocols.extend(["short_cv", "subset_scaled", "subset_direct"])
+    shift = order_index % len(protocols)
+    protocols = protocols[shift:] + protocols[:shift]
+    if selected_protocol is not None:
+        protocols = [selected_protocol]
+
     rows = []
-    for order, (protocol, cv) in enumerate(protocols, start=1):
-        estimator = OptimizedSVC if classification else OptimizedSVR
-        model = estimator(cv=cv, max_iter=max_iter, random_state=seed, n_jobs=1)
+    estimator = OptimizedSVC if classification else OptimizedSVR
+    for order, protocol in enumerate(protocols, start=1):
+        cv = folds[:1] if protocol == "holdout" else folds
+        budget = max_iter if protocol in {"cv5", "holdout"} else refine_iter
+        model = estimator(cv=cv, max_iter=budget, random_state=seed, n_jobs=1)
+        prescreen = None
+        prescreen_seconds = 0.0
         start = time.perf_counter()
+        if subset_fold is not None:
+            model.set_params(scaling_init=auto_scaling(x_train))
+            if protocol in {"subset_scaled", "subset_direct"}:
+                ratio = subset_ratio if protocol == "subset_scaled" else 1.0
+                prescreen = estimator(
+                    cv=subset_fold,
+                    max_iter=prescreen_iter,
+                    random_state=seed,
+                    n_jobs=1,
+                    scaling_init=model.scaling_init,
+                    lam_init=model.lam_init * ratio,
+                    lam_bounds=tuple(bound * ratio for bound in model.lam_bounds),
+                )
+                prescreen.fit(x_train, y_train)
+                prescreen_seconds = time.perf_counter() - start
+                model.set_params(
+                    lam_init=float(np.clip(prescreen.lam_ / ratio, *model.lam_bounds)),
+                    scaling_init=float(prescreen.scaling_opt_.item()),
+                )
         model.fit(x_train, y_train)
         seconds = time.perf_counter() - start
         prediction = model.predict(x_test)
         metric = accuracy_score if classification else root_mean_squared_error
         result = model.optimize_result_
-        evaluations = len(model.history_)
+        final_evaluations = len(model.history_)
+        prescreen_evaluations = len(prescreen.history_) if prescreen is not None else 0
         row = {
             "task": task,
             "samples": n,
@@ -79,8 +145,8 @@ def run_pair(task: str, n: int, seed: int, max_iter: int, holdout_first: bool) -
             "folds": len(cv),
             "first_fold_train": len(folds[0][0]),
             "fit_seconds": seconds,
-            "evaluations": evaluations,
-            "fold_solves": evaluations * len(cv),
+            "evaluations": final_evaluations + prescreen_evaluations,
+            "fold_solves": final_evaluations * len(cv) + prescreen_evaluations,
             "iterations": model.n_iter_,
             "converged": bool(result.success),
             "optimizer_message": str(result.message),
@@ -89,10 +155,28 @@ def run_pair(task: str, n: int, seed: int, max_iter: int, holdout_first: bool) -
             "metric": "accuracy" if classification else "rmse",
             "test_score": float(metric(y_test, prediction)),
         }
+        if subset_fold is not None:
+            row.update(
+                subset_train=len(subset_fold[0][0]) if prescreen is not None else 0,
+                prescreen_seconds=prescreen_seconds,
+                prescreen_optimize_seconds=prescreen.time_ if prescreen is not None else 0.0,
+                prescreen_evaluations=prescreen_evaluations,
+                prescreen_iterations=prescreen.n_iter_ if prescreen is not None else 0,
+                prescreen_message=(
+                    str(prescreen.optimize_result_.message) if prescreen is not None else ""
+                ),
+                prescreen_lambda=prescreen.lam_ if prescreen is not None else "",
+                final_evaluations=final_evaluations,
+                final_cv_error=model.cv_error_,
+                final_max_iter=budget,
+                final_lam_init=model.lam_init,
+                final_scaling_init=model.scaling_init,
+                refits=2 if prescreen is not None else 1,
+            )
         rows.append(row)
         print(
-            f"{task} seed={seed} {protocol:7s} {seconds:7.3f}s "
-            f"{evaluations:3d} evaluations / {row['fold_solves']:3d} fold solves "
+            f"{task} seed={seed} {protocol:13s} {seconds:7.3f}s "
+            f"{row['evaluations']:3d} evaluations / {row['fold_solves']:3d} fold solves "
             f"{row['metric']}={row['test_score']:.5f}, converged={row['converged']}",
             flush=True,
         )
@@ -104,11 +188,25 @@ def main() -> None:
     parser.add_argument("--samples", type=int, default=800)
     parser.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 4])
     parser.add_argument("--max-iter", type=int, default=40)
+    parser.add_argument("--subset-fraction", type=float)
+    parser.add_argument("--prescreen-iter", type=int, default=10)
+    parser.add_argument("--refine-iter", type=int, default=5)
+    parser.add_argument(
+        "--protocol", choices=["cv5", "holdout", "short_cv", "subset_scaled", "subset_direct"]
+    )
     parser.add_argument("--task", choices=["svc", "svr", "both"], default="both")
     parser.add_argument("--csv", type=Path, required=True)
     args = parser.parse_args()
     if args.samples < 50 or args.max_iter < 1 or len(set(args.seeds)) != len(args.seeds):
         parser.error("use at least 50 samples, a positive iteration limit and distinct seeds")
+    if args.subset_fraction is not None and (
+        not 0 < args.subset_fraction < 1 or min(args.prescreen_iter, args.refine_iter) < 1
+    ):
+        parser.error(
+            "subset fraction must be in (0, 1) and stage iteration limits must be positive"
+        )
+    if args.protocol is not None and args.subset_fraction is None:
+        parser.error("protocol filtering requires --subset-fraction")
 
     print(f"Platform: {platform.platform()}, Python {platform.python_version()}")
     print(
@@ -119,6 +217,12 @@ def main() -> None:
         f"Samples={args.samples}, seeds={args.seeds}, max_iter={args.max_iter}, task={args.task}. "
         f"RAYON_NUM_THREADS={os.environ.get('RAYON_NUM_THREADS', 'unset')}"
     )
+    if args.subset_fraction is not None:
+        print(
+            f"Subset fraction={args.subset_fraction}, prescreen_iter={args.prescreen_iter}, "
+            f"refine_iter={args.refine_iter}, protocol={args.protocol or 'all'}. "
+            "Timings include every refit. Peak RSS not measured."
+        )
     tasks = ["svc", "svr"] if args.task == "both" else [args.task]
     rows = []
     with threadpool_limits(limits=1):
@@ -130,7 +234,17 @@ def main() -> None:
         for task in tasks:
             for i, seed in enumerate(args.seeds):
                 rows.extend(
-                    run_pair(task, args.samples, seed, args.max_iter, holdout_first=i % 2 == 1)
+                    run_pair(
+                        task,
+                        args.samples,
+                        seed,
+                        args.max_iter,
+                        i,
+                        args.subset_fraction,
+                        args.prescreen_iter,
+                        args.refine_iter,
+                        args.protocol,
+                    )
                 )
 
     with args.csv.open("w", newline="", encoding="utf-8") as output:
@@ -138,8 +252,25 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(rows)
 
+    if args.protocol is not None:
+        return
+
     for task in tasks:
         cv = {r["seed"]: r for r in rows if r["task"] == task and r["protocol"] == "cv5"}
+        if args.subset_fraction is not None:
+            for protocol in ("holdout", "short_cv", "subset_scaled", "subset_direct"):
+                other = {
+                    r["seed"]: r for r in rows if r["task"] == task and r["protocol"] == protocol
+                }
+                speedups = [cv[s]["fit_seconds"] / other[s]["fit_seconds"] for s in args.seeds]
+                deltas = [other[s]["test_score"] - cv[s]["test_score"] for s in args.seeds]
+                metric = next(iter(cv.values()))["metric"]
+                print(
+                    f"{task} {protocol}: paired speedup median {np.median(speedups):.2f}x "
+                    f"(range {min(speedups):.2f}–{max(speedups):.2f}x); test {metric} delta "
+                    f"median {np.median(deltas):+.5f} (range {min(deltas):+.5f}–{max(deltas):+.5f})"
+                )
+            continue
         holdout = {r["seed"]: r for r in rows if r["task"] == task and r["protocol"] == "holdout"}
         speedups = [cv[s]["fit_seconds"] / holdout[s]["fit_seconds"] for s in args.seeds]
         differences = [holdout[s]["test_score"] - cv[s]["test_score"] for s in args.seeds]

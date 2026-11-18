@@ -13,6 +13,21 @@ where $f_j$ is the decision function trained on $T_j$ (the lower level problem) 
 validation loss: a smoothed hinge for classification, a Huber-type smoothed absolute error,
 the squared error or the Poisson loss for regression (Sec. 9.1).
 
+## Initializing a CV search from a smaller training set
+
+A cheaper search can train on a fixed subset of an inner training fold and
+evaluate on the original validation fold. Its selected hyperparameters can
+initialize a fresh L-BFGS-B run on the full CV objective. Keep the indices
+fixed within each search so that the line search compares the same objective.
+
+For an unweighted training objective of the form
+$\lambda\|f\|^2/2 + \sum_{i=1}^{n} \ell_i(f)$, the regularization coefficient
+after division by $n$ is $\lambda/n$. For a subset of size $m$, using
+$\lambda_m = (m/n)\lambda_n$ preserves that coefficient. Multiply the selected
+subset value by $n/m$ to initialize the full-fold search. This transfer
+accounts for the scale of the loss sum. The sample itself changes the fitted
+model and validation objective, so the selected parameters can still shift.
+
 ## Implicit function theorem
 
 With smoothed losses, the training solution satisfies the (semismooth) optimality system

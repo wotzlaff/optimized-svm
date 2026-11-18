@@ -1,0 +1,87 @@
+Source: optimized-svm 78cc0ab with the subset-mode benchmark in this change.
+CPU: Intel Core i7-8700 at 3.20 GHz. Solver: local smo-solver 0.2.0 wheel.
+Command: OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 RAYON_NUM_THREADS=1 PYTHONPATH=src python benchmarks/hpo_holdout.py --samples 800 --seeds 0 1 2 3 4 --subset-fraction 0.5 --prescreen-iter 10 --refine-iter 5 --csv benchmarks/results/hpo_subset.csv
+The prescreen uses 256 of 512 inner training rows and retains all 128 inner validation rows.
+Platform: Linux-6.1.0-44-amd64-x86_64-with-glibc2.36, Python 3.11.2
+optimized-svm 0.6.0, smo-solver 0.2.0, NumPy 2.4.6, SciPy 1.17.1, scikit-learn 1.9.1
+Samples=800, seeds=[0, 1, 2, 3, 4], max_iter=40, task=both. RAYON_NUM_THREADS=1
+Subset fraction=0.5, prescreen_iter=10, refine_iter=5, protocol=all. Timings include every refit. Peak RSS not measured.
+Thread pools: openblas=1, openmp=1, openblas=1
+svc seed=0 cv5             0.656s  20 evaluations / 100 fold solves accuracy=0.93750, converged=True
+svc seed=0 holdout         0.206s  16 evaluations /  16 fold solves accuracy=0.92500, converged=True
+svc seed=0 short_cv        0.199s   7 evaluations /  35 fold solves accuracy=0.93125, converged=False
+svc seed=0 subset_scaled   0.271s  13 evaluations /  49 fold solves accuracy=0.93125, converged=False
+svc seed=0 subset_direct   0.274s  20 evaluations /  52 fold solves accuracy=0.93750, converged=False
+svc seed=1 holdout         0.319s  36 evaluations /  36 fold solves accuracy=0.89375, converged=True
+svc seed=1 short_cv        0.394s  12 evaluations /  60 fold solves accuracy=0.90625, converged=False
+svc seed=1 subset_scaled   0.469s  23 evaluations /  79 fold solves accuracy=0.89375, converged=False
+svc seed=1 subset_direct   0.434s  36 evaluations /  80 fold solves accuracy=0.90000, converged=False
+svc seed=1 cv5             0.385s  13 evaluations /  65 fold solves accuracy=0.90625, converged=True
+svc seed=2 short_cv        0.197s   6 evaluations /  30 fold solves accuracy=0.95000, converged=False
+svc seed=2 subset_scaled   0.853s  36 evaluations / 136 fold solves accuracy=0.95000, converged=True
+svc seed=2 subset_direct   0.989s  36 evaluations / 120 fold solves accuracy=0.95000, converged=True
+svc seed=2 cv5             0.374s  11 evaluations /  55 fold solves accuracy=0.95000, converged=True
+svc seed=2 holdout         0.095s  11 evaluations /  11 fold solves accuracy=0.95000, converged=True
+svc seed=3 subset_scaled   0.311s  32 evaluations /  56 fold solves accuracy=0.92500, converged=False
+svc seed=3 subset_direct   0.471s  33 evaluations /  81 fold solves accuracy=0.91875, converged=False
+svc seed=3 cv5             0.549s  16 evaluations /  80 fold solves accuracy=0.91875, converged=True
+svc seed=3 holdout         0.164s  20 evaluations /  20 fold solves accuracy=0.91875, converged=True
+svc seed=3 short_cv        0.327s  10 evaluations /  50 fold solves accuracy=0.91875, converged=False
+svc seed=4 subset_direct   0.283s  22 evaluations /  50 fold solves accuracy=0.93750, converged=False
+svc seed=4 cv5             1.310s  35 evaluations / 175 fold solves accuracy=0.93750, converged=True
+svc seed=4 holdout         0.220s  27 evaluations /  27 fold solves accuracy=0.93750, converged=True
+svc seed=4 short_cv        0.403s  11 evaluations /  55 fold solves accuracy=0.93750, converged=False
+svc seed=4 subset_scaled   0.305s  30 evaluations /  54 fold solves accuracy=0.93750, converged=False
+svr seed=0 cv5             3.574s  14 evaluations /  70 fold solves rmse=0.83560, converged=True
+svr seed=0 holdout         1.136s  10 evaluations /  10 fold solves rmse=0.84099, converged=True
+svr seed=0 short_cv        1.346s   6 evaluations /  30 fold solves rmse=0.92570, converged=False
+svr seed=0 subset_scaled   4.050s  17 evaluations /  41 fold solves rmse=0.85174, converged=False
+svr seed=0 subset_direct   4.131s  17 evaluations /  41 fold solves rmse=0.84775, converged=False
+svr seed=1 holdout         1.173s  13 evaluations /  13 fold solves rmse=0.74581, converged=True
+svr seed=1 short_cv        1.712s   6 evaluations /  30 fold solves rmse=0.76687, converged=False
+svr seed=1 subset_scaled   1.773s  14 evaluations /  38 fold solves rmse=0.80131, converged=False
+svr seed=1 subset_direct   1.664s  15 evaluations /  39 fold solves rmse=0.78237, converged=False
+svr seed=1 cv5             6.100s  17 evaluations /  85 fold solves rmse=0.74850, converged=True
+svr seed=2 short_cv        1.899s   8 evaluations /  40 fold solves rmse=0.85061, converged=False
+svr seed=2 subset_scaled   1.889s  16 evaluations /  44 fold solves rmse=0.85462, converged=False
+svr seed=2 subset_direct   2.048s  17 evaluations /  45 fold solves rmse=0.85273, converged=False
+svr seed=2 cv5             3.831s  14 evaluations /  70 fold solves rmse=0.81908, converged=True
+svr seed=2 holdout         3.020s  14 evaluations /  14 fold solves rmse=0.80812, converged=True
+svr seed=3 subset_scaled   3.081s  16 evaluations /  36 fold solves rmse=0.82676, converged=True
+svr seed=3 subset_direct   2.994s  17 evaluations /  41 fold solves rmse=0.82598, converged=False
+svr seed=3 cv5             8.912s  17 evaluations /  85 fold solves rmse=0.82752, converged=True
+svr seed=3 holdout         2.507s  20 evaluations /  20 fold solves rmse=0.82886, converged=True
+svr seed=3 short_cv        1.543s   6 evaluations /  30 fold solves rmse=0.89927, converged=False
+svr seed=4 subset_direct   2.630s  18 evaluations /  46 fold solves rmse=0.74950, converged=False
+svr seed=4 cv5             4.509s  16 evaluations /  80 fold solves rmse=0.73939, converged=True
+svr seed=4 holdout         0.582s  12 evaluations /  12 fold solves rmse=0.76876, converged=True
+svr seed=4 short_cv        1.577s   6 evaluations /  30 fold solves rmse=0.81376, converged=False
+svr seed=4 subset_scaled   2.254s  18 evaluations /  42 fold solves rmse=0.75444, converged=False
+svc holdout: paired speedup median 3.35x (range 1.21–5.96x); test accuracy delta median +0.00000 (range -0.01250–+0.00000)
+svc short_cv: paired speedup median 1.90x (range 0.98–3.29x); test accuracy delta median +0.00000 (range -0.00625–+0.00000)
+svc subset_scaled: paired speedup median 1.77x (range 0.44–4.29x); test accuracy delta median +0.00000 (range -0.01250–+0.00625)
+svc subset_direct: paired speedup median 1.17x (range 0.38–4.63x); test accuracy delta median +0.00000 (range -0.00625–+0.00000)
+svr holdout: paired speedup median 3.56x (range 1.27–7.75x); test rmse delta median +0.00134 (range -0.01096–+0.02937)
+svr short_cv: paired speedup median 2.86x (range 2.02–5.78x); test rmse delta median +0.07175 (range +0.01838–+0.09010)
+svr subset_scaled: paired speedup median 2.03x (range 0.88–3.44x); test rmse delta median +0.01615 (range -0.00076–+0.05281)
+svr subset_direct: paired speedup median 1.87x (range 0.87–3.66x); test rmse delta median +0.01216 (range -0.00154–+0.03387)
+
+Separate Linux process peak RSS check (seed 0, 800 observations).
+Each row uses a fresh Python interpreter with the same thread limits.
+The high-water mark includes imports, both stages where applicable, and refits.
+To reproduce each row, substitute TASK and PROTOCOL below and repeat in a new process:
+  PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 RAYON_NUM_THREADS=1 \
+    python -c 'import resource, runpy; runpy.run_path("benchmarks/hpo_holdout.py", run_name="__main__"); print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)' \
+    --samples 800 --seeds 0 --subset-fraction 0.5 --task TASK --protocol PROTOCOL --csv /tmp/hpo_subset_rss_fit.csv
+
+task,seed,protocol,peak_rss_kib
+svc,0,cv5,139828
+svc,0,holdout,136416
+svc,0,short_cv,137060
+svc,0,subset_scaled,137460
+svc,0,subset_direct,137128
+svr,0,cv5,202100
+svr,0,holdout,193192
+svr,0,short_cv,189048
+svr,0,subset_scaled,210432
+svr,0,subset_direct,209616
