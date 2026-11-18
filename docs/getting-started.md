@@ -13,8 +13,10 @@ from sklearn.preprocessing import StandardScaler
 from optimized_svm import OptimizedSVC
 
 x, y = load_breast_cancer(return_X_y=True)
-x = StandardScaler().fit_transform(x)
 x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=0)
+scaler = StandardScaler().fit(x_train)
+x_train = scaler.transform(x_train)
+x_test = scaler.transform(x_test)
 
 clf = OptimizedSVC(cv=5, verbose=1).fit(x_train, y_train)
 print(clf.lam_, clf.scaling_opt_, clf.score(x_test, y_test))
@@ -27,6 +29,27 @@ search the model is refitted on all data with the best parameters.
 !!! tip "Feature scaling"
     The kernel acts on the raw features. Standardize them (e.g. with `StandardScaler`) or use
     `blocks="features"` so that every feature gets its own scaling.
+
+## Tuning with a fixed holdout
+
+Use a single split to reduce the number of training and hypergradient solves per
+objective evaluation. Create the split once on the data you pass to `fit`.
+
+```python
+from sklearn.model_selection import StratifiedShuffleSplit
+
+splitter = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=0)
+train_idx, val_idx = next(splitter.split(x_train, y_train))
+clf = OptimizedSVC(cv=[(train_idx, val_idx)]).fit(x_train, y_train)
+print(clf.score(x_test, y_test))
+```
+
+The optimizer uses the same validation rows throughout the search. The final
+fit uses all of `x_train`, including those validation rows. With one split,
+`cv_error_` describes that holdout and can be sensitive to its composition.
+Use separate test data to compare models. For regression, use `ShuffleSplit`
+and `OptimizedSVR`. For grouped or time-ordered data, use a split that respects
+those boundaries.
 
 ## Regression and feature relevance
 
