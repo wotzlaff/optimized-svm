@@ -1,0 +1,127 @@
+Source: optimized-svm 916f53f with the dataset-selection benchmark in this change.
+CPU: Intel Core i7-8700 at 3.20 GHz. Solver: local smo-solver 0.2.0 wheel.
+Command: OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 RAYON_NUM_THREADS=1 PYTHONPATH=src python benchmarks/hpo_holdout.py --datasets moons friedman1 breast_cancer diabetes --samples 800 --seeds 0 1 2 3 4 --subset-fraction 0.5 --prescreen-iter 10 --refine-iter 5 --csv benchmarks/results/hpo_sampling_web.csv
+Real data uses all observations (569 Breast Cancer Wisconsin and 442 Diabetes with scaled=False). StandardScaler is fit on outer development features once before inner splitting. This preprocessing is shared across protocols and uses no outer test data. Synthetic features are unchanged.
+Outer splits allocate 20% to testing. The prescreen uses half of the first inner training fold and all of its validation rows. Both stages and all refits are included in wall time; prediction and scoring are outside the timer. Runs are sequential.
+Platform: Linux-6.1.0-44-amd64-x86_64-with-glibc2.36, Python 3.11.2
+optimized-svm 0.6.0, smo-solver 0.2.0, NumPy 2.4.6, SciPy 1.17.1, scikit-learn 1.9.1
+Samples=800, seeds=[0, 1, 2, 3, 4], max_iter=40, task=both. RAYON_NUM_THREADS=1
+Subset fraction=0.5, prescreen_iter=10, refine_iter=5, protocol=all. Timings include every refit. Peak RSS not measured.
+Datasets=['moons', 'friedman1', 'breast_cancer', 'diabetes']. --samples applies to synthetic data only.
+Thread pools: openblas=1, openmp=1, openblas=1
+moons seed=0 cv5             0.596s  20 evaluations / 100 fold solves accuracy=0.93750, converged=True
+moons seed=0 holdout         0.199s  16 evaluations /  16 fold solves accuracy=0.92500, converged=True
+moons seed=0 short_cv        0.215s   7 evaluations /  35 fold solves accuracy=0.93125, converged=False
+moons seed=0 subset_scaled   0.280s  13 evaluations /  49 fold solves accuracy=0.93125, converged=False
+moons seed=0 subset_direct   0.274s  20 evaluations /  52 fold solves accuracy=0.93750, converged=False
+moons seed=1 holdout         0.279s  36 evaluations /  36 fold solves accuracy=0.89375, converged=True
+moons seed=1 short_cv        0.378s  12 evaluations /  60 fold solves accuracy=0.90625, converged=False
+moons seed=1 subset_scaled   0.452s  23 evaluations /  79 fold solves accuracy=0.89375, converged=False
+moons seed=1 subset_direct   0.447s  36 evaluations /  80 fold solves accuracy=0.90000, converged=False
+moons seed=1 cv5             0.375s  13 evaluations /  65 fold solves accuracy=0.90625, converged=True
+moons seed=2 short_cv        0.187s   6 evaluations /  30 fold solves accuracy=0.95000, converged=False
+moons seed=2 subset_scaled   0.876s  36 evaluations / 136 fold solves accuracy=0.95000, converged=True
+moons seed=2 subset_direct   1.092s  36 evaluations / 120 fold solves accuracy=0.95000, converged=True
+moons seed=2 cv5             0.383s  11 evaluations /  55 fold solves accuracy=0.95000, converged=True
+moons seed=2 holdout         0.095s  11 evaluations /  11 fold solves accuracy=0.95000, converged=True
+moons seed=3 subset_scaled   0.362s  32 evaluations /  56 fold solves accuracy=0.92500, converged=False
+moons seed=3 subset_direct   0.601s  33 evaluations /  81 fold solves accuracy=0.91875, converged=False
+moons seed=3 cv5             0.582s  16 evaluations /  80 fold solves accuracy=0.91875, converged=True
+moons seed=3 holdout         0.154s  20 evaluations /  20 fold solves accuracy=0.91875, converged=True
+moons seed=3 short_cv        0.342s  10 evaluations /  50 fold solves accuracy=0.91875, converged=False
+moons seed=4 subset_direct   0.378s  22 evaluations /  50 fold solves accuracy=0.93750, converged=False
+moons seed=4 cv5             1.635s  35 evaluations / 175 fold solves accuracy=0.93750, converged=True
+moons seed=4 holdout         0.271s  27 evaluations /  27 fold solves accuracy=0.93750, converged=True
+moons seed=4 short_cv        0.461s  11 evaluations /  55 fold solves accuracy=0.93750, converged=False
+moons seed=4 subset_scaled   0.333s  30 evaluations /  54 fold solves accuracy=0.93750, converged=False
+friedman1 seed=0 cv5             3.347s  14 evaluations /  70 fold solves rmse=0.83560, converged=True
+friedman1 seed=0 holdout         1.048s  10 evaluations /  10 fold solves rmse=0.84099, converged=True
+friedman1 seed=0 short_cv        1.287s   6 evaluations /  30 fold solves rmse=0.92570, converged=False
+friedman1 seed=0 subset_scaled   3.935s  17 evaluations /  41 fold solves rmse=0.85174, converged=False
+friedman1 seed=0 subset_direct   3.828s  17 evaluations /  41 fold solves rmse=0.84775, converged=False
+friedman1 seed=1 holdout         1.092s  13 evaluations /  13 fold solves rmse=0.74581, converged=True
+friedman1 seed=1 short_cv        1.651s   6 evaluations /  30 fold solves rmse=0.76687, converged=False
+friedman1 seed=1 subset_scaled   1.792s  14 evaluations /  38 fold solves rmse=0.80131, converged=False
+friedman1 seed=1 subset_direct   1.713s  15 evaluations /  39 fold solves rmse=0.78237, converged=False
+friedman1 seed=1 cv5             5.962s  17 evaluations /  85 fold solves rmse=0.74850, converged=True
+friedman1 seed=2 short_cv        2.015s   8 evaluations /  40 fold solves rmse=0.85061, converged=False
+friedman1 seed=2 subset_scaled   2.084s  16 evaluations /  44 fold solves rmse=0.85462, converged=False
+friedman1 seed=2 subset_direct   1.997s  17 evaluations /  45 fold solves rmse=0.85273, converged=False
+friedman1 seed=2 cv5             3.780s  14 evaluations /  70 fold solves rmse=0.81908, converged=True
+friedman1 seed=2 holdout         2.831s  14 evaluations /  14 fold solves rmse=0.80812, converged=True
+friedman1 seed=3 subset_scaled   3.096s  16 evaluations /  36 fold solves rmse=0.82676, converged=True
+friedman1 seed=3 subset_direct   2.997s  17 evaluations /  41 fold solves rmse=0.82598, converged=False
+friedman1 seed=3 cv5             8.872s  17 evaluations /  85 fold solves rmse=0.82752, converged=True
+friedman1 seed=3 holdout         2.651s  20 evaluations /  20 fold solves rmse=0.82886, converged=True
+friedman1 seed=3 short_cv        1.603s   6 evaluations /  30 fold solves rmse=0.89927, converged=False
+friedman1 seed=4 subset_direct   2.975s  18 evaluations /  46 fold solves rmse=0.74950, converged=False
+friedman1 seed=4 cv5             4.265s  16 evaluations /  80 fold solves rmse=0.73939, converged=True
+friedman1 seed=4 holdout         0.604s  12 evaluations /  12 fold solves rmse=0.76876, converged=True
+friedman1 seed=4 short_cv        1.629s   6 evaluations /  30 fold solves rmse=0.81376, converged=False
+friedman1 seed=4 subset_scaled   2.201s  18 evaluations /  42 fold solves rmse=0.75444, converged=False
+breast_cancer seed=0 cv5             0.578s  23 evaluations / 115 fold solves accuracy=0.98246, converged=True
+breast_cancer seed=0 holdout         0.075s  14 evaluations /  14 fold solves accuracy=0.96491, converged=True
+breast_cancer seed=0 short_cv        0.415s  16 evaluations /  80 fold solves accuracy=0.98246, converged=False
+breast_cancer seed=0 subset_scaled   0.249s  24 evaluations /  56 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=0 subset_direct   0.255s  21 evaluations /  57 fold solves accuracy=0.98246, converged=False
+breast_cancer seed=1 holdout         0.062s  13 evaluations /  13 fold solves accuracy=0.97368, converged=True
+breast_cancer seed=1 short_cv        0.204s   9 evaluations /  45 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=1 subset_scaled   0.227s  26 evaluations /  54 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=1 subset_direct   0.183s  24 evaluations /  48 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=1 cv5             0.296s  15 evaluations /  75 fold solves accuracy=0.97368, converged=True
+breast_cancer seed=2 short_cv        0.156s   7 evaluations /  35 fold solves accuracy=0.98246, converged=False
+breast_cancer seed=2 subset_scaled   0.253s  22 evaluations /  54 fold solves accuracy=0.98246, converged=False
+breast_cancer seed=2 subset_direct   0.250s  22 evaluations /  58 fold solves accuracy=0.98246, converged=False
+breast_cancer seed=2 cv5             0.357s  15 evaluations /  75 fold solves accuracy=0.98246, converged=True
+breast_cancer seed=2 holdout         0.147s  31 evaluations /  31 fold solves accuracy=0.97368, converged=True
+breast_cancer seed=3 subset_scaled   0.152s  23 evaluations /  47 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=3 subset_direct   0.226s  26 evaluations /  70 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=3 cv5             0.235s  11 evaluations /  55 fold solves accuracy=0.98246, converged=True
+breast_cancer seed=3 holdout         0.129s  32 evaluations /  32 fold solves accuracy=0.97368, converged=True
+breast_cancer seed=3 short_cv        0.129s   6 evaluations /  30 fold solves accuracy=0.99123, converged=False
+breast_cancer seed=4 subset_direct   0.203s  40 evaluations /  68 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=4 cv5             0.455s  22 evaluations / 110 fold solves accuracy=0.97368, converged=True
+breast_cancer seed=4 holdout         0.093s  16 evaluations /  16 fold solves accuracy=0.96491, converged=True
+breast_cancer seed=4 short_cv        0.133s   6 evaluations /  30 fold solves accuracy=0.97368, converged=False
+breast_cancer seed=4 subset_scaled   0.357s  56 evaluations /  88 fold solves accuracy=0.97368, converged=False
+diabetes seed=0 cv5             0.953s  23 evaluations / 115 fold solves rmse=58.41295, converged=True
+diabetes seed=0 holdout         0.184s  22 evaluations /  22 fold solves rmse=59.13669, converged=True
+diabetes seed=0 short_cv        0.361s   7 evaluations /  35 fold solves rmse=58.88662, converged=False
+diabetes seed=0 subset_scaled   0.443s  24 evaluations /  72 fold solves rmse=58.92600, converged=True
+diabetes seed=0 subset_direct   0.406s  26 evaluations /  70 fold solves rmse=58.92310, converged=False
+diabetes seed=1 holdout         0.178s  21 evaluations /  21 fold solves rmse=57.32044, converged=True
+diabetes seed=1 short_cv        0.333s   6 evaluations /  30 fold solves rmse=59.16799, converged=False
+diabetes seed=1 subset_scaled   0.259s  23 evaluations /  47 fold solves rmse=55.24158, converged=False
+diabetes seed=1 subset_direct   0.313s  25 evaluations /  49 fold solves rmse=57.88469, converged=False
+diabetes seed=1 cv5             0.726s  18 evaluations /  90 fold solves rmse=58.34462, converged=True
+diabetes seed=2 short_cv        0.418s   9 evaluations /  45 fold solves rmse=54.91315, converged=False
+diabetes seed=2 subset_scaled   0.545s  33 evaluations /  73 fold solves rmse=58.02816, converged=False
+diabetes seed=2 subset_direct   0.557s  31 evaluations /  71 fold solves rmse=58.13766, converged=True
+diabetes seed=2 cv5             1.155s  24 evaluations / 120 fold solves rmse=58.15929, converged=True
+diabetes seed=2 holdout         0.163s  18 evaluations /  18 fold solves rmse=55.10554, converged=True
+diabetes seed=3 subset_scaled   0.943s  30 evaluations /  98 fold solves rmse=55.24912, converged=False
+diabetes seed=3 subset_direct   0.297s  20 evaluations /  48 fold solves rmse=55.61292, converged=False
+diabetes seed=3 cv5             0.981s  22 evaluations / 110 fold solves rmse=55.58827, converged=True
+diabetes seed=3 holdout         0.567s  52 evaluations /  52 fold solves rmse=57.07021, converged=True
+diabetes seed=3 short_cv        0.331s   6 evaluations /  30 fold solves rmse=55.29783, converged=False
+diabetes seed=4 subset_direct   0.540s  47 evaluations /  83 fold solves rmse=55.33097, converged=False
+diabetes seed=4 cv5             0.956s  25 evaluations / 125 fold solves rmse=55.30114, converged=True
+diabetes seed=4 holdout         0.226s  26 evaluations /  26 fold solves rmse=56.24109, converged=True
+diabetes seed=4 short_cv        0.563s  12 evaluations /  60 fold solves rmse=55.33054, converged=False
+diabetes seed=4 subset_scaled   0.311s  26 evaluations /  50 fold solves rmse=55.32154, converged=False
+moons holdout: paired speedup median 3.78x (range 1.34–6.04x); test accuracy delta median +0.00000 (range -0.01250–+0.00000)
+moons short_cv: paired speedup median 2.04x (range 0.99–3.55x); test accuracy delta median +0.00000 (range -0.00625–+0.00000)
+moons subset_scaled: paired speedup median 1.61x (range 0.44–4.91x); test accuracy delta median +0.00000 (range -0.01250–+0.00625)
+moons subset_direct: paired speedup median 0.97x (range 0.35–4.32x); test accuracy delta median +0.00000 (range -0.00625–+0.00000)
+friedman1 holdout: paired speedup median 3.35x (range 1.34–7.07x); test rmse delta median +0.00134 (range -0.01096–+0.02937)
+friedman1 short_cv: paired speedup median 2.62x (range 1.88–5.54x); test rmse delta median +0.07175 (range +0.01838–+0.09010)
+friedman1 subset_scaled: paired speedup median 1.94x (range 0.85–3.33x); test rmse delta median +0.01615 (range -0.00076–+0.05281)
+friedman1 subset_direct: paired speedup median 1.89x (range 0.87–3.48x); test rmse delta median +0.01216 (range -0.00154–+0.03387)
+breast_cancer holdout: paired speedup median 4.76x (range 1.83–7.71x); test accuracy delta median -0.00877 (range -0.01754–+0.00000)
+breast_cancer short_cv: paired speedup median 1.82x (range 1.39–3.42x); test accuracy delta median +0.00000 (range +0.00000–+0.00877)
+breast_cancer subset_scaled: paired speedup median 1.41x (range 1.27–2.32x); test accuracy delta median +0.00000 (range -0.00877–+0.00000)
+breast_cancer subset_direct: paired speedup median 1.62x (range 1.04–2.27x); test accuracy delta median +0.00000 (range -0.00877–+0.00000)
+diabetes holdout: paired speedup median 4.24x (range 1.73–7.11x); test rmse delta median +0.72374 (range -3.05375–+1.48195)
+diabetes short_cv: paired speedup median 2.64x (range 1.70–2.96x); test rmse delta median +0.02940 (range -3.24614–+0.82336)
+diabetes subset_scaled: paired speedup median 2.15x (range 1.04–3.08x); test rmse delta median -0.13113 (range -3.10304–+0.51305)
+diabetes subset_direct: paired speedup median 2.32x (range 1.77–3.30x); test rmse delta median +0.02465 (range -0.45994–+0.51015)

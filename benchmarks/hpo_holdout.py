@@ -31,6 +31,14 @@ training-size ratio scales the prescreen lambda initialization and bounds, and
 its reciprocal rescales the learned lambda for the full CV stage. The direct
 protocol uses lambda without either adjustment. The timing excludes generating
 the shared splits and scoring the external test set. Peak RSS is not measured.
+
+Use `--datasets moons friedman1 breast_cancer diabetes` to select datasets and
+include a dataset ID in the CSV. Breast Cancer Wisconsin (Diagnostic) and
+Diabetes use their complete scikit-learn datasets. Their features are
+standardized once from the outer development features before making the
+inner splits. The inner protocols share this preprocessing, and the outer
+test data remains independent. Synthetic datasets use their original feature
+scales.
 """
 
 from __future__ import annotations
@@ -46,18 +54,26 @@ import numpy as np
 import scipy
 import sklearn
 import smo_solver
-from sklearn.datasets import make_friedman1, make_moons
+from sklearn.datasets import load_breast_cancer, load_diabetes, make_friedman1, make_moons
 from sklearn.metrics import accuracy_score, root_mean_squared_error
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
+from sklearn.preprocessing import StandardScaler
 from threadpoolctl import threadpool_info, threadpool_limits
 
 import optimized_svm
 from optimized_svm import OptimizedSVC, OptimizedSVR
 from optimized_svm.estimators import auto_scaling
 
+DATASET_TASKS = {
+    "moons": "svc",
+    "friedman1": "svr",
+    "breast_cancer": "svc",
+    "diabetes": "svr",
+}
+
 
 def run_pair(
-    task: str,
+    dataset: str,
     n: int,
     seed: int,
     max_iter: int,
@@ -66,15 +82,25 @@ def run_pair(
     prescreen_iter: int,
     refine_iter: int,
     selected_protocol: str | None,
+    include_dataset: bool,
 ) -> list[dict]:
+    task = DATASET_TASKS[dataset]
     classification = task == "svc"
-    if classification:
+    if dataset == "moons":
         x, y = make_moons(n_samples=n, noise=0.27, random_state=seed)
-    else:
+    elif dataset == "friedman1":
         x, y = make_friedman1(n_samples=n, noise=0.5, random_state=seed)
+    elif dataset == "breast_cancer":
+        x, y = load_breast_cancer(return_X_y=True)
+    else:
+        x, y = load_diabetes(return_X_y=True, scaled=False)
     x_train, x_test, y_train, y_test = train_test_split(
         x, y, test_size=0.2, random_state=seed, stratify=y if classification else None
     )
+    if dataset in {"breast_cancer", "diabetes"}:
+        scaler = StandardScaler().fit(x_train)
+        x_train = scaler.transform(x_train)
+        x_test = scaler.transform(x_test)
     splitter = StratifiedKFold if classification else KFold
     folds = list(splitter(n_splits=5, shuffle=True, random_state=seed).split(x_train, y_train))
     protocols = ["cv5", "holdout"]
@@ -136,7 +162,7 @@ def run_pair(
         prescreen_evaluations = len(prescreen.history_) if prescreen is not None else 0
         row = {
             "task": task,
-            "samples": n,
+            "samples": len(x),
             "seed": seed,
             "protocol": protocol,
             "order": order,
@@ -155,6 +181,8 @@ def run_pair(
             "metric": "accuracy" if classification else "rmse",
             "test_score": float(metric(y_test, prediction)),
         }
+        if include_dataset:
+            row["dataset"] = dataset
         if subset_fold is not None:
             row.update(
                 subset_train=len(subset_fold[0][0]) if prescreen is not None else 0,
@@ -175,7 +203,7 @@ def run_pair(
             )
         rows.append(row)
         print(
-            f"{task} seed={seed} {protocol:13s} {seconds:7.3f}s "
+            f"{dataset if include_dataset else task} seed={seed} {protocol:13s} {seconds:7.3f}s "
             f"{row['evaluations']:3d} evaluations / {row['fold_solves']:3d} fold solves "
             f"{row['metric']}={row['test_score']:.5f}, converged={row['converged']}",
             flush=True,
@@ -195,6 +223,7 @@ def main() -> None:
         "--protocol", choices=["cv5", "holdout", "short_cv", "subset_scaled", "subset_direct"]
     )
     parser.add_argument("--task", choices=["svc", "svr", "both"], default="both")
+    parser.add_argument("--datasets", nargs="+", choices=DATASET_TASKS)
     parser.add_argument("--csv", type=Path, required=True)
     args = parser.parse_args()
     if args.samples < 50 or args.max_iter < 1 or len(set(args.seeds)) != len(args.seeds):
@@ -207,6 +236,14 @@ def main() -> None:
         )
     if args.protocol is not None and args.subset_fraction is None:
         parser.error("protocol filtering requires --subset-fraction")
+
+    if args.datasets is not None:
+        if args.task != "both":
+            parser.error(
+                "--datasets selects tasks automatically and cannot be combined with --task"
+            )
+        if len(set(args.datasets)) != len(args.datasets):
+            parser.error("use distinct dataset IDs")
 
     print(f"Platform: {platform.platform()}, Python {platform.python_version()}")
     print(
@@ -223,19 +260,27 @@ def main() -> None:
             f"refine_iter={args.refine_iter}, protocol={args.protocol or 'all'}. "
             "Timings include every refit. Peak RSS not measured."
         )
-    tasks = ["svc", "svr"] if args.task == "both" else [args.task]
+    datasets = args.datasets or [
+        dataset
+        for dataset in ("moons", "friedman1")
+        if args.task in {"both", DATASET_TASKS[dataset]}
+    ]
+    if args.datasets is not None:
+        print(f"Datasets={datasets}. --samples applies to synthetic data only.")
     rows = []
+    per_dataset = {}
     with threadpool_limits(limits=1):
         print(
             "Thread pools: "
             + ", ".join(f"{p['internal_api']}={p['num_threads']}" for p in threadpool_info()),
             flush=True,
         )
-        for task in tasks:
+        for dataset in datasets:
+            dataset_rows = []
             for i, seed in enumerate(args.seeds):
-                rows.extend(
+                dataset_rows.extend(
                     run_pair(
-                        task,
+                        dataset,
                         args.samples,
                         seed,
                         args.max_iter,
@@ -244,8 +289,11 @@ def main() -> None:
                         args.prescreen_iter,
                         args.refine_iter,
                         args.protocol,
+                        args.datasets is not None,
                     )
                 )
+            per_dataset[dataset] = dataset_rows
+            rows.extend(dataset_rows)
 
     with args.csv.open("w", newline="", encoding="utf-8") as output:
         writer = csv.DictWriter(output, fieldnames=list(rows[0]), lineterminator="\n")
@@ -255,27 +303,26 @@ def main() -> None:
     if args.protocol is not None:
         return
 
-    for task in tasks:
-        cv = {r["seed"]: r for r in rows if r["task"] == task and r["protocol"] == "cv5"}
+    for dataset, dataset_rows in per_dataset.items():
+        label = dataset if args.datasets is not None else DATASET_TASKS[dataset]
+        cv = {r["seed"]: r for r in dataset_rows if r["protocol"] == "cv5"}
         if args.subset_fraction is not None:
             for protocol in ("holdout", "short_cv", "subset_scaled", "subset_direct"):
-                other = {
-                    r["seed"]: r for r in rows if r["task"] == task and r["protocol"] == protocol
-                }
+                other = {r["seed"]: r for r in dataset_rows if r["protocol"] == protocol}
                 speedups = [cv[s]["fit_seconds"] / other[s]["fit_seconds"] for s in args.seeds]
                 deltas = [other[s]["test_score"] - cv[s]["test_score"] for s in args.seeds]
                 metric = next(iter(cv.values()))["metric"]
                 print(
-                    f"{task} {protocol}: paired speedup median {np.median(speedups):.2f}x "
+                    f"{label} {protocol}: paired speedup median {np.median(speedups):.2f}x "
                     f"(range {min(speedups):.2f}–{max(speedups):.2f}x); test {metric} delta "
                     f"median {np.median(deltas):+.5f} (range {min(deltas):+.5f}–{max(deltas):+.5f})"
                 )
             continue
-        holdout = {r["seed"]: r for r in rows if r["task"] == task and r["protocol"] == "holdout"}
+        holdout = {r["seed"]: r for r in dataset_rows if r["protocol"] == "holdout"}
         speedups = [cv[s]["fit_seconds"] / holdout[s]["fit_seconds"] for s in args.seeds]
         differences = [holdout[s]["test_score"] - cv[s]["test_score"] for s in args.seeds]
         print(
-            f"{task}: paired speedup median {np.median(speedups):.2f}x "
+            f"{label}: paired speedup median {np.median(speedups):.2f}x "
             f"(range {min(speedups):.2f}–{max(speedups):.2f}x); "
             f"holdout minus CV test {next(iter(cv.values()))['metric']} median "
             f"{np.median(differences):+.5f} (range {min(differences):+.5f}–{max(differences):+.5f})"
