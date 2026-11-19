@@ -1,0 +1,15 @@
+Exploratory seed-0 benchmark. Source: optimized-svm 2c37830 plus larger dataset options.
+CPU: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+Command: OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 RAYON_NUM_THREADS=1 PYTHONPATH=src python benchmarks/hpo_holdout.py --datasets svmguide1 --data-cache /tmp/osvm-sampling-libsvm --seeds 0 --time-limit 45 --csv benchmarks/results/hpo_large_svmguide1.csv
+Each positive time limit applies per tuning stage and is checked between evaluations. Timings include the final refit.
+Peak RSS not measured. svmguide1 uses the LIBSVM train file; official .t data excluded.
+Platform: Linux-6.1.0-44-amd64-x86_64-with-glibc2.36, Python 3.11.2
+optimized-svm 0.6.0, smo-solver 0.2.0, NumPy 2.4.6, SciPy 1.17.1, scikit-learn 1.9.1
+Samples=800, seeds=[0], max_iter=40, task=both. RAYON_NUM_THREADS=1
+Datasets=['svmguide1']. --samples applies to synthetic data only.
+Time limit per tuning stage: 45 seconds (excluding refits).
+Thread pools: openmp=1, openblas=1, openblas=1
+Source svmguide1: https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/binary/svmguide1 (SHA-256 2b9ab55b6236f62cee6b7739b52f9e7cb033771f39b9c22c1f1790d80ef14d7f)
+svmguide1 seed=0 cv5             9.580s  16 evaluations /  80 fold solves accuracy=0.95631, converged=True
+svmguide1 seed=0 holdout         1.074s  13 evaluations /  13 fold solves accuracy=0.95631, converged=True
+svmguide1: paired speedup median 8.92x (range 8.92–8.92x); holdout minus CV test accuracy median +0.00000 (range +0.00000–+0.00000)

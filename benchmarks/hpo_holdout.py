@@ -39,22 +39,38 @@ standardized once from the outer development features before making the
 inner splits. The inner protocols share this preprocessing, and the outer
 test data remains independent. Synthetic datasets use their original feature
 scales.
+
+Use `--datasets svmguide1 abalone --data-cache /tmp/osvm-sampling-libsvm`
+for the larger LIBSVM datasets. The classification protocol uses only the
+svmguide1 training file and creates its own outer split. The official test
+file is unused. The regression protocol uses the original abalone file.
+With `--time-limit` the optional budget applies separately to each tuning
+stage, is checked between objective evaluations and excludes final refits.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
+import math
 import os
 import platform
 import time
 from pathlib import Path
+from urllib.request import urlopen
 
 import numpy as np
 import scipy
 import sklearn
 import smo_solver
-from sklearn.datasets import load_breast_cancer, load_diabetes, make_friedman1, make_moons
+from sklearn.datasets import (
+    load_breast_cancer,
+    load_diabetes,
+    load_svmlight_file,
+    make_friedman1,
+    make_moons,
+)
 from sklearn.metrics import accuracy_score, root_mean_squared_error
 from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -69,7 +85,25 @@ DATASET_TASKS = {
     "friedman1": "svr",
     "breast_cancer": "svc",
     "diabetes": "svr",
+    "svmguide1": "svc",
+    "abalone": "svr",
 }
+LIBSVM_URL = "https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets"
+LIBSVM_FILES = {"svmguide1": "binary/svmguide1", "abalone": "regression/abalone"}
+
+
+def load_libsvm(dataset: str, cache: Path, *, report: bool) -> tuple[np.ndarray, np.ndarray]:
+    url = f"{LIBSVM_URL}/{LIBSVM_FILES[dataset]}"
+    cache.mkdir(parents=True, exist_ok=True)
+    path = cache / dataset
+    if not path.exists():
+        with urlopen(url, timeout=30) as response:
+            data = response.read()
+        path.write_bytes(data)
+    if report:
+        print(f"Source {dataset}: {url} (SHA-256 {hashlib.sha256(path.read_bytes()).hexdigest()})")
+    x, y = load_svmlight_file(str(path))
+    return x.toarray(), y
 
 
 def run_pair(
@@ -83,6 +117,8 @@ def run_pair(
     refine_iter: int,
     selected_protocol: str | None,
     include_dataset: bool,
+    data_cache: Path,
+    time_limit: float | None,
 ) -> list[dict]:
     task = DATASET_TASKS[dataset]
     classification = task == "svc"
@@ -92,12 +128,14 @@ def run_pair(
         x, y = make_friedman1(n_samples=n, noise=0.5, random_state=seed)
     elif dataset == "breast_cancer":
         x, y = load_breast_cancer(return_X_y=True)
-    else:
+    elif dataset == "diabetes":
         x, y = load_diabetes(return_X_y=True, scaled=False)
+    else:
+        x, y = load_libsvm(dataset, data_cache, report=order_index == 0)
     x_train, x_test, y_train, y_test = train_test_split(
         x, y, test_size=0.2, random_state=seed, stratify=y if classification else None
     )
-    if dataset in {"breast_cancer", "diabetes"}:
+    if dataset not in {"moons", "friedman1"}:
         scaler = StandardScaler().fit(x_train)
         x_train = scaler.transform(x_train)
         x_test = scaler.transform(x_test)
@@ -130,7 +168,9 @@ def run_pair(
     for order, protocol in enumerate(protocols, start=1):
         cv = folds[:1] if protocol == "holdout" else folds
         budget = max_iter if protocol in {"cv5", "holdout"} else refine_iter
-        model = estimator(cv=cv, max_iter=budget, random_state=seed, n_jobs=1)
+        model = estimator(
+            cv=cv, max_iter=budget, random_state=seed, n_jobs=1, time_limit=time_limit
+        )
         prescreen = None
         prescreen_seconds = 0.0
         start = time.perf_counter()
@@ -143,6 +183,7 @@ def run_pair(
                     max_iter=prescreen_iter,
                     random_state=seed,
                     n_jobs=1,
+                    time_limit=time_limit,
                     scaling_init=model.scaling_init,
                     lam_init=model.lam_init * ratio,
                     lam_bounds=tuple(bound * ratio for bound in model.lam_bounds),
@@ -160,6 +201,7 @@ def run_pair(
         result = model.optimize_result_
         final_evaluations = len(model.history_)
         prescreen_evaluations = len(prescreen.history_) if prescreen is not None else 0
+        prescreen_result = prescreen.optimize_result_ if prescreen is not None else None
         row = {
             "task": task,
             "samples": len(x),
@@ -173,9 +215,11 @@ def run_pair(
             "fit_seconds": seconds,
             "evaluations": final_evaluations + prescreen_evaluations,
             "fold_solves": final_evaluations * len(cv) + prescreen_evaluations,
-            "iterations": model.n_iter_,
-            "converged": bool(result.success),
-            "optimizer_message": str(result.message),
+            "iterations": model.n_iter_ if result is not None else "",
+            "converged": result is not None and bool(result.success),
+            "optimizer_message": (
+                str(result.message) if result is not None else "STOP: TIME LIMIT REACHED"
+            ),
             "lambda": model.lam_,
             "scaling": float(np.asarray(model.scaling_opt_).item()),
             "metric": "accuracy" if classification else "rmse",
@@ -183,15 +227,27 @@ def run_pair(
         }
         if include_dataset:
             row["dataset"] = dataset
+        if time_limit is not None:
+            row["time_limit_seconds"] = time_limit
         if subset_fold is not None:
             row.update(
                 subset_train=len(subset_fold[0][0]) if prescreen is not None else 0,
                 prescreen_seconds=prescreen_seconds,
                 prescreen_optimize_seconds=prescreen.time_ if prescreen is not None else 0.0,
                 prescreen_evaluations=prescreen_evaluations,
-                prescreen_iterations=prescreen.n_iter_ if prescreen is not None else 0,
+                prescreen_iterations=(
+                    prescreen.n_iter_
+                    if prescreen_result is not None
+                    else ""
+                    if prescreen is not None
+                    else 0
+                ),
                 prescreen_message=(
-                    str(prescreen.optimize_result_.message) if prescreen is not None else ""
+                    str(prescreen_result.message)
+                    if prescreen_result is not None
+                    else "STOP: TIME LIMIT REACHED"
+                    if prescreen is not None
+                    else ""
                 ),
                 prescreen_lambda=prescreen.lam_ if prescreen is not None else "",
                 final_evaluations=final_evaluations,
@@ -224,10 +280,16 @@ def main() -> None:
     )
     parser.add_argument("--task", choices=["svc", "svr", "both"], default="both")
     parser.add_argument("--datasets", nargs="+", choices=DATASET_TASKS)
+    parser.add_argument(
+        "--data-cache", type=Path, default=Path.home() / ".cache/optimized-svm/libsvm"
+    )
+    parser.add_argument("--time-limit", type=float)
     parser.add_argument("--csv", type=Path, required=True)
     args = parser.parse_args()
     if args.samples < 50 or args.max_iter < 1 or len(set(args.seeds)) != len(args.seeds):
         parser.error("use at least 50 samples, a positive iteration limit and distinct seeds")
+    if args.time_limit is not None and (not math.isfinite(args.time_limit) or args.time_limit <= 0):
+        parser.error("time limit must be a finite positive number of seconds")
     if args.subset_fraction is not None and (
         not 0 < args.subset_fraction < 1 or min(args.prescreen_iter, args.refine_iter) < 1
     ):
@@ -267,6 +329,8 @@ def main() -> None:
     ]
     if args.datasets is not None:
         print(f"Datasets={datasets}. --samples applies to synthetic data only.")
+    if args.time_limit is not None:
+        print(f"Time limit per tuning stage: {args.time_limit:g} seconds (excluding refits).")
     rows = []
     per_dataset = {}
     with threadpool_limits(limits=1):
@@ -290,6 +354,8 @@ def main() -> None:
                         args.refine_iter,
                         args.protocol,
                         args.datasets is not None,
+                        args.data_cache,
+                        args.time_limit,
                     )
                 )
             per_dataset[dataset] = dataset_rows
@@ -306,6 +372,8 @@ def main() -> None:
     for dataset, dataset_rows in per_dataset.items():
         label = dataset if args.datasets is not None else DATASET_TASKS[dataset]
         cv = {r["seed"]: r for r in dataset_rows if r["protocol"] == "cv5"}
+        if any(row["optimizer_message"] == "STOP: TIME LIMIT REACHED" for row in dataset_rows):
+            print(f"{label}: timings include budgeted fits; see stop reasons in CSV.")
         if args.subset_fraction is not None:
             for protocol in ("holdout", "short_cv", "subset_scaled", "subset_direct"):
                 other = {r["seed"]: r for r in dataset_rows if r["protocol"] == protocol}

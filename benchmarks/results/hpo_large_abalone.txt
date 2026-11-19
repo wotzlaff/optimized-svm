@@ -1,0 +1,16 @@
+Exploratory seed-0 benchmark. Source: optimized-svm 2c37830 plus larger dataset options.
+CPU: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz
+Command: OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 RAYON_NUM_THREADS=1 PYTHONPATH=src python benchmarks/hpo_holdout.py --datasets abalone --data-cache /tmp/osvm-sampling-libsvm --seeds 0 --time-limit 45 --csv benchmarks/results/hpo_large_abalone.csv
+Each positive time limit applies per tuning stage and is checked between evaluations. Timings include the final refit.
+Peak RSS not measured. svmguide1 uses the LIBSVM train file; official .t data excluded.
+Platform: Linux-6.1.0-44-amd64-x86_64-with-glibc2.36, Python 3.11.2
+optimized-svm 0.6.0, smo-solver 0.2.0, NumPy 2.4.6, SciPy 1.17.1, scikit-learn 1.9.1
+Samples=800, seeds=[0], max_iter=40, task=both. RAYON_NUM_THREADS=1
+Datasets=['abalone']. --samples applies to synthetic data only.
+Time limit per tuning stage: 45 seconds (excluding refits).
+Thread pools: openblas=1, openmp=1, openblas=1
+Source abalone: https://www.csie.ntu.edu.tw/~cjlin/libsvmtools/datasets/regression/abalone (SHA-256 b4b37cab1676dc8a782a9bbbcb620ec3b48b3f651ecfaba24ff53a55ec357523)
+abalone seed=0 cv5            50.647s   6 evaluations /  30 fold solves rmse=2.12337, converged=False
+abalone seed=0 holdout        38.372s  24 evaluations /  24 fold solves rmse=2.13960, converged=True
+abalone: timings include budgeted fits; see stop reasons in CSV.
+abalone: paired speedup median 1.32x (range 1.32–1.32x); holdout minus CV test rmse median +0.01624 (range +0.01624–+0.01624)

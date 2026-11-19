@@ -1,0 +1,3 @@
+task,samples,seed,protocol,order,outer_train,outer_test,folds,first_fold_train,fit_seconds,evaluations,fold_solves,iterations,converged,optimizer_message,lambda,scaling,metric,test_score,dataset,time_limit_seconds
+svr,4177,0,cv5,1,3341,836,5,2672,50.64671829715371,6,30,,False,STOP: TIME LIMIT REACHED,0.11189895334578537,0.2894116534652007,rmse,2.1233669607817833,abalone,45.0
+svr,4177,0,holdout,2,3341,836,1,2672,38.37183976918459,24,24,10,True,CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH,0.7303658801810263,0.3279007055761088,rmse,2.1396041282021496,abalone,45.0
